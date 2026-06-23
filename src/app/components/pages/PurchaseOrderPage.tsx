@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { ListPage } from "./ListPage";
 import { PODetailPage } from "./PODetailPage";
 import { PODocumentView } from "./PODocumentView";
-import { FileSearch } from "lucide-react";
+import { FileSearch, MessageSquare } from "lucide-react";
+import { ActivityContext } from "../../contexts";
 import { CompanySwitch } from "../CompanySwitch";
 import { DateRangeFilter } from "../DateRangeFilter";
 
@@ -46,6 +47,7 @@ interface PurchaseOrderPageProps {
 }
 
 export function PurchaseOrderPage({ highlightId, prefill, navReferrer, onBackToInbox, onBackToOverview }: PurchaseOrderPageProps) {
+  const openActivity = useContext(ActivityContext);
   const [view, setView] = useState<View>(() => (prefill ? "new" : "list"));
   const [activeId, setActiveId] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("Draft");
@@ -91,6 +93,49 @@ export function PurchaseOrderPage({ highlightId, prefill, navReferrer, onBackToI
           {String(val)}
         </span>
       ),
+    },
+    {
+      key: "completion", colId: "completion", label: "Completion",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const idStr = String(row.id);
+        const pct = idStr.includes("001") ? 100 : idStr.includes("002") ? 82 : idStr.includes("003") ? 45 : 70;
+        return (
+          <div className="flex items-center gap-2">
+             <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+               <div className="h-full" style={{ width: `${pct}%`, background: pct === 100 ? "#4ade80" : "#6b8cff" }}/>
+             </div>
+             <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{pct}%</span>
+          </div>
+        );
+      }
+    },
+    {
+      key: "id", colId: "activity", label: "Activity",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const collabRecord = {
+          type: "Purchase Order",
+          id: String(val),
+          name: String(row.vendorName || "Purchase Order"),
+          status: String(row.status || "Draft"),
+          createdBy: "Alex Johnson",
+          createdDate: String(row.date || "Jun 01, 2026")
+        };
+        return (
+          <button
+            onClick={() => openActivity(collabRecord)}
+            className="flex items-center justify-center rounded p-1.5 transition-colors hover:bg-accent relative"
+            style={{ border: "none", background: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+            title="Open Activity Workspace"
+          >
+            <MessageSquare size={14} />
+            {(String(val) === "PO-2026-003" || String(val) === "PO-2026-002") && (
+               <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(25%, -25%)" }}>
+                 {String(val) === "PO-2026-003" ? 3 : 1}
+               </span>
+            )}
+          </button>
+        );
+      }
     },
     {
       // Show PO → document/print view

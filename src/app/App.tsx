@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { StatusCard } from "./components/StatusCard";
 import { CompanySwitch } from "./components/CompanySwitch";
@@ -12,6 +12,11 @@ import { InboxPage, initialItems, InboxItem } from "./components/pages/InboxPage
 import { ApprovalsPage } from "./components/pages/ApprovalsPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
+import { ActivityWorkspace } from "./components/ActivityWorkspace";
+import { UserProfileMenu } from "./components/UserProfileMenu";
+
+import { ActivityContext, AuthContext, type ActivityRecord } from "./contexts";
+export { ActivityContext, AuthContext, type ActivityRecord };
 
 function currentMonthRange() {
   const now = new Date();
@@ -84,6 +89,14 @@ export default function App() {
   const customizeRef = useRef<HTMLDivElement>(null);
   const [inboxItems, setInboxItems] = useState<InboxItem[]>(initialItems);
   const [navReferrer, setNavReferrer] = useState<string | undefined>();
+  
+  const [aiOpen, setAiOpen] = useState(false);
+  const [activityRecord, setActivityRecord] = useState<ActivityRecord | null>(null);
+
+  const openActivity = (record: ActivityRecord | null) => {
+    if (record) setAiOpen(false); // Close AI when opening Activity
+    setActivityRecord(record);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -117,7 +130,7 @@ export default function App() {
         const parsed = JSON.parse(mode.slice("new_prefill:".length)) as Record<string, string>;
         setPoPrefill(parsed);
       } catch { /* ignore */ }
-    } else if (mode === "new") {
+    } else {
       setPoPrefill(undefined);
     }
   }
@@ -125,6 +138,10 @@ export default function App() {
 
 
   function renderContent() {
+    return inner();
+  }
+
+  function inner() {
     switch (active) {
       case "Organization":
         return <OrganizationPage />;
@@ -177,24 +194,32 @@ export default function App() {
   }
 
   const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
-  // Inbox and Approvals have their own inner layout (full page with header inside)
   const hasOwnHeader = ["Approvals"].includes(active);
 
-  return (
-    <div
-      className="flex h-screen w-full overflow-hidden"
-      style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
-    >
-      <Sidebar
-        dark={dark}
-        onToggleDark={() => setDark((d) => !d)}
-        active={active}
-        onSetActive={(l) => { setActive(l); setHighlightId(undefined); }}
-        inboxItems={inboxItems}
-        setInboxItems={setInboxItems}
-      />
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    sessionStorage.removeItem("isLoggedIn");
+    setActive("Overview");
+    setActivityRecord(null);
+    setAiOpen(false);
+  };
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+  return (
+    <AuthContext.Provider value={{ onLogout: handleLogout }}>
+      <div
+        className="flex h-screen w-full overflow-hidden"
+        style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
+      >
+        <Sidebar
+          dark={dark}
+          onToggleDark={() => setDark((d) => !d)}
+          active={active}
+          onSetActive={(l) => { setActive(l); setHighlightId(undefined); setPoPrefill(undefined); }}
+          inboxItems={inboxItems}
+          setInboxItems={setInboxItems}
+        />
+
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar — hidden for list pages and pages with their own header */}
         {!isListPage && !hasOwnHeader && (
           <header
@@ -212,29 +237,49 @@ export default function App() {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2.5">
-              <div
-                className="flex items-center justify-center rounded-full"
-                style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)", flexShrink: 0 }}
-              >
-                AJ
-              </div>
-              <div className="flex flex-col">
-                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-                <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
-              </div>
-            </div>
+            <UserProfileMenu />
           </header>
         )}
 
 
-        <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-            {renderContent()}
+        <div className="flex-1 flex flex-row min-h-0 overflow-hidden relative">
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden relative">
+            <ActivityContext.Provider value={openActivity}>
+              {renderContent()}
+            </ActivityContext.Provider>
           </div>
-          <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
+          {aiOpen && !activityRecord && (
+            <AIAssistant 
+              onNavigate={handleNavigate} 
+              hasHeaderOffset={false}
+              activePage={active} 
+              forceClose={!!activityRecord}
+              onOpenChange={(isOpen) => {
+                setAiOpen(isOpen);
+                if (isOpen) setActivityRecord(null); // Close Activity when opening AI
+              }}
+            />
+          )}
+          {activityRecord && (
+            <ActivityWorkspace
+              record={activityRecord}
+              onClose={() => setActivityRecord(null)}
+              hasHeaderOffset={false}
+            />
+          )}
+          {/* Always show the AI launch strip when both are closed */}
+          {!aiOpen && !activityRecord && (
+            <AIAssistant 
+              onNavigate={handleNavigate} 
+              hasHeaderOffset={false}
+              activePage={active} 
+              forceClose={false}
+              onOpenChange={setAiOpen}
+            />
+          )}
         </div>
       </div>
     </div>
+    </AuthContext.Provider>
   );
 }

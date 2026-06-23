@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { X, Save, Upload, FileText, Trash2, Edit3, Check, X as XIcon, Eye, AlertCircle } from "lucide-react";
+import { useState, useRef, useEffect, useContext } from "react";
+import { UserProfileMenu } from "../UserProfileMenu";
+import { Edit3, Check, X, FileText, Download, Calendar, Mail, Building, Plus, Trash2, HelpCircle, Save, Lock, Copy, Eye, Send, File, Link, Clock, MapPin, Hash, User, Phone, Globe, UploadCloud, Shield, Users, CreditCard, ExternalLink, RefreshCw, MessageSquare, X as XIcon } from "lucide-react";
 import { AIVendorScanner, type ScannedVendorData } from "../../components/AIVendorScanner";
-
+import { ActivityContext } from "../../contexts";
 const tabs = ["General", "Registration & Tax", "Billing", "Certificates", "Bank Details", "Workflow"];
 
 const statusColor: Record<string, string> = {
@@ -20,7 +21,7 @@ interface VendorData {
   gstin: string; sourceOfSupply: string; tan: string;
   accountRef: string; deliveryTerms: string; paymentTerms: string; shippingMethod: string; paymentMode: string;
   bankName: string; accountHolder: string; accountNumber: string; ifsc: string; bankBranch: string; accountType: string;
-  selectedWorkflow: string;
+  selectedWorkflow: string; createdAt?: string;
 }
 
 function makeEmpty(): VendorData {
@@ -59,6 +60,7 @@ function makeDefault(id: string): VendorData {
     accountNumber: "50200012345678", ifsc: "HDFC0001234",
     bankBranch: "Anna Nagar, Chennai", accountType: "Current",
     selectedWorkflow: "Standard Approval Flow",
+    createdAt: "Jan 10, 2026"
   };
 }
 
@@ -367,7 +369,7 @@ function CertRow({ label, cert, onChange }: { label: string; cert: CertField; on
                   style={{ fontSize: 11, fontWeight: 500, background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)", flexShrink: 0 }}
                   title="Replace document"
                 >
-                  <Upload size={11} /> Replace
+                  <Edit3 size={11} /> Replace
                 </button>
                 <button
                   onClick={() => onChange({ ...cert, file: null })}
@@ -392,7 +394,7 @@ function CertRow({ label, cert, onChange }: { label: string; cert: CertField; on
               Click to upload document
             </button>
             <p className="flex items-center gap-1" style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
-              <AlertCircle size={10} />
+              <HelpCircle size={10} />
               Supported formats: {ACCEPTED_FORMATS} · Max 10 MB
             </p>
           </div>
@@ -423,6 +425,7 @@ function CertRow({ label, cert, onChange }: { label: string; cert: CertField; on
 interface Props { vendorId: string; onClose: () => void; isNew?: boolean; prefill?: Record<string, string>; }
 
 export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: Props) {
+  const openActivity = useContext(ActivityContext);
   const [activeTab, setActiveTab] = useState("General");
   const [data, setData] = useState<VendorData>(() => {
     const base = isNew ? makeEmpty() : makeDefault(vendorId);
@@ -532,6 +535,20 @@ export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: 
                 <span className="rounded-full" style={{ width: 5, height: 5, background: statusColor[data.status], display: "inline-block" }} />
                 {data.status}
               </span>
+              {!isNew && (
+                <div className="flex flex-col gap-1 ml-4 pl-4" style={{ borderLeft: "1px solid var(--border)", height: 28, justifyContent: "center" }}>
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>COMPLETION</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>60%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 rounded-full h-1.5" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
+                      <div className="h-full rounded-full" style={{ width: "60%", background: "#fbbf24" }} />
+                    </div>
+                    <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>2/4 Sections</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -545,19 +562,28 @@ export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: 
               <Check size={13} /> Create Vendor
             </button>
           )}
-          {/* User avatar */}
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
+          {!isNew && (
+            <button
+              onClick={() => openActivity({
+                type: "Vendor",
+                id: data.vendorId || "NEW",
+                name: data.vendorName || "Vendor",
+                status: data.status,
+                createdBy: "Alex Johnson",
+                createdDate: data.createdAt || "Jan 10, 2026"
+              })}
+              className="flex items-center justify-center rounded-lg transition-colors relative"
+              style={{ width: 32, height: 32, background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--foreground)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--accent)"}
+              onMouseLeave={e => e.currentTarget.style.background = "var(--secondary)"}
+              title="Open Activity Workspace"
             >
-              AJ
-            </div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
-          </div>
+              <MessageSquare size={15} />
+              <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(30%, -30%)" }}>2</span>
+            </button>
+          )}
+          {/* User avatar */}
+          <UserProfileMenu />
         </div>
       </div>
 

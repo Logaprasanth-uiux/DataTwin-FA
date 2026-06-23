@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import {
   Sparkles,
   Search,
@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { DateRangeFilter } from "../DateRangeFilter";
 import { StatusCard } from "../StatusCard";
+import { ActivityContext } from "../../contexts";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -199,7 +200,7 @@ const INITIAL_CONTRACTS: ContractNode[] = [
 
 // Helper to format currency
 function formatINR(val: number) {
-  return "₹ " + val.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return "₹\u00A0" + val.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 interface OverviewPageProps {
@@ -222,6 +223,7 @@ export function OverviewPage({
   customizeOpen,
   setCustomizeOpen,
 }: OverviewPageProps) {
+  const openActivity = useContext(ActivityContext);
   const [currentMode, setCurrentMode] = useState<"dashboard" | "tree">(() => {
     return (sessionStorage.getItem("tree_view_current_mode") as "dashboard" | "tree") || "dashboard";
   });
@@ -604,6 +606,48 @@ export function OverviewPage({
               </button>
             </div>
             <div className="p-6 flex flex-col gap-4">
+              {/* Completion Progress Bar */}
+              {(() => {
+                const getCompletionInfo = (type: string, id: string, status?: string) => {
+                  let pct = 80;
+                  let text = "4/5 Sections";
+                  if (type === "contract") {
+                    if (id === "CT-001") { pct = 92; text = "11/12 Sections"; }
+                    else if (id === "CT-002") { pct = 75; text = "3/4 Sections"; }
+                    else { pct = 80; text = "4/5 Sections"; }
+                  } else if (type === "po") {
+                    if (id.includes("001")) { pct = 100; text = "5/5 Sections"; }
+                    else if (id.includes("002")) { pct = 82; text = "4/5 Sections"; }
+                    else if (id.includes("003")) { pct = 45; text = "2/5 Sections"; }
+                    else { pct = 70; text = "3/5 Sections"; }
+                  } else if (type === "invoice") {
+                    const statusStr = String(status || "");
+                    if (statusStr === "Paid" || statusStr === "Validated") { pct = 100; text = "5/5 Sections"; }
+                    else if (statusStr === "In Progress") { pct = 45; text = "2/5 Sections"; }
+                    else { pct = 70; text = "3/5 Sections"; }
+                  }
+                  return { pct, text };
+                };
+                const info = getCompletionInfo(
+                  selectedNodeDetails.type,
+                  selectedNodeDetails.data.id || "",
+                  selectedNodeDetails.data.status || selectedNodeDetails.data.paymentStatus
+                );
+                return (
+                  <div className="flex flex-col gap-1 pb-4 border-b" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>COMPLETION</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>{info.pct}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 rounded-full h-1.5" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
+                        <div className="h-full rounded-full transition-all duration-300" style={{ width: `${info.pct}%`, background: info.pct === 100 ? "#4ade80" : "#6b8cff" }} />
+                      </div>
+                      <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{info.text}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               {Object.entries(selectedNodeDetails.data).map(([key, val]) => {
                 if (key === "pos" || key === "invoices") return null;
                 return (
@@ -1342,7 +1386,23 @@ export function OverviewPage({
                         </div>
 
                         {/* Action buttons */}
-                        <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                        <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                          <button
+                            onClick={() => openActivity({
+                              type: "Contract",
+                              id: c.id,
+                              name: c.name,
+                              status: c.status,
+                              createdBy: "Admin",
+                              createdDate: c.startDate
+                            })}
+                            className="rounded px-2 py-1 text-xs transition-colors hover:bg-accent relative"
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
+                            title="Activity Workspace"
+                          >
+                            <Activity size={12} />
+                            <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 12, height: 12, fontSize: 8, transform: "translate(25%, -25%)" }}>1</span>
+                          </button>
                           <button
                             onClick={() => setSelectedNodeDetails({ type: "contract", data: c })}
                             className="rounded px-2.5 py-1 text-xs transition-colors hover:bg-accent"
@@ -1451,7 +1511,22 @@ export function OverviewPage({
                                   </div>
 
                                   {/* PO action buttons */}
-                                  <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                  <div style={{ width: 270, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                    <button
+                                      onClick={() => openActivity({
+                                        type: "Purchase Order",
+                                        id: p.id,
+                                        name: `PO for ${c.name}`,
+                                        status: p.status,
+                                        createdBy: "Admin",
+                                        createdDate: p.date
+                                      })}
+                                      className="rounded px-1.5 py-1 text-xs transition-colors hover:bg-accent relative"
+                                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--foreground)", fontSize: 10 }}
+                                      title="Activity Workspace"
+                                    >
+                                      <Activity size={11} />
+                                    </button>
                                     <button
                                       onClick={() => onNavigate("Purchase Order", p.id, "from_tree")}
                                       className="rounded px-2 py-1 text-xs transition-colors hover:bg-accent"
@@ -1550,7 +1625,23 @@ export function OverviewPage({
                                           </div>
 
                                           {/* Invoice action buttons */}
-                                          <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                          <div style={{ width: 270, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                            <button
+                                              onClick={() => openActivity({
+                                                type: "Invoice",
+                                                id: inv.id,
+                                                name: `Invoice for ${p.id}`,
+                                                status: inv.status,
+                                                createdBy: "Admin",
+                                                createdDate: inv.date
+                                              })}
+                                              className="rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent relative"
+                                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--foreground)", fontSize: 9 }}
+                                              title="Activity Workspace"
+                                            >
+                                              <Activity size={10} />
+                                              <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 10, height: 10, fontSize: 7, transform: "translate(25%, -25%)" }}>2</span>
+                                            </button>
                                             <button
                                               onClick={() => onNavigate("Bill", inv.id, "from_tree")}
                                               className="rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent"

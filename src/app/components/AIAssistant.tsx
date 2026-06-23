@@ -1290,10 +1290,22 @@ interface AIAssistantProps {
   onNavigate: NavFn;
   hasHeaderOffset?: boolean;
   activePage?: string;
+  forceClose?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
-export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }: AIAssistantProps) {
+export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, forceClose, onOpenChange }: AIAssistantProps) {
   const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    if (forceClose && open) {
+      setOpen(false);
+    }
+  }, [forceClose, open]);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "ai",

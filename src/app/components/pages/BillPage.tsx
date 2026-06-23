@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { ListPage } from "./ListPage";
 import { BillDetailPage } from "./BillDetailPage";
-import { FileSearch } from "lucide-react";
-import { CompanySwitch } from "../CompanySwitch";
+import { FileSearch, MessageSquare } from "lucide-react";
+import { ActivityContext } from "../../contexts";
 import { DateRangeFilter } from "../DateRangeFilter";
+import { CompanySwitch } from "../CompanySwitch";
 import { AIBillScanner, type ScannedBillData } from "../AIBillScanner";
 
 function currentMonthRange() {
@@ -46,6 +47,7 @@ interface BillPageProps {
 }
 
 export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onBackToOverview }: BillPageProps) {
+  const openActivity = useContext(ActivityContext);
   const [view, setView] = useState<View>(() => prefill ? "new" : "list");
   const [activeId, setActiveId] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("Received");
@@ -92,6 +94,49 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
           {String(val)}
         </span>
       ),
+    },
+    {
+      key: "completion", colId: "completion", label: "Completion",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const idStr = String(row.id);
+        const pct = idStr.includes("001") ? 100 : idStr.includes("002") ? 82 : idStr.includes("003") ? 45 : 70;
+        return (
+          <div className="flex items-center gap-2">
+             <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+               <div className="h-full" style={{ width: `${pct}%`, background: pct === 100 ? "#4ade80" : "#6b8cff" }}/>
+             </div>
+             <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{pct}%</span>
+          </div>
+        );
+      }
+    },
+    {
+      key: "id", colId: "activity", label: "Activity",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const collabRecord = {
+          type: "Invoice",
+          id: String(val),
+          name: String(row.vendor || "Invoice"),
+          status: String(row.status || "Received"),
+          createdBy: "Alex Johnson",
+          createdDate: String(row.date || "Jun 01, 2026")
+        };
+        return (
+          <button
+            onClick={() => openActivity(collabRecord)}
+            className="flex items-center justify-center rounded p-1.5 transition-colors hover:bg-accent relative"
+            style={{ border: "none", background: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+            title="Open Activity Workspace"
+          >
+            <MessageSquare size={14} />
+            {(String(val) === "INV-2026-002" || String(val) === "INV-2026-003") && (
+               <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(25%, -25%)" }}>
+                 {String(val) === "INV-2026-002" ? 1 : 2}
+               </span>
+            )}
+          </button>
+        );
+      }
     },
     {
       key: "id", colId: "view_bill", label: "View Bill",
@@ -156,13 +201,12 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
               className="rounded-lg px-4 py-2"
               style={{ fontSize: 13, fontWeight: 500, background: "var(--foreground)", color: "var(--background)", border: "none", cursor: "pointer" }}
             >
-              Close
+              Close Preview
             </button>
           </div>
         </div>
       )}
-
-      {/* New Bill with AI scanner — shown above list when creating */}
+      
       <ListPage
         title="Bills / Invoices"
         addLabel="New Bill"
@@ -171,6 +215,11 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
         filters={filters}
         highlightId={highlightId}
         idKey="id"
+        onRowClick={(row) => {
+          setActiveId(String(row.id));
+          setActiveStatus(String(row.status ?? "Received"));
+          setView("detail");
+        }}
         onAdd={() => { setScannerPrefill(null); setView("new"); }}
         titleSlot={<CompanySwitch />}
         filterSlot={<DateRangeFilter from={dateRange.from} to={dateRange.to} onChange={(f, t) => setDateRange({ from: f, to: t })} />}

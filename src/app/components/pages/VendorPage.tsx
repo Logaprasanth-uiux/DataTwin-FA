@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { ListPage } from "./ListPage";
 import { VendorDetailPage } from "./VendorDetailPage";
 import { CompanySwitch } from "../CompanySwitch";
+import { ActivityContext } from "../../contexts";
+import { MessageSquare } from "lucide-react";
 
 const statusColor: Record<string, string> = { Active: "#4ade80", Hold: "#fbbf24", Suspended: "#f87171", Inactive: "#888896" };
 
@@ -35,6 +37,7 @@ interface VendorPageProps {
 }
 
 export function VendorPage({ highlightId, prefill, navReferrer, onBackToInbox }: VendorPageProps) {
+  const openActivity = useContext(ActivityContext);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(() => !!prefill);
 
@@ -79,6 +82,49 @@ export function VendorPage({ highlightId, prefill, navReferrer, onBackToInbox }:
           {String(val)}
         </span>
       ),
+    },
+    {
+      key: "completion", colId: "completion", label: "Completion",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const idStr = String(row.id);
+        const pct = idStr.includes("001") ? 100 : idStr.includes("002") ? 82 : idStr.includes("003") ? 45 : 95;
+        return (
+          <div className="flex items-center gap-2">
+             <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+               <div className="h-full" style={{ width: `${pct}%`, background: pct === 100 ? "#4ade80" : "#6b8cff" }}/>
+             </div>
+             <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{pct}%</span>
+          </div>
+        );
+      }
+    },
+    {
+      key: "id", colId: "activity", label: "Activity",
+      render: (val: unknown, row: Record<string, unknown>) => {
+        const collabRecord = {
+          type: "Vendor",
+          id: String(val),
+          name: String(row.name || "Vendor"),
+          status: String(row.status || "Active"),
+          createdBy: "Alex Johnson",
+          createdDate: String(row.createdAt || "Jan 10, 2026")
+        };
+        return (
+          <button
+            onClick={() => openActivity(collabRecord)}
+            className="flex items-center justify-center rounded p-1.5 transition-colors hover:bg-accent relative"
+            style={{ border: "none", background: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+            title="Open Activity Workspace"
+          >
+            <MessageSquare size={14} />
+            {(String(val) === "VND-002" || String(val) === "VND-003") && (
+               <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(25%, -25%)" }}>
+                 {String(val) === "VND-002" ? 2 : 1}
+               </span>
+            )}
+          </button>
+        );
+      }
     },
   ];
 

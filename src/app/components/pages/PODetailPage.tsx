@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { X, FileText, Edit3, Check, X as XIcon, Lock, ExternalLink, Upload, AlertCircle } from "lucide-react";
+import { useState, useRef, useEffect, useContext } from "react";
+import { UserProfileMenu } from "../UserProfileMenu";
+import { X, FileText, Edit3, Check, X as XIcon, Lock, ExternalLink, Upload, AlertCircle, MessageSquare } from "lucide-react";
 import { AIPOScanner, type ScannedPOData } from "../../components/AIPOScanner";
-
+import { ActivityContext } from "../../contexts";
 const tabs = ["PO Header", "Organization & Vendor", "Terms", "PO Items", "Allocation", "Workflow", "Doc Control"];
 
 const statusColor: Record<string, string> = {
@@ -808,6 +809,7 @@ const KNOWN_ORGS: Record<string, { id: string; pan: string; gst: string; taxReg:
 interface Props { poId: string; onClose: () => void; isNew?: boolean; poStatus?: string; prefill?: Record<string, string>; }
 
 export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }: Props) {
+  const openActivity = useContext(ActivityContext);
   const [activeTab, setActiveTab] = useState("PO Header");
   const [data, setData] = useState<POData>(() => {
     const base = isNew ? makeEmpty() : makePO(poId, poStatus);
@@ -1009,6 +1011,20 @@ export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }
                 <span className="rounded-full" style={{ width: 5, height: 5, background: statusColor[data.status], display: "inline-block" }} />
                 {data.status}
               </span>
+              {!isNew && (
+                <div className="flex flex-col gap-1 ml-4 pl-4" style={{ borderLeft: "1px solid var(--border)", height: 28, justifyContent: "center" }}>
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>COMPLETION</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>82%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 rounded-full h-1.5" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
+                      <div className="h-full rounded-full" style={{ width: "82%", background: "#6b8cff" }} />
+                    </div>
+                    <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>3/5 Sections</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1027,11 +1043,27 @@ export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }
             </div>
           )}
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: "var(--accent)", fontSize: 10, fontWeight: 700, color: "var(--foreground)" }}>AJ</div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
+            {!isNew && (
+              <button
+                onClick={() => openActivity({
+                  type: "Purchase Order",
+                  id: data.poNumber || "NEW",
+                  name: data.orderName || "Purchase Order",
+                  status: data.status,
+                  createdBy: data.requestedBy || "Alex Johnson",
+                  createdDate: data.poDate || "Jun 01, 2026"
+                })}
+                className="flex items-center justify-center rounded-lg transition-colors relative"
+                style={{ width: 32, height: 32, background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--foreground)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--accent)"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--secondary)"}
+                title="Open Activity Workspace"
+              >
+                <MessageSquare size={15} />
+                <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(30%, -30%)" }}>3</span>
+              </button>
+            )}
+            <UserProfileMenu />
           </div>
         </div>
       </div>

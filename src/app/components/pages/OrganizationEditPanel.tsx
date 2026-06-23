@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { X, Edit3, Check, X as XIcon, Lock } from "lucide-react";
+import { useState, useRef, useEffect, useContext } from "react";
+import { UserProfileMenu } from "../UserProfileMenu";
+import { X, Edit3, Check, X as XIcon, Lock, Building, FileText, Download, Hash, Link, ExternalLink, RefreshCw, Clock, Copy, Plus, Trash2, Phone, Globe, Shield, Calendar, MessageSquare } from "lucide-react";
+import { ActivityContext } from "../../contexts";
 import { AIOrganizationScanner, type ScannedOrgData } from "../../components/AIOrganizationScanner";
 
 const tabs = ["General", "Registration & Tax", "Workflow"];
@@ -252,6 +254,7 @@ interface Props {
 }
 
 export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: Props) {
+  const openActivity = useContext(ActivityContext);
   const [activeTab, setActiveTab] = useState("General");
   const [data, setData] = useState<OrgData>(isNew ? makeEmpty() : makeFromRecord(org!));
 
@@ -285,6 +288,20 @@ export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: P
                 <span className="rounded-full" style={{ width: 5, height: 5, background: statusColor[data.status], display: "inline-block" }} />
                 {data.status}
               </span>
+              {!isNew && (
+                <div className="flex flex-col gap-1 ml-4 pl-4" style={{ borderLeft: "1px solid var(--border)", height: 28, justifyContent: "center" }}>
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>COMPLETION</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>95%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 rounded-full h-1.5" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
+                      <div className="h-full rounded-full" style={{ width: "95%", background: "#4ade80" }} />
+                    </div>
+                    <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>3/4 Sections</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -297,12 +314,27 @@ export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: P
             </button>
           )}
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center rounded-full"
-              style={{ width: 28, height: 28, background: "var(--accent)", fontSize: 10, fontWeight: 700, color: "var(--foreground)" }}>AJ</div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
+            {!isNew && (
+              <button
+                onClick={() => openActivity({
+                  type: "Organization",
+                  id: data.id || "NEW",
+                  name: data.name || "Organization",
+                  status: data.status,
+                  createdBy: "Alex Johnson",
+                  createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                })}
+                className="flex items-center justify-center rounded-lg transition-colors relative"
+                style={{ width: 32, height: 32, background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--foreground)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--accent)"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--secondary)"}
+                title="Open Activity Workspace"
+              >
+                <MessageSquare size={15} />
+                <span className="absolute top-0 right-0 flex items-center justify-center rounded-full bg-red-500 text-white" style={{ width: 14, height: 14, fontSize: 9, transform: "translate(30%, -30%)" }}>1</span>
+              </button>
+            )}
+            <UserProfileMenu />
           </div>
         </div>
       </div>
