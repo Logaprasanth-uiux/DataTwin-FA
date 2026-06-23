@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
+import { PanelContext } from "../contexts";
 import { Sparkles, X, Send, ArrowRight, CheckCircle, AlertCircle, Edit3, ChevronDown, ChevronUp, Mic, MicOff } from "lucide-react";
 
 // Inject pulse keyframe once
@@ -1293,7 +1294,13 @@ interface AIAssistantProps {
 }
 
 export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }: AIAssistantProps) {
-  const [open, setOpen] = useState(true);
+  const panelCtx = useContext(PanelContext);
+  const open = panelCtx ? panelCtx.activePanel === "ai" : true;
+  const setOpen = (val: boolean) => {
+    if (panelCtx) {
+      panelCtx.setActivePanel(val ? "ai" : null);
+    }
+  };
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "ai",

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Search, Plus, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare } from "lucide-react";
+import { useActivity } from "../../contexts";
 
 export interface Column {
   key: string;
@@ -31,6 +32,52 @@ interface ListPageProps {
 const PAGE_SIZE = 10;
 
 export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highlightId, idKey = "id", titleSlot, filterSlot }: ListPageProps) {
+  const { openActivity } = useActivity();
+
+  // Determine actual columns to render
+  let renderedColumns = [...columns];
+  const actionColIndex = columns.findIndex(
+    (c) => c.colId === "show_po" || c.colId === "view_bill" || c.label.toLowerCase().includes("action")
+  );
+
+  if (actionColIndex !== -1) {
+    const originalCol = columns[actionColIndex];
+    renderedColumns[actionColIndex] = {
+      ...originalCol,
+      label: originalCol.label.toLowerCase().includes("action") ? originalCol.label : "Actions"
+    };
+  }
+
+  // Always append a dedicated Activity column
+  renderedColumns.push({
+    key: "activity",
+    colId: "activity_col",
+    label: "Activity",
+    render: (_, row) => {
+      const recordId = String(row[idKey] ?? "");
+      const recordType = title.includes("Purchase") ? "Purchase Order" :
+                         title.includes("Bill") ? "Bill" :
+                         title.includes("Vendor") ? "Vendor" : "Organization";
+      
+      return (
+        <button
+          onClick={() => openActivity({
+            type: recordType,
+            id: recordId,
+            status: String(row.status ?? ""),
+            createdBy: "Alex Johnson",
+            createdDate: String(row.date ?? row.created ?? row.createdAt ?? "")
+          })}
+          className="flex items-center justify-center rounded p-1.5 hover:bg-accent transition-colors"
+          style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+          title="Open Activity Workspace"
+        >
+          <BotMessageSquare size={13} />
+        </button>
+      );
+    }
+  });
+
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [shown, setShown] = useState(PAGE_SIZE);
@@ -192,7 +239,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {columns.map((col) => (
+                {renderedColumns.map((col) => (
                   <th
                     key={col.colId ?? col.key}
                     style={{
@@ -215,7 +262,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length}
+                    colSpan={renderedColumns.length}
                     style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: "var(--muted-foreground)" }}
                   >
                     No records found.
@@ -233,7 +280,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = highlightId && row[idKey] === highlightId ? "rgba(107,140,255,0.08)" : "transparent")}
                   >
-                    {columns.map((col) => (
+                    {renderedColumns.map((col) => (
                       <td
                         key={col.colId ?? col.key}
                         style={{

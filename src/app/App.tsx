@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { PanelContext, ActivityRecord } from "./contexts";
+import { ActivityWorkspace } from "./components/ActivityWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { StatusCard } from "./components/StatusCard";
 import { CompanySwitch } from "./components/CompanySwitch";
@@ -68,6 +70,18 @@ const ALL_CARDS = [
 ];
 
 export default function App() {
+  const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>("ai");
+  const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
+
+  const openActivity = (record: ActivityRecord) => {
+    setActiveRecord(record);
+    setActivePanel("activity");
+  };
+
+  const closeActivity = () => {
+    setActivePanel(null);
+  };
+
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem("isLoggedIn") === "true";
   });
@@ -181,60 +195,65 @@ export default function App() {
   const hasOwnHeader = ["Approvals"].includes(active);
 
   return (
-    <div
-      className="flex h-screen w-full overflow-hidden"
-      style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
-    >
-      <Sidebar
-        dark={dark}
-        onToggleDark={() => setDark((d) => !d)}
-        active={active}
-        onSetActive={(l) => { setActive(l); setHighlightId(undefined); }}
-        inboxItems={inboxItems}
-        setInboxItems={setInboxItems}
-      />
+    <PanelContext.Provider value={{ activePanel, setActivePanel, activeRecord, openActivity, closeActivity }}>
+      <div
+        className="flex h-screen w-full overflow-hidden"
+        style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
+      >
+        <Sidebar
+          dark={dark}
+          onToggleDark={() => setDark((d) => !d)}
+          active={active}
+          onSetActive={(l) => { setActive(l); setHighlightId(undefined); }}
+          inboxItems={inboxItems}
+          setInboxItems={setInboxItems}
+        />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar — hidden for list pages and pages with their own header */}
-        {!isListPage && !hasOwnHeader && (
-          <header
-            className="flex items-center justify-between px-8"
-            style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
-          >
-            <div className="flex items-center gap-3">
-              <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-                {pageTitles[active]}
-              </h1>
-              {(active === "Overview" || active === "Inbox") && (
-                <>
-                  <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
-                  <CompanySwitch />
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-2.5">
-              <div
-                className="flex items-center justify-center rounded-full"
-                style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)", flexShrink: 0 }}
-              >
-                AJ
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Topbar — hidden for list pages and pages with their own header */}
+          {!isListPage && !hasOwnHeader && (
+            <header
+              className="flex items-center justify-between px-8"
+              style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
+            >
+              <div className="flex items-center gap-3">
+                <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
+                  {pageTitles[active]}
+                </h1>
+                {(active === "Overview" || active === "Inbox") && (
+                  <>
+                    <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
+                    <CompanySwitch />
+                  </>
+                )}
               </div>
-              <div className="flex flex-col">
-                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-                <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex items-center justify-center rounded-full"
+                  style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)", flexShrink: 0 }}
+                >
+                  AJ
+                </div>
+                <div className="flex flex-col">
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
+                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
+                </div>
               </div>
+            </header>
+          )}
+
+
+          <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+              {renderContent()}
             </div>
-          </header>
-        )}
-
-
-        <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-            {renderContent()}
+            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
+            {activePanel === "activity" && (
+              <ActivityWorkspace hasHeaderOffset={isListPage || hasOwnHeader} />
+            )}
           </div>
-          <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
         </div>
       </div>
-    </div>
+    </PanelContext.Provider>
   );
 }

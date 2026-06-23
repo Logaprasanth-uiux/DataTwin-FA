@@ -19,10 +19,12 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
-  Building
+  Building,
+  BotMessageSquare
 } from "lucide-react";
 import { DateRangeFilter } from "../DateRangeFilter";
 import { StatusCard } from "../StatusCard";
+import { useActivity } from "../../contexts";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -222,6 +224,7 @@ export function OverviewPage({
   customizeOpen,
   setCustomizeOpen,
 }: OverviewPageProps) {
+  const { openActivity } = useActivity();
   const [currentMode, setCurrentMode] = useState<"dashboard" | "tree">(() => {
     return (sessionStorage.getItem("tree_view_current_mode") as "dashboard" | "tree") || "dashboard";
   });
@@ -1342,7 +1345,21 @@ export function OverviewPage({
                         </div>
 
                         {/* Action buttons */}
-                        <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                        <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                          <button
+                            onClick={() => openActivity({
+                              type: "Contract",
+                              id: c.id,
+                              status: c.status,
+                              createdBy: "Alex Johnson",
+                              createdDate: c.startDate
+                            })}
+                            className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
+                            style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                            title="Activity"
+                          >
+                            <BotMessageSquare size={13} />
+                          </button>
                           <button
                             onClick={() => setSelectedNodeDetails({ type: "contract", data: c })}
                             className="rounded px-2.5 py-1 text-xs transition-colors hover:bg-accent"
@@ -1451,7 +1468,21 @@ export function OverviewPage({
                                   </div>
 
                                   {/* PO action buttons */}
-                                  <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                  <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                    <button
+                                      onClick={() => openActivity({
+                                        type: "Purchase Order",
+                                        id: p.id,
+                                        status: p.status,
+                                        createdBy: "Alex Johnson",
+                                        createdDate: p.date
+                                      })}
+                                      className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
+                                      style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                                      title="Activity"
+                                    >
+                                      <BotMessageSquare size={12} />
+                                    </button>
                                     <button
                                       onClick={() => onNavigate("Purchase Order", p.id, "from_tree")}
                                       className="rounded px-2 py-1 text-xs transition-colors hover:bg-accent"
@@ -1550,7 +1581,21 @@ export function OverviewPage({
                                           </div>
 
                                           {/* Invoice action buttons */}
-                                          <div style={{ width: 230, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                          <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                            <button
+                                              onClick={() => openActivity({
+                                                type: "Bill",
+                                                id: inv.id,
+                                                status: inv.status,
+                                                createdBy: "Alex Johnson",
+                                                createdDate: inv.date
+                                              })}
+                                              className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
+                                              style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                                              title="Activity"
+                                            >
+                                              <BotMessageSquare size={11} />
+                                            </button>
                                             <button
                                               onClick={() => onNavigate("Bill", inv.id, "from_tree")}
                                               className="rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent"
