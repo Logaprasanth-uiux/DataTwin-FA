@@ -63,9 +63,13 @@ export function getInitialMockData(id: string, type: string, status: string): Re
   
   const entries: CollaborationEntry[] = [];
   const systemLogs: { text: string; timestamp: Date; stage: string; actor: string }[] = [
-    { text: "Record initialized in procurement database", timestamp: new Date(now.getTime() - 4 * oneDay), stage: "Draft", actor: "System" },
-    { text: "Automatic 3-way matching ruleset initialized", timestamp: new Date(now.getTime() - 3 * oneDay), stage: "Draft", actor: "System" },
-    { text: "Compliance registry status check completed successfully", timestamp: new Date(now.getTime() - 2 * oneDay), stage: "Data Collection", actor: "System" },
+    { text: "Item Creation: Record initialized in procurement database", timestamp: new Date(now.getTime() - 4 * oneDay), stage: "Draft", actor: "System" },
+    { text: "AI Analysis: Document parsed and key fields extracted", timestamp: new Date(now.getTime() - 3.8 * oneDay), stage: "Draft", actor: "AI Agent" },
+    { text: "Dependency Identification: Multi-tier matching references identified", timestamp: new Date(now.getTime() - 3.5 * oneDay), stage: "Draft", actor: "AI Agent" },
+    { text: "Action Generation: Automated tasks and approval routing generated", timestamp: new Date(now.getTime() - 3.4 * oneDay), stage: "Draft", actor: "AI Agent" },
+    { text: "Participant Assignment: Collaboration group defined with Loga, Priya, and Kunal", timestamp: new Date(now.getTime() - 3 * oneDay), stage: "Draft", actor: "System" },
+    { text: "Data Collection: Compliance registry status check completed successfully", timestamp: new Date(now.getTime() - 2 * oneDay), stage: "Data Collection", actor: "System" },
+    { text: "Verification: Document checklist matching verified by automated compliance check", timestamp: new Date(now.getTime() - 1.5 * oneDay), stage: "Review", actor: "System" },
   ];
 
   if (type === "Purchase Order") {
@@ -85,7 +89,7 @@ export function getInitialMockData(id: string, type: string, status: string): Re
         id: "tsk-1",
         actionId: "TSK-0001",
         type: "task",
-        author: "Alex Johnson",
+        author: "AI Agent",
         owner: "Priya",
         timestamp: new Date(now.getTime() - oneDay),
         content: "Upload legal commercial specs and vendor schedule verification sheet.",
@@ -99,7 +103,7 @@ export function getInitialMockData(id: string, type: string, status: string): Re
         id: "inf-1",
         actionId: "INF-0001",
         type: "info_request",
-        author: "Loga",
+        author: "AI Agent",
         owner: "Priya",
         timestamp: new Date(now.getTime() - 12 * 60 * 60 * 1000),
         content: "Verify PAN and GST details match registration record for Acme Corp.",
@@ -113,7 +117,7 @@ export function getInitialMockData(id: string, type: string, status: string): Re
         id: "apr-1",
         actionId: "APR-0001",
         type: "approval_request",
-        author: "Loga",
+        author: "AI Agent",
         owner: "Kunal",
         timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000),
         content: "Approve budget allocation of IT-02 hardware upgrades.",
@@ -127,7 +131,7 @@ export function getInitialMockData(id: string, type: string, status: string): Re
         id: "tsk-1",
         actionId: "TSK-0001",
         type: "task",
-        author: "Alex Johnson",
+        author: "AI Agent",
         owner: "Kunal",
         timestamp: new Date(now.getTime() - 2 * oneDay),
         content: "Verify bank routing numbers and IFSC code matches bank guarantee document.",
@@ -142,41 +146,99 @@ export function getInitialMockData(id: string, type: string, status: string): Re
         id: "inf-1",
         actionId: "INF-0001",
         type: "info_request",
-        author: "Loga",
+        author: "AI Agent",
         owner: "Priya",
         timestamp: new Date(now.getTime() - oneDay),
         content: "Verify MSME registration certificate classification validity.",
         priority: "high",
         status: "waiting"
+      },
+      {
+        id: "apr-1",
+        actionId: "APR-0001",
+        type: "approval_request",
+        author: "AI Agent",
+        owner: "Loga",
+        timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+        content: "Approve vendor onboarding credential verification.",
+        priority: "critical",
+        status: "waiting"
       }
     );
-  } else if (type === "Bill") {
+  } else if (type === "Bill" || type === "Invoice") {
     entries.push(
       {
         id: "tsk-1",
         actionId: "TSK-0001",
         type: "task",
-        author: "System",
+        author: "AI Agent",
         owner: "Kunal",
         timestamp: new Date(now.getTime() - oneDay),
         content: "Perform validation review on 3-way mismatch flags (quantity variance +/- 2%).",
         priority: "high",
         status: "waiting",
         dueDate: "Jun 25, 2026"
+      },
+      {
+        id: "inf-1",
+        actionId: "INF-0001",
+        type: "info_request",
+        author: "AI Agent",
+        owner: "Priya",
+        timestamp: new Date(now.getTime() - 12 * 60 * 60 * 1000),
+        content: "Provide explanation for quantity mismatch (+2.5%) in line item #4.",
+        priority: "medium",
+        status: "waiting"
+      },
+      {
+        id: "apr-1",
+        actionId: "APR-0001",
+        type: "approval_request",
+        author: "AI Agent",
+        owner: "Loga",
+        timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+        content: "Approve payment override for 3-way mismatch flags.",
+        priority: "critical",
+        status: "waiting"
+      }
+    );
+  } else if (type === "Contract") {
+    entries.push(
+      {
+        id: "tsk-1",
+        actionId: "TSK-0001",
+        type: "task",
+        author: "AI Agent",
+        owner: "Priya",
+        timestamp: new Date(now.getTime() - oneDay),
+        content: "Review non-compete clause compliance with regional guidelines.",
+        priority: "high",
+        status: "waiting"
+      },
+      {
+        id: "apr-1",
+        actionId: "APR-0001",
+        type: "approval_request",
+        author: "AI Agent",
+        owner: "Kunal",
+        timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+        content: "Approve liability indemnity clause exception.",
+        priority: "critical",
+        status: "waiting"
       }
     );
   } else {
     entries.push(
       {
-        id: "dsc-1",
-        actionId: "DSC-0001",
-        type: "discussion",
-        author: "Alex Johnson",
-        owner: "Procurement Team",
-        timestamp: new Date(now.getTime() - 2 * oneDay),
-        content: "Onboarding new corporate branch registry details. Verifying tax structure compliance.",
+        id: "tsk-1",
+        actionId: "TSK-0001",
+        type: "task",
+        author: "AI Agent",
+        owner: "Kunal",
+        timestamp: new Date(now.getTime() - oneDay),
+        content: "Onboard corporate registry tax certificates and audit trail verification.",
         priority: "medium",
-        status: "completed"
+        status: "waiting"
       }
     );
   }

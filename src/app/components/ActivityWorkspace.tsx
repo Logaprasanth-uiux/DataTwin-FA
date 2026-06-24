@@ -66,23 +66,134 @@ const getRecordParticipants = (type: string): Participant[] => {
   }
 };
 
-interface TimelineItem {
-  id: string;
-  timestamp: Date;
-  isSystem: boolean;
-  systemText?: string;
-  systemActor?: string;
-  systemStage?: string;
-  collabEntry?: CollaborationEntry;
-}
+const getInitials = (name: string): string => {
+  if (name.includes("Loga")) return "LO";
+  if (name.includes("Kumar") || name.includes("Kunal")) return "KU";
+  if (name.includes("Priya")) return "PR";
+  if (name.includes("System")) return "SY";
+  if (name.includes("AI Agent") || name === "AI") return "AI";
+  if (name.includes("Alex Johnson")) return "AJ";
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+const getAvatarColor = (name: string) => {
+  if (name.includes("Loga")) {
+    return { bg: "rgba(74,222,128,0.12)", text: "#16a34a" };
+  }
+  if (name.includes("Kumar") || name.includes("Kunal")) {
+    return { bg: "rgba(251,191,36,0.12)", text: "#d97706" };
+  }
+  if (name.includes("Priya")) {
+    return { bg: "rgba(192,132,252,0.12)", text: "#9333ea" };
+  }
+  if (name.includes("System")) {
+    return { bg: "rgba(107,140,255,0.12)", text: "#2563eb" };
+  }
+  if (name.includes("AI Agent") || name === "AI") {
+    return { bg: "rgba(139,92,246,0.12)", text: "#7c3aed" };
+  }
+  if (name.includes("Alex Johnson")) {
+    return { bg: "rgba(239,68,68,0.12)", text: "#ef4444" };
+  }
+  return { bg: "var(--secondary)", text: "var(--foreground)" };
+};
+
+const formatTimestamp = (date: Date): string => {
+  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 1 && now.getDate() === date.getDate()) {
+    return `Today at ${timeStr}`;
+  } else if (diffDays <= 2) {
+    return `Yesterday at ${timeStr}`;
+  } else {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ` at ${timeStr}`;
+  }
+};
+
+const ActionTypeBadge = ({ type }: { type: string }) => {
+  let label = "";
+  let color = "var(--muted-foreground)";
+  let bg = "var(--secondary)";
+  
+  if (type === "task") {
+    label = "Task Assigned";
+    color = "#f97316";
+    bg = "rgba(249,115,22,0.08)";
+  } else if (type === "info_request") {
+    label = "Information Request";
+    color = "#3b82f6";
+    bg = "rgba(59,130,246,0.08)";
+  } else if (type === "approval_request") {
+    label = "Approval Request";
+    color = "#8b5cf6";
+    bg = "rgba(139,92,246,0.08)";
+  } else if (type === "discussion") {
+    label = "Discussion";
+    color = "var(--muted-foreground)";
+    bg = "var(--secondary)";
+  } else if (type === "system_event") {
+    label = "System Event";
+    color = "#2563eb";
+    bg = "rgba(37,99,235,0.08)";
+  } else if (type === "ai_analysis") {
+    label = "AI Analysis";
+    color = "#7c3aed";
+    bg = "rgba(124,58,237,0.08)";
+  } else if (type === "workflow_update") {
+    label = "Workflow Update";
+    color = "#0891b2";
+    bg = "rgba(8,145,178,0.08)";
+  }
+
+  if (!label) return null;
+
+  return (
+    <span
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[8.5px] font-bold border"
+      style={{ borderColor: color, color, background: bg }}
+    >
+      {label}
+    </span>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  let color = "var(--muted-foreground)";
+  let bg = "var(--secondary)";
+  
+  if (status === "open" || status === "waiting") {
+    color = "#eab308";
+    bg = "rgba(234,179,8,0.08)";
+  } else if (status === "completed" || status === "approved") {
+    color = "#10b981";
+    bg = "rgba(16,185,129,0.08)";
+  } else if (status === "rejected") {
+    color = "#ef4444";
+    bg = "rgba(239,68,68,0.08)";
+  }
+
+  return (
+    <span
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+      style={{ background: bg, color }}
+    >
+      {status.toUpperCase()}
+    </span>
+  );
+};
 
 export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspaceProps) {
-  const { activeRecord, closeActivity, refreshNotifications } = useActivity();
+  const { activeRecord, closeActivity, refreshNotifications, navigateToRecord } = useActivity();
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [hoveredParticipant, setHoveredParticipant] = useState<Participant | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   
-  const stepperRef = useRef<HTMLDivElement>(null);
   const timelineEndRef = useRef<HTMLDivElement>(null);
 
   // Chat input states
@@ -193,8 +304,27 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
 
   const participants = getRecordParticipants(type);
 
+  // Workflow stepper window state
+  const [stepperWindowStart, setStepperWindowStart] = useState(0);
+  const allWorkflowSteps = [
+    { label: "Draft", stepId: 1 },
+    { label: "Data Collection", stepId: 2 },
+    { label: "Review", stepId: 3 },
+    { label: "Verification", stepId: 4 },
+    { label: "Approval", stepId: 5 },
+    { label: "Issued", stepId: 6 },
+    { label: "Completed", stepId: 7 }
+  ];
+  const VISIBLE_STEPS = 5;
+  const visibleSteps = allWorkflowSteps.slice(stepperWindowStart, stepperWindowStart + VISIBLE_STEPS);
+  const canScrollLeft = stepperWindowStart > 0;
+  const canScrollRight = stepperWindowStart + VISIBLE_STEPS < allWorkflowSteps.length;
+
+  const scrollStepperLeft = () => setStepperWindowStart(prev => Math.max(0, prev - 1));
+  const scrollStepperRight = () => setStepperWindowStart(prev => Math.min(allWorkflowSteps.length - VISIBLE_STEPS, prev + 1));
+
   // Derived Stepper values
-  const openTasks = collabData.entries.filter(e => e.type === "task" && e.status === "open");
+  const openTasks = collabData.entries.filter(e => e.type === "task" && (e.status === "open" || e.status === "waiting"));
   const pendingApprovals = collabData.entries.filter(e => e.type === "approval_request" && e.status === "waiting");
   const openInfoRequests = collabData.entries.filter(e => e.type === "info_request" && e.status === "waiting");
 
@@ -202,8 +332,9 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
     if (status === "Draft") return 1;
     if (openTasks.length > 0) return 2;
     if (openInfoRequests.length > 0) return 3;
-    if (pendingApprovals.length > 0) return 4;
-    return 5;
+    if (openInfoRequests.length === 0 && openTasks.length === 0 && pendingApprovals.length > 0) return 5;
+    if (pendingApprovals.length === 0 && openTasks.length === 0 && openInfoRequests.length === 0) return 7;
+    return 4;
   };
 
   const derivedStage = getDerivedWorkflowStage();
@@ -213,30 +344,43 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
   const completedChecklistCount = 2 + collabData.entries.filter(e => e.type !== "discussion" && (e.status === "completed" || e.status === "approved")).length;
   const completionPercentage = Math.round((completedChecklistCount / totalChecklistCount) * 100);
 
-  // Unified chronological feed assembly
-  const timelineItems: TimelineItem[] = [];
+  // Side-by-side checklists
+  const baseCompleted = ["Vendor Details", "Financial Details", "Commercial Details"];
+  const basePending: string[] = [];
 
-  collabData.systemLogs.forEach((log, index) => {
-    timelineItems.push({
-      id: `sys-${index}-${log.timestamp.getTime()}`,
-      timestamp: log.timestamp,
-      isSystem: true,
-      systemText: log.text,
-      systemActor: log.actor,
-      systemStage: log.stage
-    });
+  const completedItems = [...baseCompleted];
+  collabData.entries.forEach(e => {
+    if (e.type !== "discussion" && (e.status === "completed" || e.status === "approved")) {
+      completedItems.push(e.content.split(" (")[0]);
+    }
   });
 
-  collabData.entries.forEach(entry => {
-    timelineItems.push({
-      id: `collab-${entry.id}`,
-      timestamp: entry.timestamp,
-      isSystem: false,
-      collabEntry: entry
-    });
+  const pendingItems = [...basePending];
+  collabData.entries.forEach(e => {
+    if (e.type !== "discussion" && e.status !== "completed" && e.status !== "approved" && e.status !== "rejected" && e.status !== "cancelled") {
+      pendingItems.push(e.content.split(" (")[0]);
+    }
   });
 
-  timelineItems.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  if (completedItems.length <= 3 && pendingItems.length === 0) {
+    pendingItems.push("Delivery Details", "Supporting Documents");
+  }
+
+  // Blockers alert list
+  const criticalPending = collabData.entries.find(e => e.priority === "critical" && !["completed", "approved"].includes(e.status));
+  const blockersList = criticalPending 
+    ? [criticalPending.content.split(" (")[0]] 
+    : (pendingApprovals.length > 0 ? ["Missing approval sign-off"] : []);
+
+  // Unified Timeline: merge collaboration entries + system logs into one chronological feed
+  type UnifiedTimelineItem = 
+    | { kind: "collab"; entry: typeof collabData.entries[0]; _ts: number }
+    | { kind: "audit"; log: typeof collabData.systemLogs[0]; _ts: number };
+
+  const unifiedTimeline: UnifiedTimelineItem[] = [
+    ...collabData.entries.map(entry => ({ kind: "collab" as const, entry, _ts: entry.timestamp.getTime() })),
+    ...collabData.systemLogs.map(log => ({ kind: "audit" as const, log, _ts: log.timestamp.getTime() }))
+  ].sort((a, b) => a._ts - b._ts);
 
   // Input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,14 +408,17 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
     }
   };
 
-  const handleActionSubmit = (type: "task" | "info" | "approval") => {
+  const handleActionSubmit = (actionType: "task" | "info" | "approval") => {
     if (!selectedMentionUser) return;
 
     const timestamp = new Date();
     const uniqueId = `action-${Date.now()}`;
     let newEntry: CollaborationEntry;
 
-    if (type === "task") {
+    // Preserve user's message as a separate discussion entry if there was text before the @mention
+    const userMessage = inputText.replace(/@\S*\s?/g, "").trim();
+
+    if (actionType === "task") {
       const typeCount = collabData.entries.filter(e => e.type === "task").length + 1;
       newEntry = {
         id: uniqueId,
@@ -287,7 +434,7 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
       };
       setTaskTitle("");
       setTaskDueDate("");
-    } else if (type === "info") {
+    } else if (actionType === "info") {
       const typeCount = collabData.entries.filter(e => e.type === "info_request").length + 1;
       newEntry = {
         id: uniqueId,
@@ -318,19 +465,37 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
     }
 
     updateCollabData(prev => {
-      // Add timeline card
-      const updatedEntries = [...prev.entries, newEntry];
+      const newEntries = [...prev.entries];
+
+      // If user typed a message before triggering @mention, preserve it as a discussion
+      if (userMessage) {
+        const dscCount = prev.entries.filter(e => e.type === "discussion").length + 1;
+        newEntries.push({
+          id: `dsc-msg-${Date.now()}`,
+          actionId: `DSC-${String(dscCount).padStart(4, "0")}`,
+          type: "discussion",
+          author: "Alex Johnson",
+          owner: "Procurement Team",
+          timestamp: new Date(timestamp.getTime() - 500),
+          content: userMessage,
+          priority: "low",
+          status: "completed"
+        });
+      }
+
+      newEntries.push(newEntry);
 
       // Add system transition log
+      const stageNames = ["Draft", "Data Collection", "Review", "Verification", "Approval", "Issued", "Completed"];
       const newSysLog = {
         text: `Alex Johnson initialized collaboration ${newEntry.actionId} assigned to ${newEntry.owner}`,
         timestamp: new Date(),
-        stage: derivedStage === 1 ? "Draft" : derivedStage === 2 ? "Data Collection" : derivedStage === 3 ? "Review" : derivedStage === 4 ? "Approval" : "Issued",
+        stage: stageNames[(derivedStage - 1)] || "Review",
         actor: "System"
       };
 
       return {
-        entries: updatedEntries,
+        entries: newEntries,
         systemLogs: [...prev.systemLogs, newSysLog]
       };
     });
@@ -418,7 +583,7 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
 
       // System workflow progression transition message
       const transitionStage = getDerivedWorkflowStage();
-      const stageName = ["Draft", "Data Collection", "Review", "Approval", "Issued"][transitionStage - 1];
+      const stageName = ["Draft", "Data Collection", "Review", "Verification", "Approval", "Issued", "Completed"][transitionStage - 1];
 
       const newSysLog = {
         text: `System: Action ${resolvedActionId} resolved by Alex Johnson. Workflow derived status updated to ${stageName}.`,
@@ -446,17 +611,7 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
     setHoveredParticipant(p);
   };
 
-  const scrollLeft = () => {
-    if (stepperRef.current) {
-      stepperRef.current.scrollBy({ left: -80, behavior: "smooth" });
-    }
-  };
-
-  const scrollRight = () => {
-    if (stepperRef.current) {
-      stepperRef.current.scrollBy({ left: 80, behavior: "smooth" });
-    }
-  };
+  // Legacy scroll stubs removed — stepper uses windowed navigation now
 
   return (
     <div
@@ -614,58 +769,91 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
           <div style={{ borderBottom: "1px solid var(--border)", margin: "14px -16px 0 -16px" }} />
         </div>
 
-        {/* 1. Workflow Tracker (Derived Read-Only) */}
+        {/* 1. Workflow Tracker (Derived Read-Only) — 7 steps, windowed 5 at a time */}
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--foreground)" }}>
               Workflow Tracker
             </span>
             <div className="flex items-center gap-1">
-              <button onClick={scrollLeft} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 2 }}>
+              <button
+                onClick={scrollStepperLeft}
+                disabled={!canScrollLeft}
+                style={{ background: "none", border: "none", cursor: canScrollLeft ? "pointer" : "default", color: canScrollLeft ? "var(--foreground)" : "var(--border)", padding: 2 }}
+              >
                 <ChevronLeft size={14} />
               </button>
-              <button onClick={scrollRight} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 2 }}>
+              <button
+                onClick={scrollStepperRight}
+                disabled={!canScrollRight}
+                style={{ background: "none", border: "none", cursor: canScrollRight ? "pointer" : "default", color: canScrollRight ? "var(--foreground)" : "var(--border)", padding: 2 }}
+              >
                 <ChevronRight size={14} />
               </button>
             </div>
           </div>
 
-          <div className="relative w-full overflow-hidden">
-            <div ref={stepperRef} className="flex items-center overflow-x-auto scrollbar-none py-1">
-              {[
-                { label: "Draft", stepId: 1 },
-                { label: "Data Collection", stepId: 2 },
-                { label: "Review", stepId: 3 },
-                { label: "Approval", stepId: 4 },
-                { label: "Issued", stepId: 5 }
-              ].map((step, idx, arr) => {
+          <div className="relative w-full overflow-hidden px-1">
+            {/* Background line connecting visible steps */}
+            <div
+              className="absolute left-4 right-4 h-0.5"
+              style={{ top: 8, background: "var(--border)", zIndex: 0 }}
+            />
+            {/* Active/Completed filled line — computed relative to visible window */}
+            {(() => {
+              const firstVisible = visibleSteps[0].stepId;
+              const lastVisible = visibleSteps[visibleSteps.length - 1].stepId;
+              const clampedStage = Math.max(firstVisible, Math.min(derivedStage, lastVisible));
+              const filledFraction = (clampedStage - firstVisible) / (lastVisible - firstVisible);
+              return (
+                <div
+                  className="absolute left-4 h-0.5 transition-all duration-300"
+                  style={{
+                    top: 8,
+                    width: `${Math.max(0, filledFraction) * 100}%`,
+                    background: "#4ade80",
+                    zIndex: 0,
+                    maxWidth: "calc(100% - 32px)"
+                  }}
+                />
+              );
+            })()}
+
+            <div className="relative flex justify-between items-start w-full z-10">
+              {visibleSteps.map((step) => {
                 const isDone = derivedStage > step.stepId;
                 const isActive = derivedStage === step.stepId;
-                const nextIsDone = idx < arr.length - 1 && derivedStage > arr[idx + 1].stepId;
 
                 return (
-                  <div key={step.stepId} className="flex items-center flex-shrink-0">
-                    <div className="flex flex-col items-center gap-1" style={{ width: 60 }}>
-                      {isDone ? (
-                        <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#4ade80", color: "#fff" }}>
-                          <CheckCircle2 size={11} strokeWidth={3} />
-                        </div>
-                      ) : isActive ? (
-                        <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#6b8cff", color: "#fff" }}>
-                          <Circle size={10} fill="#fff" />
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "var(--card)", border: "1.5px solid var(--border)", color: "var(--muted-foreground)" }}>
-                          <span style={{ fontSize: 8, fontWeight: 750 }}>{step.stepId}</span>
-                        </div>
-                      )}
-                      <span style={{ fontSize: 8.5, color: isDone || isActive ? "var(--foreground)" : "var(--muted-foreground)", fontWeight: isDone || isActive ? 600 : 500, whiteSpace: "nowrap", textAlign: "center" }}>
-                        {step.label}
-                      </span>
-                    </div>
-                    {idx < arr.length - 1 && (
-                      <div className="h-0.5" style={{ width: 18, background: isDone && nextIsDone ? "#4ade80" : "var(--border)", flexShrink: 0 }} />
+                  <div key={step.stepId} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                    {isDone ? (
+                      <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#4ade80", color: "#fff", flexShrink: 0 }}>
+                        <CheckCircle2 size={11} strokeWidth={3} />
+                      </div>
+                    ) : isActive ? (
+                      <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#6b8cff", color: "#fff", flexShrink: 0 }}>
+                        <Circle size={10} fill="#fff" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "var(--card)", border: "1.5px solid var(--border)", color: "var(--muted-foreground)", flexShrink: 0 }}>
+                        <span style={{ fontSize: 8, fontWeight: 750 }}>{step.stepId}</span>
+                      </div>
                     )}
+                    <span
+                      style={{
+                        fontSize: 7.5,
+                        color: isDone || isActive ? "var(--foreground)" : "var(--muted-foreground)",
+                        fontWeight: isDone || isActive ? 700 : 500,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        width: "100%",
+                        textAlign: "center"
+                      }}
+                      title={step.label}
+                    >
+                      {step.label}
+                    </span>
                   </div>
                 );
               })}
@@ -681,194 +869,266 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--foreground)" }}>
               Completion Summary
             </span>
-            <span style={{ fontSize: 16, fontWeight: 800, color: "#6b8cff" }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>
               {completionPercentage}%
             </span>
           </div>
 
+          {/* Progress Bar */}
           <div className="w-full h-1.5 rounded-full" style={{ background: "var(--secondary)", overflow: "hidden" }}>
-            <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${completionPercentage}%`, background: "#6b8cff" }} />
+            <div
+              className="h-full rounded-full transition-all duration-500 ease-out"
+              style={{
+                width: `${completionPercentage}%`,
+                background: "#6b8cff",
+              }}
+            />
           </div>
 
-          <span style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
-            {completedChecklistCount} of {totalChecklistCount} business checkpoints completed.
-          </span>
+          {/* Side-by-side lists */}
+          <div className="grid grid-cols-2 gap-3 mt-1.5">
+            {/* Completed */}
+            <div className="flex flex-col gap-2">
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>
+                COMPLETED ({completedItems.length})
+              </span>
+              <div className="flex flex-col gap-1.5">
+                {completedItems.map(item => (
+                  <div key={item} className="flex items-center gap-1.5 text-left" style={{ fontSize: 11 }}>
+                    <CheckCircle2 size={12} style={{ color: "#4ade80", flexShrink: 0 }} />
+                    <span style={{ color: "var(--foreground)" }} className="truncate" title={item}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pending */}
+            <div className="flex flex-col gap-2">
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.04em" }}>
+                PENDING ({pendingItems.length})
+              </span>
+              <div className="flex flex-col gap-1.5">
+                {pendingItems.map(item => (
+                  <div key={item} className="flex items-center gap-1.5 text-left" style={{ fontSize: 11 }}>
+                    <Circle size={12} style={{ color: "var(--border)", flexShrink: 0 }} />
+                    <span style={{ color: "var(--muted-foreground)" }} className="truncate" title={item}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Blockers Alert Box */}
+          {blockersList.length > 0 && (
+            <div
+              className="rounded-lg p-3 flex flex-col gap-1 mt-2 text-left"
+              style={{
+                background: "rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.12)",
+              }}
+            >
+              <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "#ef4444", fontSize: 9.5, letterSpacing: "0.04em" }}>
+                <AlertCircle size={12} />
+                BLOCKERS
+              </div>
+              {blockersList.map((blocker, bIdx) => (
+                <div key={bIdx} style={{ fontSize: 11, color: "#f43f5e", fontWeight: 500, paddingLeft: 18 }}>
+                  {blocker}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ borderBottom: "1px solid var(--border)", margin: "8px -16px 0 -16px" }} />
         </div>
 
-        {/* 3. Unified Activity & Collaboration Feed */}
+        {/* 3. Unified Activity Timeline — collaboration + audit merged chronologically */}
         <div className="flex flex-col gap-3.5">
           <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--foreground)" }}>
-            Audit & Collaboration History
+            Activity Timeline
           </span>
 
-          <div className="flex flex-col gap-4 relative pl-1.5">
-            {/* Timeline vertical connector axis line */}
-            <div className="absolute left-[13px] top-2 bottom-2 w-0.5" style={{ background: "var(--border)" }} />
+          <div className="flex flex-col relative" style={{ paddingLeft: 12 }}>
+            {unifiedTimeline.length === 0 ? (
+              <div className="pl-6 text-[11px] text-muted-foreground py-2 text-left">
+                No activity yet.
+              </div>
+            ) : (
+              unifiedTimeline.map((item, idx) => {
+                const isLast = idx === unifiedTimeline.length - 1;
 
-            {timelineItems.map((item) => {
-              if (item.isSystem) {
-                // Render System Audit Messages
-                return (
-                  <div key={item.id} className="flex items-start gap-2.5 relative">
-                    <div className="w-2.5 h-2.5 rounded-full bg-border border-2 border-card mt-1.5 z-10 flex-shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span style={{ fontSize: 11, color: "var(--muted-foreground)", lineHeight: 1.4 }}>
-                        {item.systemText}
-                      </span>
-                      <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginTop: 1 }}>
-                        {item.systemActor} · {item.timestamp.toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
+                if (item.kind === "audit") {
+                  const log = item.log;
+                  const initials = getInitials(log.actor);
+                  const avatarColor = getAvatarColor(log.actor);
+                  // Determine badge type
+                  let badgeType = "system_event";
+                  if (log.actor === "AI Agent" || log.text.startsWith("AI Analysis")) badgeType = "ai_analysis";
+                  if (log.text.includes("Workflow") || log.text.includes("moved from")) badgeType = "workflow_update";
 
-              // Render Structured Collaboration cards (TSK, INF, APR, DSC)
-              const entry = item.collabEntry!;
-              const isResolved = ["completed", "approved", "rejected"].includes(entry.status);
-
-              const badgeColor = {
-                completed: "#4ade80",
-                approved: "#4ade80",
-                rejected: "#ef4444",
-                waiting: "#eab308",
-                open: "#6b8cff"
-              }[entry.status] || "var(--muted-foreground)";
-
-              const priorityColor = {
-                critical: "#ef4444",
-                high: "#f97316",
-                medium: "#eab308",
-                low: "var(--muted-foreground)"
-              }[entry.priority];
-
-              return (
-                <div key={item.id} className="flex items-start gap-2.5 relative">
-                  {/* Visual Node */}
-                  <div
-                    className="flex items-center justify-center rounded-full flex-shrink-0 z-10"
-                    style={{
-                      width: 22,
-                      height: 22,
-                      background: "var(--secondary)",
-                      border: `1.5px solid ${priorityColor}`,
-                      fontSize: 8.5,
-                      fontWeight: 700,
-                      color: "var(--foreground)"
-                    }}
-                  >
-                    {entry.actionId.slice(0, 3)}
-                  </div>
-
-                  {/* Structured Card */}
-                  <div
-                    className="flex-1 rounded-xl p-3 flex flex-col gap-2 relative bg-card border border-border transition-all"
-                    style={{
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.01)"
-                    }}
-                  >
-                    {/* Header bar */}
-                    <div className="flex justify-between items-center flex-wrap gap-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[9px] font-bold text-foreground">{entry.actionId}</span>
-                        <span className="text-[8px] font-semibold rounded px-1" style={{ border: `1px solid ${badgeColor}`, color: badgeColor }}>
-                          {entry.status.toUpperCase()}
-                        </span>
+                  return (
+                    <div key={`audit-${idx}`} className="flex items-start gap-3 relative text-left" style={{ paddingBottom: isLast ? 0 : 16 }}>
+                      {/* Connector line below avatar — only if not last */}
+                      {!isLast && (
+                        <div className="absolute w-0.5" style={{ left: 11, top: 24, bottom: 0, background: "var(--border)" }} />
+                      )}
+                      {/* Avatar */}
+                      <div
+                        className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                        style={{ width: 24, height: 24, background: avatarColor.bg, border: "1px solid var(--border)", fontSize: 9, color: avatarColor.text }}
+                        title={log.actor}
+                      >
+                        {initials}
                       </div>
-                      <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
-                        {entry.timestamp.toLocaleDateString()}
-                      </span>
+                      {/* Content */}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span style={{ fontSize: 11.5, color: "var(--foreground)", lineHeight: 1.4 }}>
+                          <strong style={{ fontWeight: 700 }}>{log.actor}</strong> {log.text}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5" style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
+                          <span style={{ fontFamily: "var(--font-mono)" }}>{formatTimestamp(log.timestamp)}</span>
+                          <span>·</span>
+                          <ActionTypeBadge type={badgeType} />
+                          {log.stage && (
+                            <>
+                              <span>·</span>
+                              <span>Stage: {log.stage}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  );
+                }
 
-                    {/* Description Body */}
-                    <p className="m-0 text-foreground" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
-                      {entry.content}
-                    </p>
+                // Collaboration entry
+                const entry = item.entry;
+                const initials = getInitials(entry.author);
+                const isResolved = ["completed", "approved", "rejected"].includes(entry.status);
+                const avatarColor = getAvatarColor(entry.author);
 
-                    {/* Task Info */}
-                    {entry.type === "task" && entry.dueDate && (
-                      <span style={{ fontSize: 10, color: "var(--muted-foreground)", display: "flex", items: "center", gap: 3 }}>
-                        <Clock size={10} /> Due Date: <span className="font-mono text-foreground font-semibold">{entry.dueDate}</span>
-                      </span>
+                let actionText = "";
+                if (entry.type === "task") {
+                  actionText = `assigned a task to ${entry.owner}: "${entry.content}"`;
+                } else if (entry.type === "info_request") {
+                  actionText = `requested information from ${entry.owner}: "${entry.content}"`;
+                } else if (entry.type === "approval_request") {
+                  actionText = `requested approval from ${entry.owner}: "${entry.content}"`;
+                } else {
+                  actionText = `posted: "${entry.content}"`;
+                }
+
+                return (
+                  <div key={entry.id} className="flex flex-col relative text-left" style={{ paddingBottom: isLast ? 0 : 16 }}>
+                    {/* Connector line below avatar — only if not last */}
+                    {!isLast && (
+                      <div className="absolute w-0.5" style={{ left: 11, top: 24, bottom: 0, background: "var(--border)" }} />
                     )}
-
-                    {/* Action Roles */}
-                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-1.5" style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
-                      <span>Auth: <strong>{entry.author}</strong></span>
-                      <span>·</span>
-                      <span>Resp: <strong>{entry.owner}</strong></span>
-                    </div>
-
-                    {/* Threaded Audit logs in historyLog */}
-                    {entry.historyLog && entry.historyLog.length > 0 && (
-                      <div className="rounded bg-secondary p-2 flex flex-col gap-1.5 mt-1 border border-border">
-                        {entry.historyLog.map((log, lIdx) => (
-                          <div key={lIdx} className="flex flex-col gap-0.5 border-l border-border pl-1.5">
-                            <span style={{ fontSize: 10, color: "var(--foreground)" }}>
-                              <strong>{log.user}</strong> {log.action.toLowerCase()}
-                            </span>
-                            {log.note && (
-                              <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontStyle: "italic" }}>
-                                &quot;{log.note}&quot;
-                              </span>
+                    <div className="flex items-start gap-3 relative">
+                      {/* Avatar */}
+                      <div
+                        className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                        style={{ width: 24, height: 24, background: avatarColor.bg, border: "1px solid var(--border)", fontSize: 9, color: avatarColor.text }}
+                        title={entry.author}
+                      >
+                        {initials}
+                      </div>
+                      {/* Content */}
+                      <div className="flex flex-col flex-grow min-w-0">
+                        <span style={{ fontSize: 11.5, color: "var(--foreground)", lineHeight: 1.45 }}>
+                          <strong style={{ fontWeight: 700 }}>{entry.author}</strong> {actionText}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1" style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
+                          <span style={{ fontFamily: "var(--font-mono)" }}>{formatTimestamp(entry.timestamp)}</span>
+                          <span>·</span>
+                          <ActionTypeBadge type={entry.type} />
+                          <StatusBadge status={entry.status} />
+                          {entry.type === "task" && entry.dueDate && (
+                            <>
+                              <span>·</span>
+                              <span className="font-mono text-[9px]">Due: {entry.dueDate}</span>
+                            </>
+                          )}
+                        </div>
+                        {!isResolved && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            {(entry.type === "task" || entry.type === "info_request" || entry.type === "approval_request") && (
+                              <button
+                                onClick={() => navigateToRecord?.(type, id)}
+                                className="rounded-lg px-2.5 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                              >
+                                View Details
+                              </button>
+                            )}
+                            {entry.type === "task" && (
+                              <button
+                                onClick={() => setPendingResolution({ entryId: entry.id, type: "complete" })}
+                                className="rounded-lg px-2.5 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                              >
+                                Mark Complete
+                              </button>
+                            )}
+                            {entry.type === "info_request" && (
+                              <button
+                                onClick={() => setPendingResolution({ entryId: entry.id, type: "info" })}
+                                className="rounded-lg px-2.5 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                              >
+                                Provide Info
+                              </button>
+                            )}
+                            {entry.type === "approval_request" && (
+                              <>
+                                <button
+                                  onClick={() => setPendingResolution({ entryId: entry.id, type: "approve" })}
+                                  className="rounded-lg px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-[9.5px] font-semibold text-emerald-600 cursor-pointer transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => setPendingResolution({ entryId: entry.id, type: "reject" })}
+                                  className="rounded-lg px-2.5 py-1 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-[9.5px] font-semibold text-red-500 cursor-pointer transition-colors"
+                                >
+                                  Reject
+                                </button>
+                              </>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Operational Action Controls */}
-                    {!isResolved && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {entry.type === "task" && (
-                          <button
-                            onClick={() => setPendingResolution({ entryId: entry.id, type: "complete" })}
-                            className="rounded px-2.5 py-1 bg-secondary hover:bg-accent border border-border transition-colors cursor-pointer"
-                            style={{ fontSize: 10, fontWeight: 650, color: "var(--foreground)" }}
-                          >
-                            Mark Complete
-                          </button>
-                        )}
-                        {entry.type === "info_request" && (
-                          <button
-                            onClick={() => setPendingResolution({ entryId: entry.id, type: "info" })}
-                            className="rounded px-2.5 py-1 bg-secondary hover:bg-accent border border-border transition-colors cursor-pointer"
-                            style={{ fontSize: 10, fontWeight: 650, color: "var(--foreground)" }}
-                          >
-                            Provide Info
-                          </button>
-                        )}
-                        {entry.type === "approval_request" && (
-                          <>
-                            <button
-                              onClick={() => setPendingResolution({ entryId: entry.id, type: "approve" })}
-                              className="rounded px-2 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-600 transition-colors cursor-pointer"
-                              style={{ fontSize: 10, fontWeight: 650 }}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setPendingResolution({ entryId: entry.id, type: "reject" })}
-                              className="rounded px-2 py-1 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-500 transition-colors cursor-pointer"
-                              style={{ fontSize: 10, fontWeight: 650 }}
-                            >
-                              Reject
-                            </button>
-                          </>
                         )}
                       </div>
-                    )}
+                    </div>
 
+                    {/* Threaded Replies */}
+                    {entry.historyLog && entry.historyLog.map((log, lIdx) => {
+                      const logInitials = getInitials(log.user);
+                      const logAvatarColor = getAvatarColor(log.user);
+                      return (
+                        <div key={lIdx} className="flex items-start gap-2.5 mt-2 relative text-left" style={{ paddingLeft: 24 }}>
+                          <div
+                            className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                            style={{ width: 18, height: 18, background: logAvatarColor.bg, border: "1px solid var(--border)", fontSize: 7.5, color: logAvatarColor.text }}
+                            title={log.user}
+                          >
+                            {logInitials}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.4 }}>
+                              <strong style={{ fontWeight: 650 }}>{log.user}</strong> {log.action.toLowerCase()}
+                              {log.note && <span style={{ fontStyle: "italic", color: "var(--muted-foreground)" }}> — &quot;{log.note}&quot;</span>}
+                            </span>
+                            <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+                              {formatTimestamp(log.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
             <div ref={timelineEndRef} />
           </div>
         </div>
-
       </div>
 
       {/* ─── CHAT FOOTER & MENTIONS DROPDOWN ─── */}
