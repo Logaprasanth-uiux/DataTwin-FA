@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, FileText, Edit3, Check, X as XIcon, Lock, ExternalLink, Upload, AlertCircle } from "lucide-react";
 import { AIPOScanner, type ScannedPOData } from "../../components/AIPOScanner";
+import { UserProfile } from "../UserProfile";
 
 const tabs = ["PO Header", "Organization & Vendor", "Terms", "PO Items", "Allocation", "Workflow", "Doc Control"];
 
@@ -1026,13 +1027,7 @@ export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }
               <Lock size={12} /> Edit Disabled
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: "var(--accent)", fontSize: 10, fontWeight: 700, color: "var(--foreground)" }}>AJ</div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
-          </div>
+          <UserProfile size="sm" />
         </div>
       </div>
 

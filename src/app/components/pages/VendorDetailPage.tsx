@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Save, Upload, FileText, Trash2, Edit3, Check, X as XIcon, Eye, AlertCircle } from "lucide-react";
 import { AIVendorScanner, type ScannedVendorData } from "../../components/AIVendorScanner";
+import { UserProfile } from "../UserProfile";
 
 const tabs = ["General", "Registration & Tax", "Billing", "Certificates", "Bank Details", "Workflow"];
 
@@ -546,18 +547,7 @@ export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: 
             </button>
           )}
           {/* User avatar */}
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
-            >
-              AJ
-            </div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
-          </div>
+          <UserProfile size="md" />
         </div>
       </div>
 

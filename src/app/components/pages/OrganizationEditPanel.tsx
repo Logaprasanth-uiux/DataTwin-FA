@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Edit3, Check, X as XIcon, Lock } from "lucide-react";
 import { AIOrganizationScanner, type ScannedOrgData } from "../../components/AIOrganizationScanner";
+import { UserProfile } from "../UserProfile";
 
 const tabs = ["General", "Registration & Tax", "Workflow"];
 
@@ -296,14 +297,7 @@ export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: P
               <Check size={13} /> Create Organization
             </button>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center rounded-full"
-              style={{ width: 28, height: 28, background: "var(--accent)", fontSize: 10, fontWeight: 700, color: "var(--foreground)" }}>AJ</div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
-          </div>
+          <UserProfile size="sm" />
         </div>
       </div>
 

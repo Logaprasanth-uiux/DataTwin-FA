@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { PanelContext, ActivityRecord } from "./contexts";
+import { AlertCircle, X } from "lucide-react";
+import { PanelContext, ActivityRecord, NotificationItem, sessionCache, initializeDefaultCache } from "./contexts";
 import { ActivityWorkspace } from "./components/ActivityWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { StatusCard } from "./components/StatusCard";
@@ -14,6 +15,7 @@ import { InboxPage, initialItems, InboxItem } from "./components/pages/InboxPage
 import { ApprovalsPage } from "./components/pages/ApprovalsPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
+import { UserProfile } from "./components/UserProfile";
 
 function currentMonthRange() {
   const now = new Date();
@@ -85,6 +87,70 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem("isLoggedIn") === "true";
   });
+
+  const [showLoginToast, setShowLoginToast] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  const refreshNotifications = () => {
+    initializeDefaultCache();
+    const items: NotificationItem[] = [];
+    Object.entries(sessionCache).forEach(([recordId, data]) => {
+      let recordType = "Organization";
+      if (recordId.startsWith("PO-")) recordType = "Purchase Order";
+      else if (recordId.startsWith("VND-")) recordType = "Vendor";
+      else if (recordId.startsWith("Bill-") || recordId.startsWith("INV-")) recordType = "Bill";
+      else if (recordId.startsWith("CT-")) recordType = "Contract";
+      
+      data.entries.forEach(entry => {
+        if (entry.status === "open" || entry.status === "waiting") {
+          items.push({
+            recordId,
+            recordType,
+            actionId: entry.actionId,
+            type: entry.type,
+            content: entry.content,
+            owner: entry.owner,
+            status: entry.status
+          });
+        }
+      });
+    });
+    setNotifications(items);
+  };
+
+  useEffect(() => {
+    initializeDefaultCache();
+    refreshNotifications();
+  }, []);
+
+  const navigateToRecord = (recordType: string, recordId: string) => {
+    let pageName = "Overview";
+    if (recordType === "Purchase Order") pageName = "Purchase Order";
+    else if (recordType === "Bill") pageName = "Bill";
+    else if (recordType === "Vendor") pageName = "Vendor";
+    else if (recordType === "Organization") pageName = "Organization";
+    
+    handleNavigate(pageName, recordId, "from_inbox");
+    openActivity({
+      type: recordType,
+      id: recordId,
+      status: "Approved",
+      createdBy: "Alex Johnson",
+      createdDate: "Jun 01, 2026"
+    });
+  };
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    setIsLoggedIn(false);
+    setActivePanel(null);
+    setActiveRecord(null);
+    setActive("Overview");
+    setHighlightId(undefined);
+    setPoPrefill(undefined);
+    setNavReferrer(undefined);
+    setCustomizeOpen(false);
+  };
   const [dark, setDark] = useState(() => {
     document.documentElement.classList.remove("dark");
     return false;
@@ -117,6 +183,8 @@ export default function App() {
         onLogin={() => {
           setIsLoggedIn(true);
           sessionStorage.setItem("isLoggedIn", "true");
+          setShowLoginToast(true);
+          setTimeout(() => setShowLoginToast(false), 8000);
         }}
       />
     );
@@ -195,7 +263,17 @@ export default function App() {
   const hasOwnHeader = ["Approvals"].includes(active);
 
   return (
-    <PanelContext.Provider value={{ activePanel, setActivePanel, activeRecord, openActivity, closeActivity }}>
+    <PanelContext.Provider value={{ 
+      activePanel, 
+      setActivePanel, 
+      activeRecord, 
+      openActivity, 
+      closeActivity, 
+      logout: handleLogout,
+      pendingNotifications: notifications,
+      refreshNotifications,
+      navigateToRecord
+    }}>
       <div
         className="flex h-screen w-full overflow-hidden"
         style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
@@ -227,18 +305,7 @@ export default function App() {
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="flex items-center justify-center rounded-full"
-                  style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)", flexShrink: 0 }}
-                >
-                  AJ
-                </div>
-                <div className="flex flex-col">
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
-                </div>
-              </div>
+              <UserProfile size="md" />
             </header>
           )}
 
@@ -253,6 +320,32 @@ export default function App() {
             )}
           </div>
         </div>
+        {/* Floating Welcome Toast on Login */}
+        {showLoginToast && (
+          <div
+            className="fixed bottom-6 right-6 rounded-xl p-4 flex flex-col gap-2 transition-all duration-300"
+            style={{
+              background: "var(--card)",
+              border: "1.5px solid var(--border)",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+              zIndex: 1000,
+              maxWidth: 320,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded bg-amber-50 dark:bg-amber-950/20 text-amber-500">
+                <AlertCircle size={16} />
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>Welcome back, Alex!</span>
+              <button onClick={() => setShowLoginToast(false)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={12} />
+              </button>
+            </div>
+            <p className="m-0" style={{ fontSize: 11.5, color: "var(--muted-foreground)", lineHeight: 1.4 }}>
+              You have {notifications.length} pending procurement items requiring your attention. Check the notification bell for details.
+            </p>
+          </div>
+        )}
       </div>
     </PanelContext.Provider>
   );

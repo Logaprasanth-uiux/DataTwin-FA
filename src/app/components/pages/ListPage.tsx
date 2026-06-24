@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare } from "lucide-react";
 import { useActivity } from "../../contexts";
+import { UserProfile } from "../UserProfile";
 
 export interface Column {
   key: string;
@@ -122,18 +123,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
             <Plus size={13} />
             {addLabel}
           </button>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{ width: 30, height: 30, background: "var(--accent)", fontSize: 11, fontWeight: 600, color: "var(--foreground)", flexShrink: 0 }}
-            >
-              AJ
-            </div>
-            <div className="flex flex-col">
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>Alex Johnson</span>
-              <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Admin</span>
-            </div>
-          </div>
+          <UserProfile size="md" />
         </div>
       </div>
 
