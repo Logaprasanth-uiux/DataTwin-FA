@@ -16,6 +16,7 @@ import { ApprovalsPage } from "./components/pages/ApprovalsPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
 import { UserProfile } from "./components/UserProfile";
+import { TransactionHubPage } from "./components/pages/TransactionHubPage";
 
 function currentMonthRange() {
   const now = new Date();
@@ -63,6 +64,7 @@ const pageTitles: Record<string, string> = {
   Vendor: "Vendor",
   "Purchase Order": "Purchase Order",
   Bill: "Bill",
+  "Transaction Hub": "Transaction Hub",
 };
 
 const ALL_CARDS = [
@@ -234,6 +236,8 @@ export default function App() {
         );
       case "Inbox":
         return <InboxPage items={inboxItems} setItems={setInboxItems} onNavigate={handleNavigate} />;
+      case "Transaction Hub":
+        return <TransactionHubPage />;
       case "Approvals":
         return <ApprovalsPage />;
       case "Overview":
@@ -260,7 +264,7 @@ export default function App() {
 
   const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
   // Inbox and Approvals have their own inner layout (full page with header inside)
-  const hasOwnHeader = ["Approvals"].includes(active);
+  const hasOwnHeader = ["Approvals", "Transaction Hub"].includes(active);
 
   return (
     <PanelContext.Provider value={{ 
@@ -314,8 +318,10 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               {renderContent()}
             </div>
-            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
-            {activePanel === "activity" && (
+            {active !== "Transaction Hub" && (
+              <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
+            )}
+            {active !== "Transaction Hub" && activePanel === "activity" && (
               <ActivityWorkspace hasHeaderOffset={isListPage || hasOwnHeader} />
             )}
           </div>

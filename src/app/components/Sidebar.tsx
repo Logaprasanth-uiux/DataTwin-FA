@@ -13,6 +13,7 @@ import {
   Inbox,
   CheckCircle2,
   RefreshCw,
+  Activity,
 } from "lucide-react";
 import { InboxItem, InboxItemType } from "./pages/InboxPage";
 
@@ -27,6 +28,10 @@ const documentsNav = [
   { icon: Store, label: "Vendor" },
   { icon: ShoppingCart, label: "Purchase Order" },
   { icon: Receipt, label: "Bill" },
+];
+
+const operationsNav = [
+  { icon: Activity, label: "Transaction Hub" },
 ];
 
 interface SidebarProps {
@@ -139,6 +144,32 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
           TRANSACT
         </p>
         {documentsNav.map(({ icon: Icon, label }) => {
+          const isActive = active === label;
+          return (
+            <button
+              key={label}
+              onClick={() => onSetActive(label)}
+              className="flex items-center gap-2.5 w-full rounded px-3 transition-colors"
+              style={{
+                height: 34,
+                background: isActive ? "var(--sidebar-accent)" : "transparent",
+                color: isActive ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <Icon size={15} strokeWidth={isActive ? 2 : 1.5} />
+              <span style={{ fontSize: 13, fontWeight: isActive ? 500 : 400 }}>{label}</span>
+              {isActive && <ChevronRight size={13} className="ml-auto" style={{ opacity: 0.4 }} />}
+            </button>
+          );
+        })}
+
+        <p style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.08em", padding: "16px 8px 6px" }}>
+          OPERATIONS
+        </p>
+        {operationsNav.map(({ icon: Icon, label }) => {
           const isActive = active === label;
           return (
             <button
