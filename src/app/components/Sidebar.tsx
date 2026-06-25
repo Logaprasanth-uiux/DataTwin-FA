@@ -58,7 +58,7 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
     >
       {/* Logo & Standalone Notifications Button */}
       <div
-        className="flex items-center justify-between px-4"
+        className="flex items-center px-4"
         style={{ height: 56, borderBottom: "1px solid var(--sidebar-border)" }}
       >
         <div className="flex items-center gap-2">
@@ -74,41 +74,6 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
             DataTwin AI
           </span>
         </div>
-
-        {/* Notifications Button */}
-        <button
-          onClick={() => onSetActive("Inbox")}
-          className="relative flex items-center justify-center rounded-lg p-1.5 transition-colors"
-          style={{
-            background: active === "Inbox" ? "var(--sidebar-accent)" : "transparent",
-            color: active === "Inbox" ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
-            border: "none",
-            cursor: "pointer",
-          }}
-          title="Inbox Notifications"
-        >
-          <Inbox size={17} strokeWidth={active === "Inbox" ? 2 : 1.5} />
-          {unreadCount > 0 && (
-            <span
-              className="absolute flex items-center justify-center rounded-full"
-              style={{
-                top: 2,
-                right: 2,
-                transform: "translate(25%, -25%)",
-                minWidth: 16,
-                height: 16,
-                background: "#f87171",
-                fontSize: 9,
-                fontWeight: 700,
-                color: "#fff",
-                padding: "0 3px",
-                border: "2px solid var(--sidebar)",
-              }}
-            >
-              {unreadCount}
-            </span>
-          )}
-        </button>
       </div>
 
       {/* Nav */}

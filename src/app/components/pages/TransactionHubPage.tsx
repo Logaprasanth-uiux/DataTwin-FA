@@ -1571,37 +1571,37 @@ export function TransactionHubPage() {
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1 text-[10.5px] text-muted-foreground border-t border-border pt-2.5 w-full">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                          <span>UTR</span>
-                          <strong className="font-mono text-foreground truncate max-w-[180px]">{paymentCard.ref.replace("UTR ", "")}</strong>
+                      <div className="flex flex-col gap-2 text-[11px] text-muted-foreground border-t border-border pt-3 w-full">
+                        <div className="flex justify-between items-center w-full gap-3">
+                          <span className="flex-shrink-0">UTR</span>
+                          <strong className="font-mono text-foreground text-right">{paymentCard.ref.replace("UTR ", "")}</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                          <span>Transaction Type</span>
-                          <span className="text-foreground font-semibold">NEFT</span>
+                        <div className="flex justify-between items-center w-full gap-3">
+                          <span className="flex-shrink-0">Transaction Type</span>
+                          <span className="text-foreground font-semibold text-right">NEFT</span>
                         </div>
                         {paymentCard.customerRef && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                            <span>Customer Ref</span>
-                            <strong className="text-foreground font-mono">{paymentCard.customerRef}</strong>
+                          <div className="flex justify-between items-center w-full gap-3">
+                            <span className="flex-shrink-0">Customer Ref</span>
+                            <strong className="text-foreground font-mono text-right">{paymentCard.customerRef}</strong>
                           </div>
                         )}
                         {paymentCard.remitter && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                            <span>Remitter</span>
-                            <span className="text-foreground truncate max-w-[180px]" title={paymentCard.remitter}>{paymentCard.remitter}</span>
+                          <div className="flex justify-between items-start w-full gap-3">
+                            <span className="flex-shrink-0">Remitter</span>
+                            <span className="text-foreground text-right" title={paymentCard.remitter}>{paymentCard.remitter}</span>
                           </div>
                         )}
                         {paymentCard.beneficiary && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                            <span>Beneficiary</span>
-                            <span className="text-foreground truncate max-w-[180px]" title={paymentCard.beneficiary}>{paymentCard.beneficiary}</span>
+                          <div className="flex justify-between items-start w-full gap-3">
+                            <span className="flex-shrink-0">Beneficiary</span>
+                            <span className="text-foreground text-right" title={paymentCard.beneficiary}>{paymentCard.beneficiary}</span>
                           </div>
                         )}
                         {paymentCard.valueDate && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                            <span>Value Date</span>
-                            <strong className="text-foreground">{paymentCard.valueDate}</strong>
+                          <div className="flex justify-between items-center w-full gap-3">
+                            <span className="flex-shrink-0">Value Date</span>
+                            <strong className="text-foreground text-right">{paymentCard.valueDate}</strong>
                           </div>
                         )}
                       </div>
@@ -1622,7 +1622,7 @@ export function TransactionHubPage() {
                     Allocated Invoices ({invoiceCards.length})
                   </span>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
                     {invoiceCards.map((txn) => {
                       const isSelected = selectedTxnIds.includes(txn.id);
                       
@@ -1649,7 +1649,7 @@ export function TransactionHubPage() {
                         <button
                           key={txn.id}
                           onClick={() => handleTxnCardClick(txn.id)}
-                          className="rounded-xl p-3.5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full animate-in fade-in duration-200 min-h-[190px]"
+                          className="rounded-xl p-5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full animate-in fade-in duration-200 min-h-[210px]"
                           style={{
                             background: isSelected ? "var(--secondary)" : "var(--card)",
                             borderColor: cardBorderColor,
@@ -1669,38 +1669,38 @@ export function TransactionHubPage() {
                             </span>
                           </div>
 
-                          <div className="my-1">
+                          <div className="my-1.5">
                             <span className="text-[9.5px] text-muted-foreground block font-medium">Invoice Amount</span>
-                            <span style={{ fontSize: 15.5, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
-                              ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: txn.amount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
+                            <span style={{ fontSize: 16.5, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
+                              ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           </div>
 
-                          <div className="flex flex-col gap-1 text-[10px] text-muted-foreground border-t border-border pt-2 w-full">
-                            <div className="flex justify-between items-center w-full min-w-0 gap-2">
+                          <div className="flex flex-col gap-2 text-[11px] text-muted-foreground border-t border-border pt-3 w-full">
+                            <div className="flex justify-between items-center w-full gap-2">
                               <span className="flex-shrink-0">Ref</span>
-                              <strong className="text-foreground truncate font-mono text-right flex-1 min-w-0">{txn.docNum}</strong>
+                              <strong className="text-foreground font-mono text-right">{txn.docNum}</strong>
                             </div>
-                            <div className="flex justify-between items-center w-full min-w-0 gap-2">
+                            <div className="flex justify-between items-center w-full gap-2">
                               <span className="flex-shrink-0">Applied</span>
-                              <span className="font-mono text-foreground font-semibold truncate text-right flex-1 min-w-0">
-                                ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: txn.appliedAmount % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
+                              <span className="font-mono text-foreground font-semibold text-right">
+                                ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center w-full min-w-0 gap-2">
+                            <div className="flex justify-between items-center w-full gap-2">
                               <span className="flex-shrink-0">Remaining</span>
                               <span
-                                className="font-mono font-semibold truncate text-right flex-1 min-w-0"
+                                className="font-mono font-semibold text-right"
                                 style={{
                                   color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
                                 }}
                               >
-                                ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: txn.remainingBalance % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
+                                ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center w-full min-w-0 gap-2 mt-0.5 text-[9px] text-gray-400">
+                            <div className="flex justify-between items-center w-full gap-2 mt-0.5 text-[9.5px] text-gray-400">
                               <span className="flex-shrink-0">Posted</span>
-                              <span className="truncate text-right flex-1 min-w-0">{txn.postingDate}</span>
+                              <span className="text-right">{txn.postingDate}</span>
                             </div>
                           </div>
                         </button>

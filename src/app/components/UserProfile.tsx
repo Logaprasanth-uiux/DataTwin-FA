@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, ChevronDown, Bell, CheckSquare, HelpCircle, ShieldCheck } from "lucide-react";
+import { LogOut, ChevronDown, Bell, CheckSquare, HelpCircle, ShieldCheck, Inbox } from "lucide-react";
 import { useActivity } from "../contexts";
 
 interface UserProfileProps {
@@ -28,6 +28,9 @@ export function UserProfile({ size = "md" }: UserProfileProps) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: size === "sm" ? "10px" : "14px" }}>
+      {/* Inbox Notification */}
+      <InboxNotification size={size} />
+
       {/* Notification Bell */}
       <NotificationBell size={size} />
 
@@ -243,5 +246,46 @@ function NotificationBell({ size }: { size: "sm" | "md" }) {
         </div>
       )}
     </div>
+  );
+}
+
+function InboxNotification({ size }: { size: "sm" | "md" }) {
+  const { activePage, setActivePage, unreadInboxCount = 0 } = useActivity();
+  
+  if (!setActivePage) return null;
+
+  const isActive = activePage === "Inbox";
+
+  return (
+    <button
+      onClick={() => setActivePage("Inbox")}
+      className="flex items-center justify-center rounded-lg hover:bg-accent transition-colors relative"
+      style={{
+        width: size === "sm" ? 28 : 32,
+        height: size === "sm" ? 28 : 32,
+        background: isActive ? "var(--accent)" : "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: isActive ? "var(--foreground)" : "var(--muted-foreground)",
+      }}
+      title="Inbox Notifications"
+    >
+      <Inbox size={size === "sm" ? 15 : 17} strokeWidth={isActive ? 2 : 1.5} />
+      {unreadInboxCount > 0 && (
+        <span
+          className="absolute rounded-full flex items-center justify-center font-bold text-white bg-red-500"
+          style={{
+            top: 1,
+            right: 1,
+            width: 13,
+            height: 13,
+            fontSize: "8.5px",
+            boxShadow: "0 0 0 2px var(--card)"
+          }}
+        >
+          {unreadInboxCount}
+        </span>
+      )}
+    </button>
   );
 }

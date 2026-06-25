@@ -264,7 +264,7 @@ export default function App() {
 
   const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
   // Inbox and Approvals have their own inner layout (full page with header inside)
-  const hasOwnHeader = ["Approvals", "Transaction Hub"].includes(active);
+  const hasOwnHeader = ["Approvals"].includes(active);
 
   return (
     <PanelContext.Provider value={{ 
@@ -276,7 +276,10 @@ export default function App() {
       logout: handleLogout,
       pendingNotifications: notifications,
       refreshNotifications,
-      navigateToRecord
+      navigateToRecord,
+      activePage: active,
+      setActivePage: setActive,
+      unreadInboxCount: inboxItems.filter(i => i.unread).length
     }}>
       <div
         className="flex h-screen w-full overflow-hidden"
@@ -302,7 +305,7 @@ export default function App() {
                 <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
                   {pageTitles[active]}
                 </h1>
-                {(active === "Overview" || active === "Inbox") && (
+                {(active === "Overview" || active === "Inbox" || active === "Transaction Hub") && (
                   <>
                     <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
                     <CompanySwitch />

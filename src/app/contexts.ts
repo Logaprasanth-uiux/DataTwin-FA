@@ -55,6 +55,9 @@ export interface PanelContextType {
   pendingNotifications?: NotificationItem[];
   refreshNotifications?: () => void;
   navigateToRecord?: (type: string, id: string) => void;
+  activePage?: string;
+  setActivePage?: (page: string) => void;
+  unreadInboxCount?: number;
 }
 
 export function getInitialMockData(id: string, type: string, status: string): RecordCollabData {
