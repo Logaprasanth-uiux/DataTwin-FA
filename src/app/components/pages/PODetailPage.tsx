@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, FileText, Edit3, Check, X as XIcon, Lock, ExternalLink, Upload, AlertCircle } from "lucide-react";
 import { AIPOScanner, type ScannedPOData } from "../../components/AIPOScanner";
 import { UserProfile } from "../UserProfile";
+import { useActivity } from "../../contexts";
 
 const tabs = ["PO Header", "Organization & Vendor", "Terms", "PO Items", "Allocation", "Workflow", "Doc Control"];
 
@@ -809,6 +810,7 @@ const KNOWN_ORGS: Record<string, { id: string; pan: string; gst: string; taxReg:
 interface Props { poId: string; onClose: () => void; isNew?: boolean; poStatus?: string; prefill?: Record<string, string>; }
 
 export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }: Props) {
+  const { openActivity } = useActivity();
   const [activeTab, setActiveTab] = useState("PO Header");
   const [data, setData] = useState<POData>(() => {
     const base = isNew ? makeEmpty() : makePO(poId, poStatus);
@@ -840,6 +842,17 @@ export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }
     }
     return next;
   });
+
+  useEffect(() => {
+    openActivity({
+      type: "Purchase Order",
+      id: poId,
+      status: poStatus || data.status || "Draft",
+      createdBy: "Alex Johnson",
+      createdDate: data.poDate || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    });
+  }, [poId, poStatus, data.status, data.poDate, openActivity]);
+
   const [showAgreement, setShowAgreement] = useState(false);
   const [itemsList, setItemsList] = useState<any[]>(() => {
     if (!isNew) return poItems;

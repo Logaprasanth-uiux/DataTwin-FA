@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, X } from "lucide-react";
+import { useActivity } from "../../contexts";
 
 const summaryCards = [
   { label: "Awaiting Approval", value: 12, color: "#fbbf24" },
@@ -48,6 +49,7 @@ const statusColor: Record<string, string> = {
 
 function ApprovalTable({ rows }: { rows: ApprovalRow[] }) {
   const [localRows, setLocalRows] = useState(rows);
+  const { navigateToRecord } = useActivity();
 
   function handleAction(id: string, action: "approve" | "reject") {
     setLocalRows(prev => prev.filter(r => r.id !== id));
@@ -78,7 +80,27 @@ function ApprovalTable({ rows }: { rows: ApprovalRow[] }) {
         <tbody>
           {localRows.map((row, i) => (
             <tr key={row.id} style={{ borderBottom: i < localRows.length - 1 ? "1px solid var(--border)" : "none", background: "var(--card)" }}>
-              <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "var(--font-mono)", color: "#6b8cff" }}>{row.id}</td>
+              <td style={{ padding: "12px 16px", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                <button
+                  onClick={() => {
+                    const recordType = row.type === "Invoice" ? "Bill" : row.type;
+                    navigateToRecord?.(recordType, row.id);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontFamily: "var(--font-mono)",
+                    color: "#6b8cff",
+                    textDecoration: "none",
+                    padding: 0,
+                    textAlign: "left"
+                  }}
+                >
+                  {row.id}
+                </button>
+              </td>
               <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--foreground)", maxWidth: 220 }}>
                 <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.name}</span>
               </td>
@@ -151,7 +173,7 @@ export function ApprovalsPage() {
       </div>
 
       {/* Type selector tabs */}
-      <div className="flex gap-0 rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)", width: "fit-content" }}>
+      <div className="flex gap-0 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "var(--card)", border: "1px solid var(--border)", width: "fit-content" }}>
         {approvalTabs.map(tab => (
           <button
             key={tab}

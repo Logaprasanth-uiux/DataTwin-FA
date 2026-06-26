@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Save, Upload, FileText, Trash2, Edit3, Check, X as XIcon, Eye, AlertCircle } from "lucide-react";
 import { AIVendorScanner, type ScannedVendorData } from "../../components/AIVendorScanner";
 import { UserProfile } from "../UserProfile";
+import { useActivity } from "../../contexts";
 
 const tabs = ["General", "Registration & Tax", "Billing", "Certificates", "Bank Details", "Workflow"];
 
@@ -424,6 +425,7 @@ function CertRow({ label, cert, onChange }: { label: string; cert: CertField; on
 interface Props { vendorId: string; onClose: () => void; isNew?: boolean; prefill?: Record<string, string>; }
 
 export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: Props) {
+  const { openActivity } = useActivity();
   const [activeTab, setActiveTab] = useState("General");
   const [data, setData] = useState<VendorData>(() => {
     const base = isNew ? makeEmpty() : makeDefault(vendorId);
@@ -440,6 +442,17 @@ export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: 
       ...(prefill.gstin && { gstin: prefill.gstin }),
     };
   });
+
+  useEffect(() => {
+    openActivity({
+      type: "Vendor",
+      id: vendorId,
+      status: data.status || "Active",
+      createdBy: "Alex Johnson",
+      createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    });
+  }, [vendorId, data.status, openActivity]);
+
   const [certs, setCerts] = useState<Record<string, CertField>>(() => {
     const defaultCerts = isNew ? {
       CIN:             { label: "CIN", number: "", file: null },

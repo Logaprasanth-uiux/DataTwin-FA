@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AlertCircle, X } from "lucide-react";
 import { PanelContext, ActivityRecord, NotificationItem, sessionCache, initializeDefaultCache } from "./contexts";
 import { ActivityWorkspace } from "./components/ActivityWorkspace";
@@ -74,13 +74,13 @@ const ALL_CARDS = [
 ];
 
 export default function App() {
-  const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>("ai");
+  const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
 
-  const openActivity = (record: ActivityRecord) => {
+  const openActivity = useCallback((record: ActivityRecord) => {
     setActiveRecord(record);
     setActivePanel("activity");
-  };
+  }, []);
 
   const closeActivity = () => {
     setActivePanel(null);

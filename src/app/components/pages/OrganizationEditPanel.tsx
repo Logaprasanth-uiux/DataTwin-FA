@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Edit3, Check, X as XIcon, Lock } from "lucide-react";
 import { AIOrganizationScanner, type ScannedOrgData } from "../../components/AIOrganizationScanner";
 import { UserProfile } from "../UserProfile";
+import { useActivity } from "../../contexts";
 
 const tabs = ["General", "Registration & Tax", "Workflow"];
 
@@ -253,8 +254,19 @@ interface Props {
 }
 
 export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: Props) {
+  const { openActivity } = useActivity();
   const [activeTab, setActiveTab] = useState("General");
   const [data, setData] = useState<OrgData>(isNew ? makeEmpty() : makeFromRecord(org!));
+
+  useEffect(() => {
+    openActivity({
+      type: "Organization",
+      id: data.id || "NEW",
+      status: data.status || "Active",
+      createdBy: "Alex Johnson",
+      createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    });
+  }, [data.id, data.status, openActivity]);
 
   function handleSave(updated: OrgData) { setData(updated); }
 

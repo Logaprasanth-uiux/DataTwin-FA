@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Edit3, Check, X as XIcon, Lock, AlertCircle } from "lucide-react";
 import { AIBillScanner, type ScannedBillData } from "../AIBillScanner";
 import { UserProfile } from "../UserProfile";
+import { useActivity } from "../../contexts";
 
 const tabs = ["Bill Header", "Vendor Info", "Line Items", "Tax Summary", "Workflow", "Doc Control"];
 
@@ -315,6 +316,7 @@ function BillWorkflowTab({ data, onSave, isDraft, isNew }: { data: BillData; onS
 interface Props { billId: string; onClose: () => void; isNew?: boolean; billStatus?: string; prefill?: ScannedBillData; }
 
 export function BillDetailPage({ billId, onClose, isNew = false, billStatus, prefill }: Props) {
+  const { openActivity } = useActivity();
   const [activeTab, setActiveTab] = useState("Bill Header");
   const [data, setData] = useState<BillData>(() => {
     const base = isNew ? makeEmpty() : makeBill(billId, billStatus);
@@ -329,6 +331,17 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
       ...(prefill.pan           && { vendorPan: prefill.pan }),
     };
   });
+
+  useEffect(() => {
+    openActivity({
+      type: "Bill",
+      id: billId,
+      status: billStatus || data.status || "Received",
+      createdBy: "Alex Johnson",
+      createdDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    });
+  }, [billId, billStatus, data.status, openActivity]);
+
   const [itemsList, setItemsList] = useState<any[]>(() => {
     if (!isNew) return billItems;
     if (prefill && prefill.amount) {
