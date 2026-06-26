@@ -17,6 +17,10 @@ import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
 import { UserProfile } from "./components/UserProfile";
 import { TransactionHubPage } from "./components/pages/TransactionHubPage";
+import { PODetailPage } from "./components/pages/PODetailPage";
+import { VendorDetailPage } from "./components/pages/VendorDetailPage";
+import { BillDetailPage } from "./components/pages/BillDetailPage";
+import { OrganizationEditPanel } from "./components/pages/OrganizationEditPanel";
 
 function currentMonthRange() {
   const now = new Date();
@@ -76,6 +80,16 @@ const ALL_CARDS = [
 export default function App() {
   const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
+  const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);
+  const [navContext, setNavContext] = useState<{
+    previousModule: string | null;
+    currentModule: string;
+    detailPageOrigin: string | null;
+  }>({
+    previousModule: null,
+    currentModule: "Overview",
+    detailPageOrigin: null,
+  });
 
   const openActivity = useCallback((record: ActivityRecord) => {
     setActiveRecord(record);
@@ -125,14 +139,12 @@ export default function App() {
     refreshNotifications();
   }, []);
 
-  const navigateToRecord = (recordType: string, recordId: string) => {
-    let pageName = "Overview";
-    if (recordType === "Purchase Order") pageName = "Purchase Order";
-    else if (recordType === "Bill") pageName = "Bill";
-    else if (recordType === "Vendor") pageName = "Vendor";
-    else if (recordType === "Organization") pageName = "Organization";
-    
-    handleNavigate(pageName, recordId, "from_inbox");
+  const navigateToRecord = useCallback((recordType: string, recordId: string) => {
+    setNavContext(prev => ({
+      ...prev,
+      detailPageOrigin: prev.currentModule,
+    }));
+    setActiveDetailRecord({ type: recordType, id: recordId, status: "Approved" });
     openActivity({
       type: recordType,
       id: recordId,
@@ -140,13 +152,19 @@ export default function App() {
       createdBy: "Alex Johnson",
       createdDate: "Jun 01, 2026"
     });
-  };
+  }, [openActivity]);
 
   const handleLogout = () => {
     sessionStorage.clear();
     setIsLoggedIn(false);
     setActivePanel(null);
     setActiveRecord(null);
+    setActiveDetailRecord(null);
+    setNavContext({
+      previousModule: null,
+      currentModule: "Overview",
+      detailPageOrigin: null,
+    });
     setActive("Overview");
     setHighlightId(undefined);
     setPoPrefill(undefined);
@@ -193,6 +211,11 @@ export default function App() {
   }
 
   function handleNavigate(page: string, id?: string, mode?: string) {
+    setNavContext(prev => ({
+      previousModule: prev.currentModule,
+      currentModule: page,
+      detailPageOrigin: null,
+    }));
     setActive(page);
     setHighlightId(id);
     setNavReferrer(mode);
@@ -209,6 +232,52 @@ export default function App() {
 
 
   function renderContent() {
+    if (activeDetailRecord) {
+      const { type, id, status } = activeDetailRecord;
+      const handleClose = () => {
+        setActiveDetailRecord(null);
+        setNavContext(prev => ({
+          ...prev,
+          detailPageOrigin: null,
+        }));
+      };
+
+      switch (type) {
+        case "Purchase Order":
+          return (
+            <PODetailPage
+              poId={id}
+              poStatus={status || "Approved"}
+              onClose={handleClose}
+            />
+          );
+        case "Vendor":
+          return (
+            <VendorDetailPage
+              vendorId={id}
+              onClose={handleClose}
+            />
+          );
+        case "Bill":
+        case "Invoice":
+          return (
+            <BillDetailPage
+              billId={id}
+              billStatus={status || "Received"}
+              onClose={handleClose}
+            />
+          );
+        case "Organization":
+          return (
+            <OrganizationEditPanel
+              org={{ id, name: id, type: "", country: "", contact: "", status: status || "Active" }}
+              onClose={handleClose}
+              onSave={handleClose}
+            />
+          );
+      }
+    }
+
     switch (active) {
       case "Organization":
         return <OrganizationPage />;
@@ -279,7 +348,11 @@ export default function App() {
       navigateToRecord,
       activePage: active,
       setActivePage: setActive,
-      unreadInboxCount: inboxItems.filter(i => i.unread).length
+      unreadInboxCount: inboxItems.filter(i => i.unread).length,
+      navigationContext: navContext,
+      setNavigationContext: setNavContext,
+      activeDetailRecord,
+      setActiveDetailRecord
     }}>
       <div
         className="flex h-screen w-full overflow-hidden"
@@ -288,8 +361,17 @@ export default function App() {
         <Sidebar
           dark={dark}
           onToggleDark={() => setDark((d) => !d)}
-          active={active}
-          onSetActive={(l) => { setActive(l); setHighlightId(undefined); }}
+          active={navContext.currentModule}
+          onSetActive={(l) => {
+            setNavContext(prev => ({
+              previousModule: prev.currentModule,
+              currentModule: l,
+              detailPageOrigin: null,
+            }));
+            setActive(l);
+            setHighlightId(undefined);
+            setActiveDetailRecord(null);
+          }}
           inboxItems={inboxItems}
           setInboxItems={setInboxItems}
         />

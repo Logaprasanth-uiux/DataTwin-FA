@@ -3,6 +3,7 @@ import { ListPage } from "./ListPage";
 import { BillDetailPage } from "./BillDetailPage";
 import { FileSearch } from "lucide-react";
 import { CompanySwitch } from "../CompanySwitch";
+import { useActivity } from "../../contexts";
 import { DateRangeFilter } from "../DateRangeFilter";
 import { AIBillScanner, type ScannedBillData } from "../AIBillScanner";
 
@@ -46,6 +47,7 @@ interface BillPageProps {
 }
 
 export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onBackToOverview }: BillPageProps) {
+  const { setActiveDetailRecord, setNavigationContext, navigationContext } = useActivity();
   const [view, setView] = useState<View>(() => prefill ? "new" : "list");
   const [activeId, setActiveId] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("Received");
@@ -74,7 +76,14 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
       key: "id", label: "Bill Number", mono: true,
       render: (val: unknown, row: Record<string, unknown>) => (
         <button
-          onClick={() => { setActiveId(String(val)); setActiveStatus(String(row.status ?? "Received")); setView("detail"); }}
+          onClick={() => {
+            setActiveDetailRecord?.({ type: "Bill", id: String(val), status: String(row.status ?? "Received") });
+            setNavigationContext?.({
+              previousModule: navigationContext?.previousModule || null,
+              currentModule: "Bill",
+              detailPageOrigin: "Bill"
+            });
+          }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-mono)", color: "#6b8cff", textDecoration: "none", padding: 0 }}
         >
           {String(val)}

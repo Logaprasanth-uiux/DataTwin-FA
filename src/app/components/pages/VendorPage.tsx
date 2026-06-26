@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ListPage } from "./ListPage";
 import { VendorDetailPage } from "./VendorDetailPage";
 import { CompanySwitch } from "../CompanySwitch";
+import { useActivity } from "../../contexts";
 
 const statusColor: Record<string, string> = { Active: "#4ade80", Hold: "#fbbf24", Suspended: "#f87171", Inactive: "#888896" };
 
@@ -35,6 +36,7 @@ interface VendorPageProps {
 }
 
 export function VendorPage({ highlightId, prefill, navReferrer, onBackToInbox }: VendorPageProps) {
+  const { setActiveDetailRecord, setNavigationContext, navigationContext } = useActivity();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(() => !!prefill);
 
@@ -55,7 +57,14 @@ export function VendorPage({ highlightId, prefill, navReferrer, onBackToInbox }:
       key: "id", label: "Vendor ID", mono: true,
       render: (val: unknown) => (
         <button
-          onClick={() => setDetailId(String(val))}
+          onClick={() => {
+            setActiveDetailRecord?.({ type: "Vendor", id: String(val), status: "Active" });
+            setNavigationContext?.({
+              previousModule: navigationContext?.previousModule || null,
+              currentModule: "Vendor",
+              detailPageOrigin: "Vendor"
+            });
+          }}
           style={{
             background: "none", border: "none", cursor: "pointer",
             fontSize: 13, fontFamily: "var(--font-mono)",

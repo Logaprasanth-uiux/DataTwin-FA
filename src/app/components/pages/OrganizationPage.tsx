@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ListPage } from "./ListPage";
 import { OrganizationEditPanel } from "./OrganizationEditPanel";
+import { useActivity } from "../../contexts";
 
 type OrgRecord = {
   id: string; name: string; type: string; country: string;
@@ -33,6 +34,7 @@ const filters = [
 type View = "list" | "edit" | "new";
 
 export function OrganizationPage() {
+  const { setActiveDetailRecord, setNavigationContext, navigationContext } = useActivity();
   const [rows, setRows] = useState<OrgRecord[]>(initialRows);
   const [view, setView] = useState<View>("list");
   const [editingOrg, setEditingOrg] = useState<OrgRecord | null>(null);
@@ -42,7 +44,14 @@ export function OrganizationPage() {
       key: "id", label: "ID", mono: true,
       render: (val: unknown, row: Record<string, unknown>) => (
         <button
-          onClick={() => { setEditingOrg(row as OrgRecord); setView("edit"); }}
+          onClick={() => {
+            setActiveDetailRecord?.({ type: "Organization", id: String(val), status: String(row.status ?? "Active") });
+            setNavigationContext?.({
+              previousModule: navigationContext?.previousModule || null,
+              currentModule: "Organization",
+              detailPageOrigin: "Organization"
+            });
+          }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-mono)", color: "#6b8cff", textDecoration: "none", padding: 0 }}
         >
           {String(val)}

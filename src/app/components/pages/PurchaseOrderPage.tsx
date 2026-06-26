@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ListPage } from "./ListPage";
 import { PODetailPage } from "./PODetailPage";
 import { PODocumentView } from "./PODocumentView";
+import { useActivity } from "../../contexts";
 import { FileSearch } from "lucide-react";
 import { CompanySwitch } from "../CompanySwitch";
 import { DateRangeFilter } from "../DateRangeFilter";
@@ -46,6 +47,7 @@ interface PurchaseOrderPageProps {
 }
 
 export function PurchaseOrderPage({ highlightId, prefill, navReferrer, onBackToInbox, onBackToOverview }: PurchaseOrderPageProps) {
+  const { setActiveDetailRecord, setNavigationContext, navigationContext } = useActivity();
   const [view, setView] = useState<View>(() => (prefill ? "new" : "list"));
   const [activeId, setActiveId] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("Draft");
@@ -73,7 +75,14 @@ export function PurchaseOrderPage({ highlightId, prefill, navReferrer, onBackToI
       render: (val: unknown, row: Record<string, unknown>) => (
         // PO Number → tabbed detail view
         <button
-          onClick={() => { setActiveId(String(val)); setActiveStatus(String(row.status ?? "Draft")); setView("detail"); }}
+          onClick={() => {
+            setActiveDetailRecord?.({ type: "Purchase Order", id: String(val), status: String(row.status ?? "Draft") });
+            setNavigationContext?.({
+              previousModule: navigationContext?.previousModule || null,
+              currentModule: "Purchase Order",
+              detailPageOrigin: "Purchase Order"
+            });
+          }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-mono)", color: "#6b8cff", textDecoration: "none", padding: 0 }}
         >
           {String(val)}

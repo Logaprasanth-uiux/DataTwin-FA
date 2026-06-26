@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ShoppingCart, Receipt, Store, Building2, RefreshCw, FileSearch, Inbox } from "lucide-react";
+import { useActivity } from "../../contexts";
 
 export type InboxItemType = "Purchase Order" | "Invoice" | "Vendor" | "Bill";
 
@@ -66,6 +67,7 @@ interface InboxPageProps {
 }
 
 export function InboxPage({ items, setItems, onNavigate }: InboxPageProps) {
+  const { navigateToRecord } = useActivity();
   const [activeTab, setActiveTab] = useState<Tab>("All");
   const [selectedId, setSelectedId] = useState<string>(() => {
     return items.length > 0 ? items[0].id : "";
@@ -259,7 +261,13 @@ export function InboxPage({ items, setItems, onNavigate }: InboxPageProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => onNavigate?.(pageName, matchedId, "from_inbox")}
+                    onClick={() => {
+                      if (navigateToRecord && matchedId) {
+                        navigateToRecord(pageName, matchedId);
+                      } else {
+                        onNavigate?.(pageName, matchedId, "from_inbox");
+                      }
+                    }}
                     className="rounded-lg px-3.5 py-1.5 transition-colors"
                     style={{
                       fontSize: 13,

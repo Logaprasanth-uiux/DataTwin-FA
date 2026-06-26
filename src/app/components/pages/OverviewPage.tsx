@@ -224,7 +224,7 @@ export function OverviewPage({
   customizeOpen,
   setCustomizeOpen,
 }: OverviewPageProps) {
-  const { openActivity } = useActivity();
+  const { openActivity, navigateToRecord } = useActivity();
   const [currentMode, setCurrentMode] = useState<"dashboard" | "tree">(() => {
     return (sessionStorage.getItem("tree_view_current_mode") as "dashboard" | "tree") || "dashboard";
   });
@@ -1484,7 +1484,13 @@ export function OverviewPage({
                                       <BotMessageSquare size={12} />
                                     </button>
                                     <button
-                                      onClick={() => onNavigate("Purchase Order", p.id, "from_tree")}
+                                      onClick={() => {
+                                        if (navigateToRecord) {
+                                          navigateToRecord("Purchase Order", p.id);
+                                        } else {
+                                          onNavigate("Purchase Order", p.id, "from_tree");
+                                        }
+                                      }}
                                       className="rounded px-2 py-1 text-xs transition-colors hover:bg-accent"
                                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
                                     >
@@ -1597,7 +1603,13 @@ export function OverviewPage({
                                               <BotMessageSquare size={11} />
                                             </button>
                                             <button
-                                              onClick={() => onNavigate("Bill", inv.id, "from_tree")}
+                                              onClick={() => {
+                                                if (navigateToRecord) {
+                                                  navigateToRecord("Bill", inv.id);
+                                                } else {
+                                                  onNavigate("Bill", inv.id, "from_tree");
+                                                }
+                                              }}
                                               className="rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent"
                                               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 9, fontWeight: 600 }}
                                             >
