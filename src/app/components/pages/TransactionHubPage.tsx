@@ -53,6 +53,7 @@ export interface TransactionCard {
   remitter?: string;
   beneficiary?: string;
   customerRef?: string;
+  parentId?: string;    // Links invoices to a specific payment receipt
 }
 
 export interface OutstandingItem {
@@ -257,6 +258,18 @@ const DYNAMIC_ACTIONS_CATALOG: Record<string, SuggestedAction> = {
       "Post allocation record."
     ],
     expectedResult: "Receipt balance applied. BILL2 outstanding balance reduced by ₹25,000."
+  },
+  act_clear_bill2_remaining: {
+    id: "act_clear_bill2_remaining",
+    label: "Apply Receipt JPMNH261510930 to Invoice BILL2",
+    description: "Apply the remaining credit balance of ₹50,000 from NEFT Receipt UTR: JPMNH261510930 to clear Invoice BILL2.",
+    confidence: 99,
+    plan: [
+      "Allocate UTR JPMNH261510930 credit balance of ₹50,000.",
+      "Clear outstanding balance of invoice BILL2 (reconcile remaining ₹50,000).",
+      "Post allocation clearing record in ledger."
+    ],
+    expectedResult: "Invoice BILL2 fully cleared and marked Resolved."
   }
 };
 
@@ -320,16 +333,16 @@ J.P. Morgan Chase Bank, N.A.`,
     ],
     transactions: [
       { id: "TXN-501", type: "NEFT Payment", ref: "UTR CHASN52026053017679344", docNum: "RCPT-MAIN", amount: 3155172.50, appliedAmount: 3155172.50, remainingBalance: 0.00, status: "Resolved", postingDate: "30-05-2026", remitter: "WPP MEDIA INDIA PRIVATE LIMITED", beneficiary: "TV TODAY NETWORK LTD", customerRef: "MHMJ26050715", valueDate: "30-May-2026" },
-      { id: "TXN-502", type: "Invoice / Bill", ref: "Ref: MI3130009788", docNum: "MI3130009788", amount: 578200.00, appliedAmount: 578200.00, remainingBalance: 0.00, status: "Resolved", postingDate: "15-Mar-2026" },
-      { id: "TXN-503", type: "Invoice / Bill", ref: "Ref: MI3130009787", docNum: "MI3130009787", amount: 392350.00, appliedAmount: 392350.00, remainingBalance: 0.00, status: "Resolved", postingDate: "16-Mar-2026" },
-      { id: "TXN-504", type: "Invoice / Bill", ref: "Ref: MI3130009801", docNum: "MI3130009801", amount: 18408.00, appliedAmount: 18408.00, remainingBalance: 0.00, status: "Resolved", postingDate: "17-Mar-2026" },
-      { id: "TXN-505", type: "Invoice / Bill", ref: "Ref: MI3130009803", docNum: "MI3130009803", amount: 288805.00, appliedAmount: 288805.00, remainingBalance: 0.00, status: "Resolved", postingDate: "18-Mar-2026" },
-      { id: "TXN-506", type: "Invoice / Bill", ref: "Ref: MI3130009800", docNum: "MI3130009800", amount: 813020.00, appliedAmount: 813020.00, remainingBalance: 0.00, status: "Resolved", postingDate: "19-Mar-2026" },
-      { id: "TXN-507", type: "Invoice / Bill", ref: "Ref: MI3130010035", docNum: "MI3130010035", amount: 280987.50, appliedAmount: 280987.50, remainingBalance: 0.00, status: "Resolved", postingDate: "20-Mar-2026" },
-      { id: "TXN-508", type: "Invoice / Bill", ref: "Ref: MI3130010200", docNum: "MI3130010200", amount: 675432.00, appliedAmount: 675432.00, remainingBalance: 0.00, status: "Resolved", postingDate: "21-Mar-2026" },
-      { id: "TXN-509", type: "Invoice / Bill", ref: "Ref: MI3130009784", docNum: "MI3130009784", amount: 20650.00, appliedAmount: 20650.00, remainingBalance: 0.00, status: "Resolved", postingDate: "22-Mar-2026" },
-      { id: "TXN-510", type: "Invoice / Bill", ref: "Ref: MI3130009799", docNum: "MI3130009799", amount: 75048.00, appliedAmount: 75048.00, remainingBalance: 0.00, status: "Resolved", postingDate: "23-Mar-2026" },
-      { id: "TXN-511", type: "Invoice / Bill", ref: "Ref: MI3130009802", docNum: "MI3130009802", amount: 12272.00, appliedAmount: 12272.00, remainingBalance: 0.00, status: "Resolved", postingDate: "24-Mar-2026" }
+      { id: "TXN-502", type: "Invoice / Bill", ref: "Ref: MI3130009788", docNum: "MI3130009788", amount: 578200.00, appliedAmount: 578200.00, remainingBalance: 0.00, status: "Resolved", postingDate: "15-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-503", type: "Invoice / Bill", ref: "Ref: MI3130009787", docNum: "MI3130009787", amount: 392350.00, appliedAmount: 392350.00, remainingBalance: 0.00, status: "Resolved", postingDate: "16-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-504", type: "Invoice / Bill", ref: "Ref: MI3130009801", docNum: "MI3130009801", amount: 18408.00, appliedAmount: 18408.00, remainingBalance: 0.00, status: "Resolved", postingDate: "17-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-505", type: "Invoice / Bill", ref: "Ref: MI3130009803", docNum: "MI3130009803", amount: 288805.00, appliedAmount: 288805.00, remainingBalance: 0.00, status: "Resolved", postingDate: "18-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-506", type: "Invoice / Bill", ref: "Ref: MI3130009800", docNum: "MI3130009800", amount: 813020.00, appliedAmount: 813020.00, remainingBalance: 0.00, status: "Resolved", postingDate: "19-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-507", type: "Invoice / Bill", ref: "Ref: MI3130010035", docNum: "MI3130010035", amount: 280987.50, appliedAmount: 280987.50, remainingBalance: 0.00, status: "Resolved", postingDate: "20-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-508", type: "Invoice / Bill", ref: "Ref: MI3130010200", docNum: "MI3130010200", amount: 675432.00, appliedAmount: 675432.00, remainingBalance: 0.00, status: "Resolved", postingDate: "21-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-509", type: "Invoice / Bill", ref: "Ref: MI3130009784", docNum: "MI3130009784", amount: 20650.00, appliedAmount: 20650.00, remainingBalance: 0.00, status: "Resolved", postingDate: "22-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-510", type: "Invoice / Bill", ref: "Ref: MI3130009799", docNum: "MI3130009799", amount: 75048.00, appliedAmount: 75048.00, remainingBalance: 0.00, status: "Resolved", postingDate: "23-Mar-2026", parentId: "TXN-501" },
+      { id: "TXN-511", type: "Invoice / Bill", ref: "Ref: MI3130009802", docNum: "MI3130009802", amount: 12272.00, appliedAmount: 12272.00, remainingBalance: 0.00, status: "Resolved", postingDate: "24-Mar-2026", parentId: "TXN-501" }
     ],
     outstandingItems: []
   },
@@ -390,17 +403,17 @@ J.P. Morgan Chase Bank, N.A.`,
     ],
     transactions: [
       { id: "TXN-401", type: "NEFT Payment", ref: "UTR CHASN52026053017679344", docNum: "RCPT-MAIN", amount: 3155172.50, appliedAmount: 2342152.50, remainingBalance: 813020.00, status: "Pending Review", postingDate: "30-05-2026", remitter: "WPP MEDIA INDIA PRIVATE LIMITED", beneficiary: "TV TODAY NETWORK LTD", customerRef: "MHMJ26050715" },
-      { id: "TXN-402", type: "Invoice / Bill", ref: "Ref: MI3130009788", docNum: "MI3130009788", amount: 578200.00, appliedAmount: 578200.00, remainingBalance: 0.00, status: "Resolved", postingDate: "15-03-2026" },
-      { id: "TXN-403", type: "Invoice / Bill", ref: "Ref: MI3130009787", docNum: "MI3130009787", amount: 392350.00, appliedAmount: 392350.00, remainingBalance: 0.00, status: "Resolved", postingDate: "16-03-2026" },
-      { id: "TXN-404", type: "Invoice / Bill", ref: "Ref: MI3130009801", docNum: "MI3130009801", amount: 18408.00, appliedAmount: 18408.00, remainingBalance: 0.00, status: "Resolved", postingDate: "17-03-2026" },
-      { id: "TXN-405", type: "Invoice / Bill", ref: "Ref: MI3130009803", docNum: "MI3130009803", amount: 288805.00, appliedAmount: 288805.00, remainingBalance: 0.00, status: "Resolved", postingDate: "18-03-2026" },
-      { id: "TXN-406", type: "Invoice / Bill", ref: "Ref: MI3130009800", docNum: "MI3130009800", amount: 813020.00, appliedAmount: 0.00, remainingBalance: 813020.00, status: "Outstanding", postingDate: "19-03-2026" },
-      { id: "TXN-407", type: "Invoice / Bill", ref: "Ref: MI3130010035", docNum: "MI3130010035", amount: 280987.50, appliedAmount: 280987.50, remainingBalance: 0.00, status: "Resolved", postingDate: "20-03-2026" },
-      { id: "TXN-408", type: "Invoice / Bill", ref: "Ref: MI3130010200", docNum: "MI3130010200", amount: 675432.00, appliedAmount: 675432.00, remainingBalance: 0.00, status: "Resolved", postingDate: "21-03-2026" },
-      { id: "TXN-409", type: "Invoice / Bill", ref: "Ref: MI3130009784", docNum: "MI3130009784", amount: 20650.00, appliedAmount: 20650.00, remainingBalance: 0.00, status: "Resolved", postingDate: "22-03-2026" },
-      { id: "TXN-410", type: "Invoice / Bill", ref: "Ref: MI3130009799", docNum: "MI3130009799", amount: 75048.00, appliedAmount: 75048.00, remainingBalance: 0.00, status: "Resolved", postingDate: "23-03-2026" },
-      { id: "TXN-411", type: "Invoice / Bill", ref: "Ref: MI3130009802", docNum: "MI3130009802", amount: 12272.00, appliedAmount: 12272.00, remainingBalance: 0.00, status: "Resolved", postingDate: "24-03-2026" },
-      { id: "TXN-412", type: "Refund Entry", ref: "Doc Ref: REF-9921", docNum: "REF-9921", amount: 75000, appliedAmount: 0, remainingBalance: 75000, status: "Pending Review", postingDate: "29-05-2026" }
+      { id: "TXN-402", type: "Invoice / Bill", ref: "Ref: MI3130009788", docNum: "MI3130009788", amount: 578200.00, appliedAmount: 578200.00, remainingBalance: 0.00, status: "Resolved", postingDate: "15-03-2026", parentId: "TXN-401" },
+      { id: "TXN-403", type: "Invoice / Bill", ref: "Ref: MI3130009787", docNum: "MI3130009787", amount: 392350.00, appliedAmount: 392350.00, remainingBalance: 0.00, status: "Resolved", postingDate: "16-03-2026", parentId: "TXN-401" },
+      { id: "TXN-404", type: "Invoice / Bill", ref: "Ref: MI3130009801", docNum: "MI3130009801", amount: 18408.00, appliedAmount: 18408.00, remainingBalance: 0.00, status: "Resolved", postingDate: "17-03-2026", parentId: "TXN-401" },
+      { id: "TXN-405", type: "Invoice / Bill", ref: "Ref: MI3130009803", docNum: "MI3130009803", amount: 288805.00, appliedAmount: 288805.00, remainingBalance: 0.00, status: "Resolved", postingDate: "18-03-2026", parentId: "TXN-401" },
+      { id: "TXN-406", type: "Invoice / Bill", ref: "Ref: MI3130009800", docNum: "MI3130009800", amount: 813020.00, appliedAmount: 0.00, remainingBalance: 813020.00, status: "Outstanding", postingDate: "19-03-2026", parentId: "TXN-401" },
+      { id: "TXN-407", type: "Invoice / Bill", ref: "Ref: MI3130010035", docNum: "MI3130010035", amount: 280987.50, appliedAmount: 280987.50, remainingBalance: 0.00, status: "Resolved", postingDate: "20-03-2026", parentId: "TXN-401" },
+      { id: "TXN-408", type: "Invoice / Bill", ref: "Ref: MI3130010200", docNum: "MI3130010200", amount: 675432.00, appliedAmount: 675432.00, remainingBalance: 0.00, status: "Resolved", postingDate: "21-03-2026", parentId: "TXN-401" },
+      { id: "TXN-409", type: "Invoice / Bill", ref: "Ref: MI3130009784", docNum: "MI3130009784", amount: 20650.00, appliedAmount: 20650.00, remainingBalance: 0.00, status: "Resolved", postingDate: "22-03-2026", parentId: "TXN-401" },
+      { id: "TXN-410", type: "Invoice / Bill", ref: "Ref: MI3130009799", docNum: "MI3130009799", amount: 75048.00, appliedAmount: 75048.00, remainingBalance: 0.00, status: "Resolved", postingDate: "23-03-2026", parentId: "TXN-401" },
+      { id: "TXN-411", type: "Invoice / Bill", ref: "Ref: MI3130009802", docNum: "MI3130009802", amount: 12272.00, appliedAmount: 12272.00, remainingBalance: 0.00, status: "Resolved", postingDate: "24-03-2026", parentId: "TXN-401" },
+      { id: "TXN-412", type: "Refund Entry", ref: "Doc Ref: REF-9921", docNum: "REF-9921", amount: 75000, appliedAmount: 0, remainingBalance: 75000, status: "Pending Review", postingDate: "29-05-2026", parentId: "TXN-401" }
     ],
     outstandingItems: [
       {
@@ -432,8 +445,8 @@ J.P. Morgan Chase Bank, N.A.`,
   {
     id: "TXN-EMAIL-001",
     sender: "statements_and_alerts@jpmchase.com",
-    subject: "Remittance Advice: INV-2026-004 & INV-2026-008",
-    amount: 150000,
+    subject: "Remittance Advice: Consolidated Payment Run (3 Receipts)",
+    amount: 200000,
     processingStatus: "Exceptions Detected",
     aiConfidence: 98,
     exceptionCount: 3,
@@ -452,15 +465,12 @@ Customer Account: XXXXXXX1082 (JPM Client Account)
 
 Payment Reference:
 Transaction Type: NEFT
-UTR Number: JPMNH261510928
-Posting Date: 30-05-2026
-Value Date: 31-05-2026
-Settled Amount: ₹1,50,000.00
+Consolidated Settled Amount: ₹2,00,000.00 (split across 3 payment runs)
 
 Breakdown Details:
-We have allocated ₹95,000 against invoice reference INV-2026-004 (Doc: BILL1) after applying Credit Note CN-002 (value ₹5,000) for returned goods.
-Additionally, we have authorized a receipt entry of ₹75,000 (Doc: RCPT1), leaving an available credit of ₹25,000.
-We have also matched ₹20,000 to invoice INV-2026-008 (Doc: BILL2) which currently has a discrepancy of ₹15 in bank transmission fees.
+1. NEFT Receipt (UTR: JPMNH261510928) for ₹95,000 is partially allocated to Invoice BILL2 (Invoice Total: ₹150,000, leaving a remaining balance of ₹55,000).
+2. Receipt Voucher (Ref: RCPT1) for ₹75,000 allocates ₹30,000 to Invoice BILL2 and ₹20,000 to Invoice BILL3 (unallocated balance of ₹25,000 remaining).
+3. NEFT Receipt (UTR: JPMNH261510930) for ₹30,000 allocates ₹30,000 to Invoice BILL1 after applying Credit Note CN-002 (value ₹5,000) for returned goods.
 
 Please refer to the attached PDF advice for complete invoice line details and credit ledger notes.
 
@@ -482,20 +492,28 @@ J.P. Morgan Chase Bank, N.A.`,
         body: "Remittance notification queued: Cash allocation program matched returned goods credit note to invoice INV-2026-004. Awaiting NEFT clearing."
       }
     ],
-    threadSummary: "J.P. Morgan remittance for Acme Systems Pvt Ltd (₹1,50,000). Automated matching identified invoice references BILL1 and BILL2, and receipt voucher RCPT1. Mismatches include an unregistered Credit Note CN-002, a minor variance of ₹15, and an open receipt credit allocation of ₹25,000.",
+    threadSummary: "Consolidated J.P. Morgan remittance for Acme Systems (₹200,000). Demonstrates receipt-centric allocation: Invoice BILL2 (₹150,000) is partially allocated by NEFT Receipt UTR: JPMNH261510928 (₹95,000) and Receipt RCPT1 (₹30,000), leaving a ₹25,000 open advance on RCPT1 to clear the remaining balance.",
     activityTimeline: [
       { id: "ACT-001", type: "Communication", title: "Email Received", details: "Remittance alert received from statements_and_alerts@jpmchase.com via secure channel.", actor: "System", timestamp: "May 31, 10:15 AM" },
       { id: "ACT-002", type: "AI Processing", title: "Attachment Parsed", details: "PDS_RD_30052026.pdf parsed successfully using OCR semantic extraction.", actor: "AI Agent", timestamp: "May 31, 10:16 AM" },
-      { id: "ACT-003", type: "AI Processing", title: "Transaction Parsed", details: "Extracted UTR JPMNH261510928, references BILL1, RCPT1, and BILL2.", actor: "AI Agent", timestamp: "May 31, 10:17 AM" },
+      { id: "ACT-003", type: "AI Processing", title: "Transaction Parsed", details: "Extracted UTR JPMNH261510928, UTR JPMNH261510930, and Receipt RCPT1.", actor: "AI Agent", timestamp: "May 31, 10:17 AM" },
       { id: "ACT-004", type: "AI Processing", title: "Exception Detected", details: "Credit Note CN-002 not found in system ledger. Minor difference of ₹15 logged.", actor: "System", timestamp: "May 31, 10:17 AM" },
       { id: "ACT-005", type: "AI Processing", title: "Suggested Actions Generated", details: "Reconciliation recommendations compiled based on matching confidence.", actor: "AI Agent", timestamp: "May 31, 10:18 AM" }
     ],
     transactions: [
-      { id: "TXN-001", type: "NEFT Payment", ref: "UTR JPMNH261510928", docNum: "RCPT-MAIN", amount: 150000, appliedAmount: 115000, remainingBalance: 35000, status: "Available Credit", postingDate: "30-05-2026", valueDate: "31-05-2026", remitter: "Acme Systems India Pvt Ltd", beneficiary: "Finance Plus India Ltd" },
-      { id: "TXN-002", type: "Invoice / Bill", ref: "Ref: INV-2026-004", docNum: "BILL1", amount: 100000, appliedAmount: 95000, remainingBalance: 5000, status: "Outstanding", postingDate: "15-05-2026", customerRef: "CUST-ACME-90" },
-      { id: "TXN-003", type: "Receipt Voucher", ref: "Doc Ref: RCPT1", docNum: "RCPT1", amount: 75000, appliedAmount: 50000, remainingBalance: 25000, status: "Available Credit", postingDate: "30-05-2026" },
-      { id: "TXN-004", type: "Invoice / Bill", ref: "Ref: INV-2026-008", docNum: "BILL2", amount: 200000, appliedAmount: 100000, remainingBalance: 100000, status: "Outstanding", postingDate: "20-05-2026", customerRef: "CUST-ACME-90" },
-      { id: "TXN-005", type: "Credit Note", ref: "CN Ref: CN-002", docNum: "CN-002", amount: 5000, appliedAmount: 0, remainingBalance: 5000, status: "Available Credit", postingDate: "25-05-2026" }
+      // NEFT Receipt (UTR: JPMNH261510928) - ₹95,000
+      { id: "TXN-001", type: "NEFT Payment", ref: "UTR JPMNH261510928", docNum: "RCPT-MAIN-1", amount: 95000, appliedAmount: 95000, remainingBalance: 0, status: "Resolved", postingDate: "30-05-2026", valueDate: "31-05-2026", remitter: "Acme Systems India Pvt Ltd", beneficiary: "Finance Plus India Ltd" },
+      { id: "TXN-002", type: "Invoice / Bill", ref: "Ref: INV-2026-008", docNum: "BILL2", amount: 150000, appliedAmount: 95000, remainingBalance: 55000, status: "Outstanding", postingDate: "20-05-2026", customerRef: "CUST-ACME-90", parentId: "TXN-001" },
+      
+      // Receipt Voucher (Doc Ref: RCPT1) - ₹75,000
+      { id: "TXN-003", type: "Receipt Voucher", ref: "Doc Ref: RCPT1", docNum: "RCPT1", amount: 75000, appliedAmount: 50000, remainingBalance: 25000, status: "Available Credit", postingDate: "30-05-2026", parentId: "TXN-003" },
+      { id: "TXN-004", type: "Invoice / Bill", ref: "Ref: INV-2026-008", docNum: "BILL2", amount: 150000, appliedAmount: 30000, remainingBalance: 25000, status: "Outstanding", postingDate: "20-05-2026", customerRef: "CUST-ACME-90", parentId: "TXN-003" },
+      { id: "TXN-006", type: "Invoice / Bill", ref: "Ref: INV-2026-009", docNum: "BILL3", amount: 20000, appliedAmount: 20000, remainingBalance: 0, status: "Resolved", postingDate: "22-05-2026", parentId: "TXN-003" },
+      
+      // NEFT Receipt (UTR: JPMNH261510930) - ₹30,000
+      { id: "PAY-103", type: "NEFT Payment", ref: "UTR JPMNH261510930", docNum: "RCPT-MAIN-2", amount: 30000, appliedAmount: 30000, remainingBalance: 0, status: "Resolved", postingDate: "30-05-2026", valueDate: "31-05-2026", remitter: "Acme Systems India Pvt Ltd", beneficiary: "Finance Plus India Ltd" },
+      { id: "INV-103", type: "Invoice / Bill", ref: "Ref: INV-2026-004", docNum: "BILL1", amount: 35000, appliedAmount: 30000, remainingBalance: 5000, status: "Outstanding", postingDate: "10-05-2026", parentId: "PAY-103" },
+      { id: "TXN-005", type: "Credit Note", ref: "CN Ref: CN-002", docNum: "CN-002", amount: 5000, appliedAmount: 0, remainingBalance: 5000, status: "Available Credit", postingDate: "25-05-2026", parentId: "PAY-103" }
     ],
     outstandingItems: [
       {
@@ -508,7 +526,7 @@ J.P. Morgan Chase Bank, N.A.`,
         confidence: 94,
         explanation: "Credit Note CN-002 is mentioned in remittance breakdown details but does not exist in local ERP databases. Auto-generation recommended.",
         suggestedActions: ["act_connect_cn_bill1"],
-        relatedTxnIds: ["TXN-005", "TXN-002"]
+        relatedTxnIds: ["TXN-005", "INV-103"]
       },
       {
         id: "EXP-002",
@@ -518,9 +536,9 @@ J.P. Morgan Chase Bank, N.A.`,
         priority: "Low",
         status: "Unresolved",
         confidence: 99,
-        explanation: "Bank transaction record shows ₹94,985 settled against BILL1 instead of the ₹95,000 remittance claim, leaving ₹15 difference.",
+        explanation: "Bank transaction record shows ₹29,985 settled against BILL1 instead of the ₹30,000 remittance claim, leaving ₹15 difference.",
         suggestedActions: ["act_post_crco_bill1"],
-        relatedTxnIds: ["TXN-002", "TXN-001"]
+        relatedTxnIds: ["INV-103", "PAY-103"]
       },
       {
         id: "EXP-003",
@@ -539,8 +557,8 @@ J.P. Morgan Chase Bank, N.A.`,
   {
     id: "TXN-EMAIL-002",
     sender: "ar@techsupply.com",
-    subject: "Wire Transfer Receipt: Bank Reference Ref#9812",
-    amount: 50000,
+    subject: "Consolidated Wire Notification: 4 Receipts",
+    amount: 137000,
     processingStatus: "Unresolved Exceptions",
     aiConfidence: 92,
     exceptionCount: 1,
@@ -548,7 +566,13 @@ J.P. Morgan Chase Bank, N.A.`,
     recipients: "PaymentAdviceIndia@financeplusindia.com",
     body: `Hi Team,
 
-We have wired ₹50,000 to clear our outstanding dues for Bill-2026-012. Please find the bank transaction advice copy attached. Please confirm receipt and adjust our account.
+We have consolidated our accounts and wired 4 separate payments totaling ₹1,37,000 to clear our outstanding invoice groups:
+1. ₹50,000 (UTR HDFCN9812A) for Bill-2026-012.
+2. ₹25,000 (UTR HDFCN9812B) for Bill-2026-013.
+3. ₹12,000 (UTR HDFCN9812C) for Bill-2026-014.
+4. ₹50,000 (Ref#9812) for Bill-2026-015.
+
+Please confirm receipt and adjust our account.
 
 Thanks,
 TechSupply Receivables Team`,
@@ -556,7 +580,7 @@ TechSupply Receivables Team`,
       { name: "wire_receipt_9812.png", size: "380 KB", type: "image/png" }
     ],
     longEmailThread: [],
-    threadSummary: "Reconciliation of TechSupply Co wire transfer. Vendor claims they paid ₹50,000 to clear Bill-2026-012. Transaction Ref#9812 is not yet reflected in the bank ledger feed.",
+    threadSummary: "Consolidated wire notification for TechSupply Co (Consolidated ₹137,000). Automated matching identified 4 source payment receipts, mapping them to BILL-202, BILL-203, BILL-204, and BILL-205 respectively. Outstanding exception: Ref#9812 not cleared in bank ledger feed.",
     activityTimeline: [
       { id: "ACT-101", type: "Communication", title: "Email Received", details: "Wire slip received from ar@techsupply.com.", actor: "System", timestamp: "Jun 24, 02:40 PM" },
       { id: "ACT-102", type: "AI Processing", title: "Attachment Parsed", details: "Parsed payment receipt Ref#9812 details via image OCR.", actor: "AI Agent", timestamp: "Jun 24, 02:42 PM" },
@@ -564,8 +588,17 @@ TechSupply Receivables Team`,
       { id: "ACT-104", type: "AI Processing", title: "Exception Detected", details: "Ref#9812 has not cleared bank ledger feeds yet.", actor: "System", timestamp: "Jun 24, 02:43 PM" }
     ],
     transactions: [
-      { id: "TXN-201", type: "Invoice / Bill", ref: "Ref: Bill-2026-012", docNum: "BILL-202", amount: 50000, appliedAmount: 0, remainingBalance: 50000, status: "Outstanding", postingDate: "25-05-2026", customerRef: "CUST-TECH-01" },
-      { id: "TXN-202", type: "Receipt Voucher", ref: "UTR/Ref: Ref#9812", docNum: "RCPT-202", amount: 50000, appliedAmount: 0, remainingBalance: 50000, status: "Available Credit", postingDate: "24-06-2026" }
+      { id: "PAY-201", type: "NEFT Payment", ref: "UTR HDFCN9812A", docNum: "RCPT-201", amount: 50000, appliedAmount: 50000, remainingBalance: 0, status: "Resolved", postingDate: "24-06-2026", remitter: "TechSupply Co" },
+      { id: "INV-201", type: "Invoice / Bill", ref: "Ref: Bill-2026-012", docNum: "BILL-202", amount: 50000, appliedAmount: 50000, remainingBalance: 0, status: "Resolved", postingDate: "25-05-2026", customerRef: "CUST-TECH-01", parentId: "PAY-201" },
+      
+      { id: "PAY-202", type: "NEFT Payment", ref: "UTR HDFCN9812B", docNum: "RCPT-202", amount: 25000, appliedAmount: 25000, remainingBalance: 0, status: "Resolved", postingDate: "24-06-2026", remitter: "TechSupply Co" },
+      { id: "INV-202", type: "Invoice / Bill", ref: "Ref: Bill-2026-013", docNum: "BILL-203", amount: 25000, appliedAmount: 25000, remainingBalance: 0, status: "Resolved", postingDate: "25-05-2026", customerRef: "CUST-TECH-01", parentId: "PAY-202" },
+      
+      { id: "PAY-203", type: "NEFT Payment", ref: "UTR HDFCN9812C", docNum: "RCPT-203", amount: 12000, appliedAmount: 12000, remainingBalance: 0, status: "Resolved", postingDate: "24-06-2026", remitter: "TechSupply Co" },
+      { id: "INV-203", type: "Invoice / Bill", ref: "Ref: Bill-2026-014", docNum: "BILL-204", amount: 12000, appliedAmount: 12000, remainingBalance: 0, status: "Resolved", postingDate: "25-05-2026", customerRef: "CUST-TECH-01", parentId: "PAY-203" },
+      
+      { id: "PAY-204", type: "Receipt Voucher", ref: "UTR/Ref: Ref#9812", docNum: "RCPT-204", amount: 50000, appliedAmount: 0, remainingBalance: 50000, status: "Available Credit", postingDate: "24-06-2026", remitter: "TechSupply Co" },
+      { id: "INV-204", type: "Invoice / Bill", ref: "Ref: Bill-2026-015", docNum: "BILL-205", amount: 50000, appliedAmount: 0, remainingBalance: 50000, status: "Outstanding", postingDate: "25-05-2026", customerRef: "CUST-TECH-01", parentId: "PAY-204" }
     ],
     outstandingItems: [
       {
@@ -578,7 +611,7 @@ TechSupply Receivables Team`,
         confidence: 88,
         explanation: "The transaction Ref#9812 is not yet cleared or found on the HDFC bank account statement feed.",
         suggestedActions: ["act_post_cash_rcpt1", "act_raise_inv_rcpt1"],
-        relatedTxnIds: ["TXN-202"]
+        relatedTxnIds: ["PAY-204"]
       }
     ]
   },
@@ -611,9 +644,9 @@ Refunds Dept`,
       { id: "ACT-203", type: "AI Processing", title: "Transaction Parsed", details: "Identified billing matching keys: INV-2026-011 double payment.", actor: "AI Agent", timestamp: "Jun 23, 11:07 AM" }
     ],
     transactions: [
-      { id: "TXN-301", type: "Invoice / Bill", ref: "Ref: INV-2026-011", docNum: "BILL-301", amount: 75000, appliedAmount: 75000, remainingBalance: 0, status: "Resolved", postingDate: "15-05-2026" },
+      { id: "TXN-301", type: "Invoice / Bill", ref: "Ref: INV-2026-011", docNum: "BILL-301", amount: 75000, appliedAmount: 75000, remainingBalance: 0, status: "Resolved", postingDate: "15-05-2026", parentId: "TXN-302" },
       { id: "TXN-302", type: "Receipt Voucher", ref: "Ref: RCPT-8871", docNum: "RCPT-302", amount: 150000, appliedAmount: 75000, remainingBalance: 75000, status: "Available Credit", postingDate: "10-06-2026" },
-      { id: "TXN-303", type: "Refund Entry", ref: "Doc Ref: REF-9921", docNum: "REF-9921", amount: 75000, appliedAmount: 0, remainingBalance: 75000, status: "Pending Review", postingDate: "22-06-2026" }
+      { id: "TXN-303", type: "Refund Entry", ref: "Doc Ref: REF-9921", docNum: "REF-9921", amount: 75000, appliedAmount: 0, remainingBalance: 75000, status: "Pending Review", postingDate: "22-06-2026", parentId: "TXN-302" }
     ],
     outstandingItems: [
       {
@@ -654,6 +687,8 @@ export function TransactionHubPage() {
 
   // Collapsed states for email threads
   const [collapsedThreadIds, setCollapsedThreadIds] = useState<Record<number, boolean>>({});
+  const [expandedCardThreads, setExpandedCardThreads] = useState<Record<string, boolean>>({});
+  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
 
   const toggleThreadCollapse = (idx: number) => {
     setCollapsedThreadIds((prev) => ({
@@ -798,6 +833,9 @@ export function TransactionHubPage() {
       if (card.status === "Outstanding") {
         if (selectedEmailId === "TXN-EMAIL-004" && card.docNum === "MI3130009800") {
           return [DYNAMIC_ACTIONS_CATALOG.act_clear_mi9800];
+        }
+        if (selectedEmailId === "TXN-EMAIL-001" && card.docNum === "BILL2") {
+          return [DYNAMIC_ACTIONS_CATALOG.act_connect_receipt_bill2];
         }
         return [DYNAMIC_ACTIONS_CATALOG.act_clear_bill1, DYNAMIC_ACTIONS_CATALOG.act_post_crco_bill1];
       }
@@ -1009,24 +1047,12 @@ export function TransactionHubPage() {
             ex.type === "Open Advance" ? { ...ex, status: "Resolved" as const } : ex
           );
           updatedTxns = updatedTxns.map((t) => {
-            if (t.docNum === "BILL2") {
-              return { ...t, appliedAmount: 125000, remainingBalance: 75000, status: "Outstanding" as const };
+            if (t.parentId === "TXN-003" && t.docNum === "BILL2") {
+              return { ...t, appliedAmount: 55000, remainingBalance: 0, status: "Resolved" as const };
             }
-            if (t.docNum === "RCPT1") {
+            if (t.id === "TXN-003") {
               return { ...t, appliedAmount: 75000, remainingBalance: 0, status: "Resolved" as const };
             }
-            return t;
-          });
-          updatedTimeline.push({
-            id: `TL-NEW-${Date.now()}`,
-            type: "User Action",
-            title: "User Connected Transactions",
-            details: "Allocated available Receipt RCPT1 balance (₹25,000) to Invoice BILL2 outstanding balance.",
-            actor: "Alex Johnson",
-            timestamp: `Today, ${nowStr}`
-          });
-        } else if (actionId === "act_connect_receipt_bill2") {
-          updatedTxns = updatedTxns.map((t) => {
             if (t.docNum === "MI3130010200") {
               return { ...t, appliedAmount: 675432, remainingBalance: 0, status: "Resolved" as const };
             }
@@ -1036,7 +1062,7 @@ export function TransactionHubPage() {
             id: `TL-NEW-${Date.now()}`,
             type: "User Action",
             title: "User Connected Transactions",
-            details: "Linked cash receipt credit allocation details.",
+            details: "Allocated available Receipt RCPT1 balance (₹25,000) to Invoice BILL2 outstanding balance.",
             actor: "Alex Johnson",
             timestamp: `Today, ${nowStr}`
           });
@@ -1151,16 +1177,29 @@ export function TransactionHubPage() {
     );
   };
 
-  const paymentCard = activeEmail.transactions.find(
+  const payments = activeEmail.transactions.filter(
     (t) => t.type === "NEFT Payment" || t.type === "Receipt Voucher"
-  ) || activeEmail.transactions[0];
-
-  const invoiceCards = activeEmail.transactions.filter(
-    (t) => (t.type === "Invoice / Bill" || t.type === "Debit Note") && t !== paymentCard
   );
 
-  const otherCards = activeEmail.transactions.filter(
-    (t) => t !== paymentCard && !invoiceCards.includes(t)
+  const paymentGroups = payments.map((payment) => {
+    const relatedInvoices = activeEmail.transactions.filter(
+      (t) => t.parentId === payment.id && (t.type === "Invoice / Bill" || t.type === "Debit Note")
+    );
+    const relatedAdjustments = activeEmail.transactions.filter(
+      (t) => t.parentId === payment.id && (t.type === "Credit Note" || t.type === "Refund Entry")
+    );
+    return {
+      payment,
+      invoices: relatedInvoices,
+      adjustments: relatedAdjustments
+    };
+  });
+
+  const unlinkedCards = activeEmail.transactions.filter(
+    (t) =>
+      t.type !== "NEFT Payment" &&
+      t.type !== "Receipt Voucher" &&
+      !t.parentId
   );
 
   return (
@@ -1269,61 +1308,26 @@ export function TransactionHubPage() {
               const hasExceptions = item.exceptionCount > 0;
               const isResolved = item.processingStatus === "Resolved" || item.processingStatus === "Processed";
               const openExps = item.outstandingItems.filter(e => e.status !== "Resolved");
+              const sourcePaymentsCount = item.transactions.filter(t => t.type === "NEFT Payment" || t.type === "Receipt Voucher").length;
+              const linkedInvoicesCount = item.transactions.filter(t => t.type === "Invoice / Bill" || t.type === "Debit Note").length;
 
               return (
-                <button
+                <div
                   key={item.id}
                   onClick={() => handleEmailSelect(item.id)}
-                  className="flex flex-col gap-2 rounded-xl p-3 text-left w-full transition-all duration-200 border-none"
+                  className="flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200"
                   style={{
                     background: isSelected ? "var(--accent)" : "transparent",
                     border: `1.5px solid ${isSelected ? "var(--border)" : "transparent"}`,
                     cursor: "pointer",
-                    boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.02)" : "none"
+                    boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.02)" : "none",
+                    position: "relative"
                   }}
                 >
-                  <div className="flex items-start justify-between gap-1 w-full">
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                      {item.sender.split("@")[0].replaceAll("_", " ")}
-                    </span>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", flexShrink: 0 }}>
-                      {item.date.split(",")[0]}
-                    </span>
-                  </div>
-
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: isSelected ? 600 : 500,
-                      color: "var(--foreground)",
-                      lineHeight: 1.3,
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden"
-                    }}
-                  >
-                    {item.subject}
-                  </span>
-
-                  {/* Queue Details Grid */}
-                  <div className="grid grid-cols-2 gap-y-1 mt-1 text-[10.5px]">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Amt:</span>
-                      <strong style={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                        ₹{item.amount.toLocaleString()}
-                      </strong>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <span className="text-muted-foreground">AI:</span>
-                      <strong style={{ color: "var(--foreground)" }}>{item.aiConfidence}%</strong>
-                    </div>
-                  </div>
-
-                  {/* Summary Badges Row */}
-                  <div className="flex flex-wrap gap-1.5 mt-1">
+                  {/* Status & Confidence Header */}
+                  <div className="flex items-center justify-between w-full">
                     <span
-                      className="rounded-full px-2 py-0.5 font-semibold text-[9px]"
+                      className="rounded-full px-2 py-0.5 font-bold text-[9px]"
                       style={{
                         background: isResolved
                           ? "rgba(34,197,94,0.08)"
@@ -1335,21 +1339,126 @@ export function TransactionHubPage() {
                     >
                       {item.processingStatus}
                     </span>
-
-                    {openExps.length > 0 && (
-                      <span className="rounded-full px-2 py-0.5 bg-red-100 dark:bg-red-950/20 text-red-500 font-semibold text-[9px]">
-                        {openExps.length} Exceptions
-                      </span>
-                    )}
-
-                    {/* Show credit indicators */}
-                    {item.transactions.some(t => t.status === "Available Credit" && t.remainingBalance > 0) && (
-                      <span className="rounded-full px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/20 text-emerald-500 font-semibold text-[9px]">
-                        Credit Avail.
-                      </span>
-                    )}
+                    <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontWeight: 600 }}>
+                      {item.aiConfidence}% AI Confidence
+                    </span>
                   </div>
-                </button>
+
+                  {/* Subject & Summary */}
+                  <div className="flex flex-col gap-1">
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--foreground)",
+                        lineHeight: 1.3
+                      }}
+                    >
+                      {item.subject}
+                    </span>
+                    <p
+                      className="m-0 text-muted-foreground"
+                      style={{
+                        fontSize: 10.5,
+                        lineHeight: 1.4,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden"
+                      }}
+                    >
+                      {item.threadSummary}
+                    </p>
+                  </div>
+
+                  {/* Metrics Grid */}
+                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] border-t border-border/40 pt-2.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Amt:</span>
+                      <strong style={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                        ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-muted-foreground">Payments:</span>
+                      <strong style={{ color: "var(--foreground)" }}>{sourcePaymentsCount}</strong>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Invoices:</span>
+                      <strong style={{ color: "var(--foreground)" }}>{linkedInvoicesCount}</strong>
+                    </div>
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-muted-foreground">Exceptions:</span>
+                      <strong style={{ color: openExps.length > 0 ? "#ef4444" : "var(--foreground)" }}>
+                        {openExps.length}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Row */}
+                  <div className="flex items-center gap-2 mt-1.5 pt-2 border-t border-border/40">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEmailSelect(item.id);
+                        setShowEmailModal(true);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 rounded px-2 py-1 hover:bg-secondary border transition-colors cursor-pointer text-[10px] font-bold text-foreground bg-card border-border"
+                    >
+                      <Mail size={11} />
+                      <span>View Email</span>
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedCardThreads((prev) => ({
+                          ...prev,
+                          [item.id]: !prev[item.id]
+                        }));
+                      }}
+                      className="flex items-center justify-center p-1 rounded hover:bg-secondary border cursor-pointer text-muted-foreground bg-card border-border"
+                      title="Toggle Thread History"
+                    >
+                      <History size={11} />
+                      <span className="text-[9px] ml-0.5 font-bold">({item.longEmailThread.length + 1})</span>
+                    </button>
+                  </div>
+
+                  {/* Compact Collapsible Email Thread History */}
+                  {expandedCardThreads[item.id] && (
+                    <div
+                      className="flex flex-col gap-1.5 mt-2 p-2 rounded-xl bg-secondary/30 border border-border/40 text-[9.5px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="font-bold text-[8.5px] text-muted-foreground tracking-wider uppercase border-b border-border/30 pb-0.5">
+                        Email Thread History
+                      </div>
+                      
+                      <div className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
+                        <div className="flex justify-between items-center text-[8.5px]">
+                          <strong className="text-foreground">{item.sender.split("@")[0]}</strong>
+                          <span className="text-muted-foreground">{item.date.split(",")[0]}</span>
+                        </div>
+                        <p className="m-0 text-muted-foreground truncate leading-normal">
+                          {item.body}
+                        </p>
+                      </div>
+
+                      {item.longEmailThread.map((t, tIdx) => (
+                        <div key={tIdx} className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
+                          <div className="flex justify-between items-center text-[8.5px]">
+                            <strong className="text-foreground">{t.sender.split("@")[0]}</strong>
+                            <span className="text-muted-foreground">{t.date.split(",")[0]}</span>
+                          </div>
+                          <p className="m-0 text-muted-foreground truncate leading-normal">
+                            {t.body}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })
           )}
@@ -1357,405 +1466,156 @@ export function TransactionHubPage() {
       </div>
 
       {/* ─── COLUMN 2: WORKSPACE PANEL ─── */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0" style={{ background: "var(--secondary)" }}>
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 relative" style={{ background: "var(--secondary)" }}>
         {/* Workspace Top Toolbar */}
         <header
           className="flex items-center justify-between px-6 bg-card"
           style={{ height: 48, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
         >
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-secondary text-foreground">
-              <Mail size={13} />
+            <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500">
+              <Sparkles size={13} />
             </span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-              Remittance Communication Viewer
+              AI Reconciliation Workspace
             </span>
             <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
               QUEUE REF: {activeEmail.id}
             </span>
           </div>
 
-          <div
-            className="flex items-center gap-2 rounded px-2"
-            style={{
-              height: 28,
-              background: "var(--secondary)",
-              border: "1px solid var(--border)",
-              maxWidth: 220
-            }}
-          >
-            <Search size={11} style={{ color: "var(--muted-foreground)" }} />
-            <input
-              value={threadSearchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search text in thread…"
-              style={{
-                background: "none",
-                border: "none",
-                outline: "none",
-                fontSize: 11.5,
-                color: "var(--foreground)"
-              }}
-            />
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-full px-2 py-0.5 font-semibold text-[9px] bg-indigo-100 dark:bg-indigo-950/20 text-indigo-500 font-mono">
+              AI Confidence: {activeEmail.aiConfidence}%
+            </span>
           </div>
         </header>
 
-        {/* Column 2 Inner Split Pane */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 gap-4">
+        {/* Scrollable Reconciliation Area */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-5 relative">
           
-          {/* TOP HALF: Outlook Visual Style Email Viewer */}
           <div
-            className="rounded-2xl p-5 flex flex-col gap-4 bg-card text-left"
-            style={{ border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.01)" }}
+            className="rounded-2xl p-6 flex flex-col gap-8 bg-card text-left border border-border"
+            style={{
+              boxShadow: "0 4px 12px rgba(0,0,0,0.01)"
+            }}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                  Remittance Advice Email Thread
-                </span>
-                <h2 style={{ fontSize: 15, fontWeight: 750, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-                  {highlightEmailText(activeEmail.subject, threadSearchQuery)}
-                </h2>
-              </div>
-              
-              <div className="flex items-center gap-2 rounded px-2 py-1 bg-secondary text-muted-foreground text-[10.5px]">
-                <Calendar size={12} />
-                <span style={{ fontFamily: "var(--font-mono)" }}>{activeEmail.date}</span>
-              </div>
-            </div>
+            {paymentGroups.map((group, gIdx) => {
+              const { payment, invoices, adjustments } = group;
+              const isPaymentSelected = selectedTxnIds.includes(payment.id);
+              const totalApplied = invoices.reduce((acc, c) => acc + c.appliedAmount, 0) + adjustments.reduce((acc, c) => acc + c.appliedAmount, 0);
+              const progressPercent = Math.min(100, Math.round((totalApplied / (payment.amount || 1)) * 100));
 
-            {/* Outlook Metadata Card */}
-            <div className="rounded-xl p-3 bg-secondary/60 flex flex-col gap-1.5 text-xs border border-border">
-              <div className="flex justify-between">
-                <div>From: <strong style={{ color: "var(--foreground)" }}>{activeEmail.sender}</strong></div>
-                <div style={{ color: "var(--muted-foreground)" }}>NEFT Bank Transfer</div>
-              </div>
-              <div>To: <span style={{ color: "var(--foreground)" }}>{activeEmail.recipients}</span></div>
-            </div>
+              let receiptLabel = "Payment Receipt";
+              if (payment.type === "NEFT Payment") {
+                receiptLabel = "NEFT Receipt";
+              } else if (payment.type === "Receipt Voucher") {
+                if (payment.ref.toLowerCase().includes("wire") || payment.ref.toLowerCase().includes("hdfc") || payment.ref.toLowerCase().includes("9812")) {
+                  receiptLabel = "Wire Transfer";
+                } else {
+                  receiptLabel = "Receipt Voucher";
+                }
+              } else if (payment.type === "Refund Entry") {
+                receiptLabel = "Refund Receipt";
+              } else if (payment.type === "Credit Note") {
+                receiptLabel = "Credit Receipt";
+              }
 
-            {/* Email Body */}
-            <div
-              className="text-sm text-foreground overflow-y-auto max-h-[180px] whitespace-pre-wrap leading-relaxed border-l-2 pl-4 border-indigo-500/20"
-              style={{ color: "var(--foreground)", fontFamily: "inherit" }}
-            >
-              {highlightEmailText(activeEmail.body, threadSearchQuery)}
-            </div>
+              return (
+                <div
+                  key={payment.id}
+                  className="flex flex-col gap-5 text-left"
+                >
+                  {/* Subtle divider before each section except the first */}
+                  {gIdx > 0 && <hr className="border-border/40 my-3" />}
 
-            {/* Attachments */}
-            {activeEmail.attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2.5 pt-3 border-t border-border">
-                {activeEmail.attachments.map((file, fIdx) => (
-                  <button
-                    key={fIdx}
-                    onClick={() => setPreviewFile(file)}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-left bg-secondary hover:bg-accent border transition-colors cursor-pointer border-border"
-                  >
-                    <Paperclip size={13} style={{ color: "var(--muted-foreground)" }} />
-                    <div className="flex flex-col">
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--foreground)" }}>{file.name}</span>
-                      <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{file.size} · Preview available</span>
+                  {/* Source Payment Receipt Header */}
+                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="flex flex-col gap-0.5 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 flex items-center justify-center">
+                          <Receipt size={14} />
+                        </span>
+                        <strong style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                          {receiptLabel}
+                        </strong>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono mt-1">
+                        <span>{payment.ref.startsWith("UTR") || payment.ref.startsWith("Doc Ref") ? payment.ref : `Reference: ${payment.ref}`}</span>
+                        <span>·</span>
+                        <span className="font-bold text-foreground">₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Collapsible previous email threads */}
-            {activeEmail.longEmailThread.length > 0 && (
-              <div className="flex flex-col gap-2 mt-1">
-                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                  EMAIL THREAD HISTORY ({activeEmail.longEmailThread.length})
-                </span>
-                
-                {activeEmail.longEmailThread.map((history, hIdx) => {
-                  const isCollapsed = collapsedThreadIds[hIdx] ?? true;
-                  return (
-                    <div
-                      key={hIdx}
-                      className="rounded-lg overflow-hidden border"
-                      style={{ borderColor: "var(--border)" }}
+                    <span
+                      className="rounded px-2 py-0.5 text-[10px] font-bold"
+                      style={{
+                        background: progressPercent === 100 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                        color: progressPercent === 100 ? "#22c55e" : "#f59e0b"
+                      }}
                     >
+                      {progressPercent === 100 ? "Fully Allocated" : `${progressPercent}% Mapped`}
+                    </span>
+                  </div>
+
+                  {/* Flow Block: Source Payment Receipt -> Arrow -> Grid of Invoices */}
+                  <div className="flex flex-col items-center gap-4 bg-secondary/20 p-5 rounded-2xl border border-border/40">
+                    
+                    {/* 1. SOURCE PAYMENT RECEIPT */}
+                    <div className="w-full max-w-md flex flex-col items-center">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase mb-1.5 tracking-wider">
+                        Source Payment Receipt
+                      </span>
                       <button
-                        onClick={() => toggleThreadCollapse(hIdx)}
-                        className="w-full flex items-center justify-between px-3 py-2 bg-secondary/80 hover:bg-secondary text-left border-none"
-                        style={{ cursor: "pointer", fontSize: 11 }}
+                        onClick={() => handleTxnCardClick(payment.id)}
+                        className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[170px]"
+                        style={{
+                          background: isPaymentSelected ? "var(--secondary)" : "var(--card)",
+                          borderColor: isPaymentSelected ? "rgba(107,140,255,0.8)" : "var(--border)",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.01)"
+                        }}
                       >
-                        <div className="flex items-center gap-2 truncate">
-                          <strong style={{ color: "var(--foreground)" }}>{history.sender}</strong>
-                          <span style={{ color: "var(--muted-foreground)" }}>·</span>
-                          <span style={{ color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>{history.date}</span>
+                        <div className="flex items-center justify-between w-full">
+                          <span style={{ fontSize: 10, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            {payment.type}
+                          </span>
+                          <span
+                            className="rounded px-1.5 py-0.5 text-[8.5px] font-bold animate-pulse-subtle"
+                            style={{
+                              background: payment.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                              color: payment.status === "Resolved" ? "#22c55e" : "#f59e0b"
+                            }}
+                          >
+                            {payment.status}
+                          </span>
                         </div>
-                        {isCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+
+                        <div className="my-1">
+                          <span className="text-[9.5px] text-muted-foreground block font-medium">Receipt Amount</span>
+                          <span style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                            ₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2.5 w-full">
+                          <div className="flex justify-between items-center w-full gap-2">
+                            <span>Ref</span>
+                            <strong className="font-mono text-foreground text-right truncate max-w-[150px]">{payment.ref}</strong>
+                          </div>
+                          {payment.remitter && (
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span>Remitter</span>
+                              <span className="text-foreground text-right truncate max-w-[150px]">{payment.remitter}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center w-full gap-2">
+                            <span>Posting Date</span>
+                            <span className="text-foreground text-right">{payment.postingDate}</span>
+                          </div>
+                        </div>
                       </button>
-
-                      {!isCollapsed && (
-                        <div className="p-3 bg-card text-xs leading-relaxed whitespace-pre-wrap" style={{ color: "var(--secondary-foreground)" }}>
-                          {highlightEmailText(history.body, threadSearchQuery)}
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
-          {/* BOTTOM HALF: Transaction Workspace */}
-          <div
-            className="rounded-2xl p-5 flex flex-col gap-4 bg-card relative text-left"
-            style={{ border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.01)" }}
-          >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500">
-                  <Sparkles size={14} />
-                </span>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-                  AI-First Reconciliation Workspace
-                </h3>
-              </div>
-              <span className="text-muted-foreground text-[10.5px]">
-                Double-click or select cards to resolve balances
-              </span>
-            </div>
-
-            {/* A. RECONCILIATION FLOW DIAGRAM */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                  CONNECTED RECONCILIATION FLOW (MONEY DISTRIBUTION)
-                </span>
-                {paymentCard && (
-                  <span className="text-[10px] text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded font-mono">
-                    UTR: {paymentCard.ref.replace("UTR ", "")}
-                  </span>
-                )}
-              </div>
-
-              <div className="rounded-2xl p-6 bg-secondary/40 border border-border flex flex-col items-center gap-5">
-                {/* 1. ROOT PAYMENT CARD */}
-                {paymentCard && (
-                  <div className="w-full max-w-md flex flex-col items-center">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase mb-1.5 tracking-wider">
-                      Source Payment Receipt
-                    </span>
-                    <button
-                      onClick={() => handleTxnCardClick(paymentCard.id)}
-                      className="rounded-xl p-5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full animate-in fade-in duration-200 min-h-[220px]"
-                      style={{
-                        background: selectedTxnIds.includes(paymentCard.id) ? "var(--secondary)" : "var(--card)",
-                        borderColor: selectedTxnIds.includes(paymentCard.id) ? "rgba(107,140,255,0.8)" : "var(--border)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.01)"
-                      }}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span style={{ fontSize: 11, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                          Payment
-                        </span>
-                        <span
-                          className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
-                          style={{
-                            background: "rgba(34,197,94,0.12)",
-                            color: "#22c55e"
-                          }}
-                        >
-                          Completed
-                        </span>
-                      </div>
-
-                      <div className="my-1.5">
-                        <span className="text-[10px] text-muted-foreground block font-medium">Payment Amount</span>
-                        <span style={{ fontSize: 20, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                          ₹{paymentCard.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-2 text-[11px] text-muted-foreground border-t border-border pt-3 w-full">
-                        <div className="flex justify-between items-center w-full gap-3">
-                          <span className="flex-shrink-0">UTR</span>
-                          <strong className="font-mono text-foreground text-right">{paymentCard.ref.replace("UTR ", "")}</strong>
-                        </div>
-                        <div className="flex justify-between items-center w-full gap-3">
-                          <span className="flex-shrink-0">Transaction Type</span>
-                          <span className="text-foreground font-semibold text-right">NEFT</span>
-                        </div>
-                        {paymentCard.customerRef && (
-                          <div className="flex justify-between items-center w-full gap-3">
-                            <span className="flex-shrink-0">Customer Ref</span>
-                            <strong className="text-foreground font-mono text-right">{paymentCard.customerRef}</strong>
-                          </div>
-                        )}
-                        {paymentCard.remitter && (
-                          <div className="flex justify-between items-start w-full gap-3">
-                            <span className="flex-shrink-0">Remitter</span>
-                            <span className="text-foreground text-right" title={paymentCard.remitter}>{paymentCard.remitter}</span>
-                          </div>
-                        )}
-                        {paymentCard.beneficiary && (
-                          <div className="flex justify-between items-start w-full gap-3">
-                            <span className="flex-shrink-0">Beneficiary</span>
-                            <span className="text-foreground text-right" title={paymentCard.beneficiary}>{paymentCard.beneficiary}</span>
-                          </div>
-                        )}
-                        {paymentCard.valueDate && (
-                          <div className="flex justify-between items-center w-full gap-3">
-                            <span className="flex-shrink-0">Value Date</span>
-                            <strong className="text-foreground text-right">{paymentCard.valueDate}</strong>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                )}
-
-                {/* Vertical Connector Arrow */}
-                <div className="flex flex-col items-center">
-                  <div className="w-0.5 h-6 bg-border relative">
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
-                  </div>
-                </div>
-
-                {/* 2. INVOICE REFERENCES (RESPONSIVE GRID) */}
-                <div className="w-full flex flex-col items-center gap-1.5">
-                  <span className="text-[9px] font-bold text-muted-foreground uppercase mb-1 tracking-wider">
-                    Allocated Invoices ({invoiceCards.length})
-                  </span>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
-                    {invoiceCards.map((txn) => {
-                      const isSelected = selectedTxnIds.includes(txn.id);
-                      
-                      let statusBg = "rgba(136,136,150,0.08)";
-                      let statusColor = "var(--muted-foreground)";
-                      let cardBorderColor = "var(--border)";
-
-                      if (txn.status === "Outstanding") {
-                        statusBg = "rgba(239,68,68,0.08)";
-                        statusColor = "#ef4444";
-                      } else if (txn.status === "Available Credit") {
-                        statusBg = "rgba(34,197,94,0.08)";
-                        statusColor = "#22c55e";
-                      } else if (txn.status === "Resolved") {
-                        statusBg = "rgba(34,197,94,0.12)";
-                        statusColor = "#22c55e";
-                      }
-
-                      if (isSelected) {
-                        cardBorderColor = "rgba(107,140,255,0.8)";
-                      }
-
-                      return (
-                        <button
-                          key={txn.id}
-                          onClick={() => handleTxnCardClick(txn.id)}
-                          className="rounded-xl p-5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full animate-in fade-in duration-200 min-h-[210px]"
-                          style={{
-                            background: isSelected ? "var(--secondary)" : "var(--card)",
-                            borderColor: cardBorderColor,
-                            cursor: "pointer",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
-                          }}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                              Invoice
-                            </span>
-                            <span
-                              className="rounded px-1.5 py-0.5 text-[8.5px] font-bold animate-pulse-subtle"
-                              style={{ background: statusBg, color: statusColor }}
-                            >
-                              {txn.status}
-                            </span>
-                          </div>
-
-                          <div className="my-1.5">
-                            <span className="text-[9.5px] text-muted-foreground block font-medium">Invoice Amount</span>
-                            <span style={{ fontSize: 16.5, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>
-                              ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-2 text-[11px] text-muted-foreground border-t border-border pt-3 w-full">
-                            <div className="flex justify-between items-center w-full gap-2">
-                              <span className="flex-shrink-0">Ref</span>
-                              <strong className="text-foreground font-mono text-right">{txn.docNum}</strong>
-                            </div>
-                            <div className="flex justify-between items-center w-full gap-2">
-                              <span className="flex-shrink-0">Applied</span>
-                              <span className="font-mono text-foreground font-semibold text-right">
-                                ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center w-full gap-2">
-                              <span className="flex-shrink-0">Remaining</span>
-                              <span
-                                className="font-mono font-semibold text-right"
-                                style={{
-                                  color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
-                                }}
-                              >
-                                ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center w-full gap-2 mt-0.5 text-[9.5px] text-gray-400">
-                              <span className="flex-shrink-0">Posted</span>
-                              <span className="text-right">{txn.postingDate}</span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Vertical Connector Arrow */}
-                <div className="flex flex-col items-center">
-                  <div className="w-0.5 h-6 bg-border relative">
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
-                  </div>
-                </div>
-
-                {/* 3. APPLIED ALLOCATION LEVEL */}
-                <div className="w-full max-w-lg bg-card border border-border rounded-xl p-3.5 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <CheckCircle2 size={12} className="text-emerald-500" />
-                      Applied Allocation
-                    </span>
-                    <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
-                      Total Matched: {((invoiceCards.reduce((acc, c) => acc + c.appliedAmount, 0) / (paymentCard?.amount || 1)) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-
-                  {/* Allocation progress bar */}
-                  <div className="w-full bg-secondary h-2 rounded-full overflow-hidden flex">
-                    <div
-                      className="bg-emerald-500 h-full transition-all duration-300"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          (invoiceCards.reduce((acc, c) => acc + c.appliedAmount, 0) / (paymentCard?.amount || 1)) * 100
-                        )}%`
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex justify-between items-center text-[10.5px] mt-0.5">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground text-[8.5px]">Total Receipt</span>
-                      <strong className="font-mono text-foreground">₹{paymentCard?.amount.toLocaleString()}</strong>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-muted-foreground text-[8.5px]">Total Distributed</span>
-                      <strong className="font-mono text-emerald-500">₹{invoiceCards.reduce((acc, c) => acc + c.appliedAmount, 0).toLocaleString()}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. OUTSTANDING / EXCEPTIONS (IF ANY) */}
-                {otherCards.length > 0 && (
-                  <>
                     {/* Vertical Connector Arrow */}
                     <div className="flex flex-col items-center">
                       <div className="w-0.5 h-6 bg-border relative">
@@ -1763,280 +1623,381 @@ export function TransactionHubPage() {
                       </div>
                     </div>
 
-                    <div className="w-full flex flex-col items-center gap-1.5">
-                      <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider">
-                        Unmatched / Exception Entries ({otherCards.length})
+                    {/* 2. RELATED INVOICE GRID */}
+                    <div className="w-full flex flex-col items-center gap-2">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                        Linked Invoices ({invoices.length})
                       </span>
-                      <div className="flex flex-wrap justify-center gap-3 w-full max-w-4xl">
-                        {otherCards.map((txn) => {
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                        {invoices.map((txn) => {
                           const isSelected = selectedTxnIds.includes(txn.id);
-                          let borderCol = "var(--border)";
-                          if (isSelected) borderCol = "rgba(107,140,255,0.8)";
+                          
+                          let statusBg = "rgba(136,136,150,0.08)";
+                          let statusColor = "var(--muted-foreground)";
+                          let cardBorderColor = "var(--border)";
+
+                          if (txn.status === "Outstanding") {
+                            statusBg = "rgba(239,68,68,0.08)";
+                            statusColor = "#ef4444";
+                          } else if (txn.status === "Available Credit") {
+                            statusBg = "rgba(34,197,94,0.08)";
+                            statusColor = "#22c55e";
+                          } else if (txn.status === "Resolved") {
+                            statusBg = "rgba(34,197,94,0.12)";
+                            statusColor = "#22c55e";
+                          }
+
+                          if (isSelected) {
+                            cardBorderColor = "rgba(107,140,255,0.8)";
+                          }
 
                           return (
                             <button
                               key={txn.id}
                               onClick={() => handleTxnCardClick(txn.id)}
-                              className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full animate-in fade-in duration-200 min-h-[190px]"
+                              className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[180px]"
                               style={{
-                                width: 220,
                                 background: isSelected ? "var(--secondary)" : "var(--card)",
-                                borderColor: borderCol,
+                                borderColor: cardBorderColor,
                                 cursor: "pointer",
                                 boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
                               }}
                             >
                               <div className="flex items-center justify-between w-full">
-                                <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                  {txn.type}
+                                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                  Invoice
                                 </span>
                                 <span
                                   className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
-                                  style={{
-                                    background: "rgba(245,158,11,0.08)",
-                                    color: "#f59e0b"
-                                  }}
+                                  style={{ background: statusBg, color: statusColor }}
                                 >
                                   {txn.status}
                                 </span>
                               </div>
 
                               <div className="my-1">
-                                <span className="text-[10px] text-muted-foreground block font-medium">Amount</span>
-                                <span style={{ fontSize: 16, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                                <span className="text-[9.5px] text-muted-foreground block font-medium">Invoice Total</span>
+                                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
                                   ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
 
-                              <div className="flex flex-col gap-1 text-[10.5px] text-muted-foreground border-t border-border pt-2 w-full">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                                  <span>Doc Ref</span>
-                                  <strong className="font-mono text-foreground truncate max-w-[120px]">{txn.docNum}</strong>
+                              <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                                <div className="flex justify-between items-center w-full gap-2">
+                                  <span>Ref</span>
+                                  <strong className="text-foreground font-mono text-right">{txn.docNum}</strong>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }}>
-                                  <span>Details</span>
-                                  <span className="text-foreground truncate max-w-[120px]" title={txn.ref}>{txn.ref}</span>
+                                <div className="flex justify-between items-center w-full gap-2">
+                                  <span>Allocated From This Receipt</span>
+                                  <span className="font-mono text-foreground font-semibold text-right">
+                                    ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
                                 </div>
-                                {txn.postingDate && (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', whiteSpace: 'nowrap' }} className="mt-0.5 text-[9px] text-gray-400">
-                                    <span>Posted Date</span>
-                                    <span>{txn.postingDate}</span>
-                                  </div>
-                                )}
+                                <div className="flex justify-between items-center w-full gap-2">
+                                  <span>Remaining after Allocation</span>
+                                  <span
+                                    className="font-mono font-semibold text-right"
+                                    style={{
+                                      color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
+                                    }}
+                                  >
+                                    ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
                               </div>
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
 
-            {/* B. OUTSTANDING ITEMS (RECONCILIATION FLAGS) */}
-            <div className="flex flex-col gap-2">
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                OUTSTANDING ITEMS (REMEDIAL ACTION QUEUE)
-              </span>
+                    {/* 3. RELATED ADJUSTMENTS (CN, REFUNDS) */}
+                    {adjustments.length > 0 && (
+                      <>
+                        {/* Vertical Connector Arrow */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-0.5 h-6 bg-border relative">
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
+                          </div>
+                        </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {activeEmail.outstandingItems.map((ex) => {
-                  const isSelected = activeExceptionId === ex.id;
-                  const isResolved = ex.status === "Resolved";
-
-                  let color = "#f59e0b"; // amber
-                  let bg = "rgba(245,158,11,0.05)";
-                  let borderColor = "var(--border)";
-
-                  if (isResolved) {
-                    color = "#22c55e"; // green
-                    bg = "rgba(34,197,94,0.05)";
-                  } else if (ex.priority === "Critical" || ex.priority === "High") {
-                    color = "#ef4444"; // red
-                    bg = "rgba(239,68,68,0.05)";
-                  }
-
-                  if (isSelected) {
-                    borderColor = color;
-                  }
-
-                  return (
-                    <button
-                      key={ex.id}
-                      onClick={() => !isResolved && handleExceptionClick(ex)}
-                      disabled={isResolved}
-                      className="rounded-xl p-3.5 flex flex-col gap-2 text-left transition-all hover:scale-[1.01] border-none"
-                      style={{
-                        background: isSelected ? bg : "var(--card)",
-                        border: `1.5px solid ${borderColor}`,
-                        cursor: isResolved ? "default" : "pointer",
-                        opacity: isResolved ? 0.6 : 1,
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
-                      }}
-                    >
-                      <div className="flex items-center justify-between w-full text-xs border-b border-border pb-1">
-                        <span style={{ fontWeight: 700, color }}>{ex.type}</span>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span
-                            className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
-                            style={{
-                              background: ex.priority === "Critical" || ex.priority === "High" ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
-                              color: ex.priority === "Critical" || ex.priority === "High" ? "#ef4444" : "#f59e0b"
-                            }}
-                          >
-                            {ex.priority}
+                        <div className="w-full flex flex-col items-center gap-2">
+                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider mb-1">
+                            Adjustments / Credit Notes ({adjustments.length})
                           </span>
-                          <span style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
-                            {ex.confidence}% AI
-                          </span>
+                          
+                          <div className="flex flex-wrap justify-center gap-4 w-full">
+                            {adjustments.map((txn) => {
+                              const isSelected = selectedTxnIds.includes(txn.id);
+                              let borderCol = "var(--border)";
+                              if (isSelected) borderCol = "rgba(107,140,255,0.8)";
+
+                              return (
+                                <button
+                                  key={txn.id}
+                                  onClick={() => handleTxnCardClick(txn.id)}
+                                  className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none min-h-[160px]"
+                                  style={{
+                                    width: 220,
+                                    background: isSelected ? "var(--secondary)" : "var(--card)",
+                                    borderColor: borderCol,
+                                    cursor: "pointer",
+                                    boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                      {txn.type}
+                                    </span>
+                                    <span
+                                      className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+                                      style={{
+                                        background: txn.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                                        color: txn.status === "Resolved" ? "#22c55e" : "#f59e0b"
+                                      }}
+                                    >
+                                      {txn.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="my-1">
+                                    <span className="text-[9.5px] text-muted-foreground block font-medium">Value</span>
+                                    <span style={{ fontSize: 15, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                                      ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                                    <div className="flex justify-between items-center w-full gap-2">
+                                      <span>Ref</span>
+                                      <strong className="font-mono text-foreground text-right truncate max-w-[120px]">{txn.docNum}</strong>
+                                    </div>
+                                    <div className="flex justify-between items-center w-full gap-2">
+                                      <span>Remaining after Allocation</span>
+                                      <span className="font-mono text-foreground font-semibold text-right">
+                                        ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* 4. APPLIED ALLOCATION PROGRESS BAR */}
+                    <div className="w-full max-w-lg bg-card border border-border/40 rounded-xl p-3.5 flex flex-col gap-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                          Group Allocation Status
+                        </span>
+                        <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+                          Mapped: {progressPercent}%
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden flex">
+                        <div
+                          className="bg-emerald-500 h-full transition-all duration-300"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center text-[10.5px] mt-0.5">
+                        <div className="flex flex-col">
+                          <span className="text-muted-foreground text-[8.5px]">Total Receipt</span>
+                          <strong className="font-mono text-foreground">₹{payment.amount.toLocaleString()}</strong>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-muted-foreground text-[8.5px]">Total Allocated</span>
+                          <strong className="font-mono text-emerald-500">₹{totalApplied.toLocaleString()}</strong>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Explanation */}
-                      <p className="m-0" style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.4 }}>
-                        {ex.explanation}
-                      </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-                      <div className="flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-border/40">
-                        <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
-                          Ref Code: <span className="font-mono">{ex.refNum}</span>
-                        </span>
-                        <strong style={{ fontSize: 11.5, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                          ₹{ex.amount.toLocaleString()}
-                        </strong>
+          {unlinkedCards.length > 0 && (
+            <div className="rounded-2xl p-6 bg-card text-left border border-border">
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
+                UNLINKED OUTSTANDING ITEMS
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                {unlinkedCards.map((txn) => {
+                  const isSelected = selectedTxnIds.includes(txn.id);
+                  return (
+                    <button
+                      key={txn.id}
+                      onClick={() => handleTxnCardClick(txn.id)}
+                      className="rounded-xl p-4 flex flex-col justify-between text-left transition-all border w-full min-h-[170px]"
+                      style={{
+                        background: isSelected ? "var(--secondary)" : "var(--card)",
+                        borderColor: isSelected ? "rgba(107,140,255,0.8)" : "var(--border)"
+                      }}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)" }}>{txn.type}</span>
+                        <span className="rounded px-1.5 py-0.5 text-[8.5px] font-bold bg-red-100 text-red-500">{txn.status}</span>
                       </div>
+                      <div className="my-1">
+                        <span style={{ fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>₹{txn.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="text-[10.5px] font-mono">{txn.docNum}</div>
                     </button>
                   );
                 })}
               </div>
             </div>
+          )}
 
-            {/* C. AI INSIGHT EXPLANATION */}
-            <div
-              className="rounded-xl p-3.5 flex flex-col gap-1 bg-indigo-50/30 dark:bg-indigo-950/10 border"
-              style={{ borderColor: "rgba(107,140,255,0.15)" }}
-            >
-              <div className="flex items-center gap-1.5 text-indigo-500 font-bold" style={{ fontSize: 9.5, letterSpacing: "0.04em" }}>
-                <Sparkles size={11} />
-                <span>AI MATCHING RECONCILIATION INSIGHT</span>
-              </div>
-              <p className="m-0 text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>
-                {dynamicAIInsight.text}
-              </p>
-            </div>
+          {/* B. OUTSTANDING ITEMS (RECONCILIATION FLAGS) */}
+          <div className="flex flex-col gap-2.5 mt-2">
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
+              OUTSTANDING ITEMS (REMEDIAL ACTION QUEUE)
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {activeEmail.outstandingItems.map((ex) => {
+                const isSelected = activeExceptionId === ex.id;
+                const isResolved = ex.status === "Resolved";
 
-            {/* D. SUGGESTED ACTIONS (CONTEXTUAL RECOMMENDATIONS) */}
-            <div className="flex flex-col gap-2.5">
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                SUGGESTED ACTIONS (RECOMMENDED REMEDIATIONS)
-              </span>
+                let color = "#f59e0b"; // amber
+                let bg = "rgba(245,158,11,0.05)";
+                let borderColor = "var(--border)";
 
-              <div className="flex flex-col gap-2">
-                {dynamicSuggestedActions.map((action) => (
+                if (isResolved) {
+                  color = "#22c55e"; // green
+                  bg = "rgba(34,197,94,0.05)";
+                } else if (ex.priority === "Critical" || ex.priority === "High") {
+                  color = "#ef4444"; // red
+                  bg = "rgba(239,68,68,0.05)";
+                }
+
+                if (isSelected) {
+                  borderColor = color;
+                }
+
+                return (
                   <button
-                    key={action.id}
-                    onClick={() => setActivePlanAction(action)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent hover:scale-[1.002] transition-all text-left border border-border"
-                    style={{ cursor: "pointer" }}
+                    key={ex.id}
+                    onClick={() => !isResolved && handleExceptionClick(ex)}
+                    disabled={isResolved}
+                    className="rounded-xl p-4 flex flex-col gap-2 text-left transition-all hover:scale-[1.01] border-none"
+                    style={{
+                      background: isSelected ? bg : "var(--card)",
+                      border: `1.5px solid ${borderColor}`,
+                      cursor: isResolved ? "default" : "pointer",
+                      opacity: isResolved ? 0.6 : 1,
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+                    }}
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div
-                        className="flex items-center justify-center rounded-lg mt-0.5"
-                        style={{ width: 24, height: 24, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
-                      >
-                        <Info size={12} />
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--foreground)" }}>
-                          {action.label}
+                    <div className="flex items-center justify-between w-full text-xs border-b border-border pb-1.5">
+                      <span style={{ fontWeight: 700, color }}>{ex.type}</span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span
+                          className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+                          style={{
+                            background: ex.priority === "Critical" || ex.priority === "High" ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
+                            color: ex.priority === "Critical" || ex.priority === "High" ? "#ef4444" : "#f59e0b"
+                          }}
+                        >
+                          {ex.priority}
                         </span>
-                        <p className="m-0" style={{ fontSize: 10.5, color: "var(--muted-foreground)" }}>
-                          {action.description}
-                        </p>
+                        <span style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
+                          {ex.confidence}% AI
+                        </span>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                      <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
-                        {action.confidence}% Confidence
+                    <p className="m-0" style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.4 }}>
+                      {ex.explanation}
+                    </p>
+                    <div className="flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-border/40">
+                      <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
+                        Ref Code: <span className="font-mono">{ex.refNum}</span>
                       </span>
-                      <div className="p-1 rounded bg-foreground text-background">
-                        <ArrowRight size={11} />
-                      </div>
+                      <strong style={{ fontSize: 12, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                        ₹{ex.amount.toLocaleString()}
+                      </strong>
                     </div>
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+
+        {/* AI EXECUTION PREVIEW (SLIDER FOOTER CARD) */}
+        {activePlanAction && (
+          <div
+            className="absolute inset-x-4 bottom-4 p-5 rounded-2xl flex flex-col gap-3.5 border z-30 animate-in slide-in-from-bottom duration-200 bg-card"
+            style={{
+              borderColor: "var(--border)",
+              boxShadow: "0 -8px 32px rgba(0,0,0,0.08)"
+            }}
+          >
+            <div className="flex justify-between items-center pb-1">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} style={{ color: "#6b8cff" }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                  AI Execution Plan: {activePlanAction.label}
+                </span>
+              </div>
+              <button
+                onClick={() => setActivePlanAction(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 bg-secondary/60 p-3.5 rounded-xl text-xs border border-border">
+              <span style={{ fontWeight: 700, color: "var(--foreground)", fontSize: 10, letterSpacing: "0.04em" }}>
+                ACTIONS TO PERFORM
+              </span>
+              
+              <div className="flex flex-col gap-1.5">
+                {activePlanAction.plan.map((step, sIdx) => (
+                  <div key={sIdx} className="flex items-start gap-2" style={{ color: "var(--secondary-foreground)" }}>
+                    <span style={{ color: "#6b8cff" }}>·</span>
+                    <span>{step}</span>
+                  </div>
                 ))}
               </div>
+
+              <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: "4px 0" }} />
+
+              <div className="flex items-center justify-between">
+                <span style={{ fontWeight: 700, color: "var(--foreground)", fontSize: 10 }}>EXPECTED OUTCOME:</span>
+                <span className="font-semibold text-emerald-500">{activePlanAction.expectedResult}</span>
+              </div>
             </div>
 
-            {/* E. AI EXECUTION PREVIEW (SLIDER FOOTER CARD) */}
-            {activePlanAction && (
-              <div
-                className="absolute inset-x-0 bottom-0 p-5 rounded-2xl flex flex-col gap-3.5 border z-30 animate-in slide-in-from-bottom duration-200"
-                style={{
-                  background: "var(--card)",
-                  borderColor: "var(--border)",
-                  boxShadow: "0 -8px 32px rgba(0,0,0,0.08)"
-                }}
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setActivePlanAction(null)}
+                className="rounded-lg px-4 py-2 hover:bg-accent border cursor-pointer font-semibold transition-colors"
+                style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--foreground)", fontSize: 12 }}
               >
-                <div className="flex justify-between items-center pb-1">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={14} style={{ color: "#6b8cff" }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                      AI Execution Plan: {activePlanAction.label}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setActivePlanAction(null)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-
-                <div className="flex flex-col gap-2 bg-secondary/60 p-3.5 rounded-xl text-xs border">
-                  <span style={{ fontWeight: 700, color: "var(--foreground)", fontSize: 10, letterSpacing: "0.04em" }}>
-                    ACTIONS TO PERFORM
-                  </span>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    {activePlanAction.plan.map((step, sIdx) => (
-                      <div key={sIdx} className="flex items-start gap-2" style={{ color: "var(--secondary-foreground)" }}>
-                        <span style={{ color: "#6b8cff" }}>·</span>
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: "4px 0" }} />
-
-                  <div className="flex items-center justify-between">
-                    <span style={{ fontWeight: 700, color: "var(--foreground)", fontSize: 10 }}>EXPECTED OUTCOME:</span>
-                    <span className="font-semibold text-emerald-500">{activePlanAction.expectedResult}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2.5">
-                  <button
-                    onClick={() => setActivePlanAction(null)}
-                    className="rounded-lg px-4 py-2 hover:bg-accent border cursor-pointer font-semibold transition-colors"
-                    style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--foreground)", fontSize: 12 }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleExecuteActionConfirm}
-                    className="rounded-lg px-4 py-2 cursor-pointer font-semibold transition-colors border-none"
-                    style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12 }}
-                  >
-                    Execute Action
-                  </button>
-                </div>
-              </div>
-            )}
+                Cancel
+              </button>
+              <button
+                onClick={handleExecuteActionConfirm}
+                className="rounded-lg px-4 py-2 cursor-pointer font-semibold transition-colors border-none"
+                style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12 }}
+              >
+                Execute Action
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ─── COLUMN 3: THREAD ACTIVITY & SUMMARY DRAWER ─── */}
@@ -2068,18 +2029,80 @@ export function TransactionHubPage() {
         {/* Drawer Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
           
-          {/* Section 1: Thread Summary */}
-          <div className="flex flex-col gap-2 text-left">
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-              CONCISE THREAD SUMMARY
-            </span>
-            <div
-              className="rounded-xl p-3.5 bg-secondary/50 text-xs border leading-relaxed"
-              style={{ color: "var(--foreground)" }}
-            >
-              {activeEmail.threadSummary}
+          {/* Dynamic Top Section based on selection state */}
+          {selectedTxnIds.length === 0 && !activeExceptionId ? (
+            /* CONCISE THREAD SUMMARY */
+            <div className="flex flex-col gap-2 text-left animate-in fade-in duration-200">
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
+                CONCISE THREAD SUMMARY
+              </span>
+              <div
+                className="rounded-xl p-3.5 bg-secondary/50 text-xs border leading-relaxed"
+                style={{ color: "var(--foreground)", borderColor: "var(--border)" }}
+              >
+                {activeEmail.threadSummary}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* DYNAMIC AI INSIGHT & SUGGESTED ACTIONS */
+            <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+              {/* AI INSIGHT */}
+              <div className="flex flex-col gap-2 text-left">
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
+                  AI MATCHING RECONCILIATION INSIGHT
+                </span>
+                <div
+                  className="rounded-xl p-3.5 flex flex-col gap-1.5 bg-indigo-50/30 dark:bg-indigo-950/10 border text-xs leading-relaxed"
+                  style={{ color: "var(--foreground)", borderColor: "rgba(107,140,255,0.15)" }}
+                >
+                  <p className="m-0">{dynamicAIInsight.text}</p>
+                  <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[10px] mt-1">
+                    <Sparkles size={11} />
+                    <span>{dynamicAIInsight.confidence}% Confidence</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SUGGESTED ACTIONS */}
+              <div className="flex flex-col gap-2 text-left">
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
+                  SUGGESTED ACTIONS ({dynamicSuggestedActions.length})
+                </span>
+                <div className="flex flex-col gap-2">
+                  {dynamicSuggestedActions.map((action) => (
+                    <button
+                      key={action.id}
+                      onClick={() => setActivePlanAction(action)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent hover:scale-[1.002] transition-all text-left border border-border"
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="flex items-center justify-center rounded-lg mt-0.5 flex-shrink-0"
+                          style={{ width: 20, height: 20, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+                        >
+                          <Info size={11} />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>
+                            {action.label}
+                          </span>
+                          <p className="m-0 text-[10px] text-muted-foreground leading-normal">
+                            {action.description}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                        <div className="p-1 rounded bg-foreground text-background">
+                          <ArrowRight size={10} />
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: 0 }} />
 
@@ -2089,7 +2112,7 @@ export function TransactionHubPage() {
               UNIFIED ACTIVITY TIMELINE
             </span>
 
-            <div className="flex flex-col pl-2.5 relative">
+            <div className="flex flex-col pl-2.5 relative text-left">
               {activeEmail.activityTimeline.map((event, eIdx) => {
                 const isLast = eIdx === activeEmail.activityTimeline.length - 1;
                 
@@ -2164,7 +2187,7 @@ export function TransactionHubPage() {
         </div>
 
         {/* Reset State Button */}
-        <div className="p-3 border-t border-border flex justify-center bg-secondary/10">
+        <div className="p-3 border-t border-border flex justify-center bg-secondary/10 flex-shrink-0">
           <button
             onClick={() => {
               setQueue(INITIAL_QUEUE_DATA);
@@ -2417,6 +2440,178 @@ export function TransactionHubPage() {
                 style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--foreground)", fontSize: 12 }}
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── EMAIL DETAILS MODAL ─── */}
+      {showEmailModal && activeEmail && (
+        <div
+          className="flex items-center justify-center animate-in fade-in duration-200"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 190,
+            backdropFilter: "blur(4px)"
+          }}
+          onClick={() => setShowEmailModal(false)}
+        >
+          <div
+            className="flex flex-col rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            style={{
+              width: 720,
+              height: "85vh",
+              maxHeight: "85vh",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.3)"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0"
+              style={{ background: "var(--secondary)" }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex items-center justify-center rounded-full"
+                  style={{ width: 28, height: 28, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+                >
+                  <Mail size={14} />
+                </div>
+                <div className="flex flex-col text-left">
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                    Email Correspondence
+                  </span>
+                  <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+                    Reconciliation Source Reference
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="flex items-center justify-center p-1.5 rounded-lg hover:bg-accent cursor-pointer border-none"
+                style={{ background: "none", color: "var(--muted-foreground)" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 text-left" style={{ background: "var(--background)" }}>
+              {/* Email Metadata Grid */}
+              <div className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card">
+                <div className="flex items-start justify-between text-xs">
+                  <div className="flex flex-col gap-1.5">
+                    <div>
+                      <span className="text-muted-foreground mr-1">From:</span>
+                      <strong className="text-foreground font-semibold">{activeEmail.sender}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground mr-1">To:</span>
+                      <span className="text-foreground font-medium">{activeEmail.recipients}</span>
+                    </div>
+                  </div>
+                  <div className="text-right text-muted-foreground font-mono text-[10px]">
+                    {activeEmail.date}
+                  </div>
+                </div>
+                <hr className="border-t border-border my-1" />
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Subject</span>
+                  <span className="text-sm font-bold text-foreground">{activeEmail.subject}</span>
+                </div>
+              </div>
+
+              {/* Email Body */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Message Body</span>
+                <div className="p-4 rounded-xl border border-border bg-card/50 text-xs text-foreground whitespace-pre-line leading-relaxed font-sans min-h-[120px]">
+                  {activeEmail.body}
+                </div>
+              </div>
+
+              {/* Attachments Section */}
+              {activeEmail.attachments && activeEmail.attachments.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Attachments ({activeEmail.attachments.length})
+                  </span>
+                  <div className="flex flex-wrap gap-3">
+                    {activeEmail.attachments.map((file, fIdx) => (
+                      <button
+                        key={fIdx}
+                        onClick={() => {
+                          setPreviewFile(file);
+                        }}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-accent transition-all text-left cursor-pointer hover:scale-[1.01]"
+                        style={{ minWidth: 200 }}
+                      >
+                        <div
+                          className="flex items-center justify-center rounded-lg"
+                          style={{ width: 32, height: 32, background: "rgba(107,140,255,0.08)", color: "#6b8cff" }}
+                        >
+                          <FileText size={16} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-foreground truncate max-w-[140px]">{file.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{file.size}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Thread History */}
+              {activeEmail.longEmailThread && activeEmail.longEmailThread.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Prior Correspondence ({activeEmail.longEmailThread.length})
+                  </span>
+                  <div className="flex flex-col gap-4 border-l-2 border-border pl-4 ml-2">
+                    {activeEmail.longEmailThread.map((thread, tIdx) => (
+                      <div key={tIdx} className="flex flex-col gap-2 relative">
+                        {/* Thread dot indicator */}
+                        <div
+                          className="absolute rounded-full border border-border"
+                          style={{
+                            width: 8,
+                            height: 8,
+                            left: -21,
+                            top: 4,
+                            background: "var(--background)"
+                          }}
+                        />
+                        <div className="flex items-center justify-between text-[11px]">
+                          <strong className="text-foreground font-semibold">{thread.sender}</strong>
+                          <span className="text-muted-foreground font-mono text-[9.5px]">{thread.date}</span>
+                        </div>
+                        <div className="p-3.5 rounded-xl border border-border bg-card/30 text-xs text-muted-foreground whitespace-pre-line leading-relaxed">
+                          {thread.body}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="px-6 py-4 border-t border-border flex justify-end gap-2.5 flex-shrink-0"
+              style={{ background: "var(--secondary)" }}
+            >
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="rounded-lg px-4 py-2 hover:bg-accent border cursor-pointer font-semibold transition-colors"
+                style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--foreground)", fontSize: 12 }}
+              >
+                Return to Workspace
               </button>
             </div>
           </div>
