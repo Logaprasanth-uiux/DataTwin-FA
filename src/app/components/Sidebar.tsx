@@ -99,20 +99,21 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
       {/* Floating Divider Handle Collapse/Expand Toggle */}
       <button
         onClick={toggleCollapse}
-        className="absolute z-50 flex items-center justify-center rounded-full cursor-pointer hover:bg-secondary border transition-all duration-200 shadow-sm"
+        className="absolute z-50 flex items-center justify-center rounded-full cursor-pointer hover:bg-secondary/80 border transition-all duration-200"
         style={{
-          width: 28,
-          height: 28,
+          width: 24,
+          height: 24,
           top: 28,
           right: 0,
           transform: "translate(50%, -50%)",
           background: "var(--card)",
-          borderColor: "var(--border)",
+          borderColor: "var(--sidebar-border)",
           color: "var(--muted-foreground)",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
         }}
         title={isCollapsed ? "Expand Navigation" : "Collapse Navigation"}
       >
-        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {isCollapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
       </button>
 
       {/* Nav */}
