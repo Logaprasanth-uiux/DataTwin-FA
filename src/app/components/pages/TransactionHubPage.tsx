@@ -666,9 +666,45 @@ Refunds Dept`,
   }
 ];
 
+function parseNarration(narration: string) {
+  let remitter = "--";
+  let beneficiary = "--";
+  let txnRef = "--";
+  let bankRef = "--";
+  let bankDesc = "--";
+
+  if (narration) {
+    let clean = narration;
+    if (narration.startsWith("NEFT Cr-")) {
+      clean = narration.substring("NEFT Cr-".length);
+    } else if (narration.startsWith("RTGS Cr-")) {
+      clean = narration.substring("RTGS Cr-".length);
+    }
+    const parts = clean.split("--");
+    if (parts.length >= 3) {
+      beneficiary = parts[1].trim();
+      bankDesc = parts[2].trim();
+      
+      const subparts = parts[0].split("-");
+      if (subparts.length >= 3) {
+        txnRef = subparts[0].trim();
+        bankRef = subparts[1].trim();
+        remitter = subparts.slice(2).join("-").trim();
+      }
+    }
+  }
+  return {
+    remitter: remitter || "--",
+    beneficiary: beneficiary || "--",
+    txnRef: txnRef || "--",
+    bankRef: bankRef || "--",
+    bankDesc: bankDesc || "--"
+  };
+}
+
 export function TransactionHubPage() {
   const [queue, setQueue] = useState<EmailQueueItem[]>(INITIAL_QUEUE_DATA);
-  const [selectedEmailId, setSelectedEmailId] = useState<string>("TXN-EMAIL-005");
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   
   // New States for Canvas architecture
@@ -709,39 +745,33 @@ export function TransactionHubPage() {
 
   // Active email
   const activeEmail = useMemo(() => {
-    return queue.find((e) => e.id === selectedEmailId) || queue[0];
+    if (!selectedEmailId) return null;
+    return queue.find((e) => e.id === selectedEmailId) || null;
   }, [queue, selectedEmailId]);
 
   // Extract all payment receipt cards for the active email
   const payments = useMemo(() => {
+    if (!activeEmail) return [];
     return activeEmail.transactions.filter(
       (t) => t.type === "NEFT Payment" || t.type === "Receipt Voucher"
     );
   }, [activeEmail]);
 
-  // Auto-select the first receipt of the active email if current selection doesn't exist in active payments
+  // Handle auto-expanding all receipts by default on canvas load, but do NOT auto-select
   useEffect(() => {
     if (payments.length > 0) {
-      const exists = payments.some((p) => p.id === selectedReceiptId);
-      if (!exists) {
-        setSelectedReceiptId(payments[0].id);
-        setSelectedEntityId(payments[0].id);
-        setSelectedEntityType("receipt");
-        setSelectedTxnIds([payments[0].id]);
-      }
-      
-      // Auto expand all receipts by default so they display parallel on canvas load
       const initialExpanded: Record<string, boolean> = {};
       payments.forEach((p) => {
         initialExpanded[p.id] = true;
       });
       setExpandedReceipts(initialExpanded);
-    } else {
-      setSelectedReceiptId(null);
-      setSelectedEntityId(null);
-      setSelectedEntityType(null);
-      setSelectedTxnIds([]);
     }
+    
+    // Always reset selection states on canvas load or payments change
+    setSelectedReceiptId(null);
+    setSelectedEntityId(null);
+    setSelectedEntityType(null);
+    setSelectedTxnIds([]);
   }, [payments]);
 
   // Handle email click
@@ -804,6 +834,47 @@ export function TransactionHubPage() {
           activityTimeline: updatedTimeline,
           exceptionCount: updatedExceptions.filter((e) => e.status !== "Resolved").length,
           processingStatus: updatedExceptions.filter((e) => e.status !== "Resolved").length === 0 ? "Resolved" as const : email.processingStatus
+        };
+      });
+    });
+  };
+
+  // Simulate Posting an individual Receipt to ERP
+  const handlePostReceiptToERP = (rcptId: string) => {
+    setQueue((prevQueue) => {
+      return prevQueue.map((email) => {
+        if (email.id !== selectedEmailId) return email;
+
+        const now = new Date();
+        const nowStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+        const updatedTxns = email.transactions.map((t) => {
+          if (t.id === rcptId) {
+            return {
+              ...t,
+              status: "Resolved" as const
+            };
+          }
+          return t;
+        });
+
+        const target = email.transactions.find((t) => t.id === rcptId);
+        const ref = target ? target.ref : rcptId;
+
+        const updatedTimeline = [...email.activityTimeline];
+        updatedTimeline.push({
+          id: `TL-ERP-RCPT-${Date.now()}`,
+          type: "User Action",
+          title: "ERP Receipt Posting Succeeded",
+          details: `Receipt reference ${ref} successfully posted to ERP ledger.`,
+          actor: "Alex Johnson",
+          timestamp: `Today, ${nowStr}`
+        });
+
+        return {
+          ...email,
+          transactions: updatedTxns,
+          activityTimeline: updatedTimeline
         };
       });
     });
@@ -961,6 +1032,7 @@ export function TransactionHubPage() {
 
   // Determine dynamic suggested actions based on selected transaction cards & active exceptions
   const dynamicSuggestedActions = useMemo(() => {
+    if (!activeEmail) return [];
     if (activeExceptionId) {
       const activeExc = activeEmail.outstandingItems.find((e) => e.id === activeExceptionId);
       if (activeExc) {
@@ -1046,6 +1118,7 @@ export function TransactionHubPage() {
 
   // Dynamic AI Insight text explanation (Business language focus)
   const dynamicAIInsight = useMemo(() => {
+    if (!activeEmail) return { text: "", confidence: 0 };
     if (activeExceptionId) {
       const activeExc = activeEmail.outstandingItems.find((e) => e.id === activeExceptionId);
       if (activeExc) {
@@ -1366,6 +1439,7 @@ export function TransactionHubPage() {
   };
 
   const paymentGroups = useMemo(() => {
+    if (!activeEmail) return [];
     return payments.map((payment) => {
       const relatedInvoices = activeEmail.transactions.filter(
         (t) => t.parentId === payment.id && (t.type === "Invoice / Bill" || t.type === "Debit Note")
@@ -1379,27 +1453,71 @@ export function TransactionHubPage() {
         adjustments: relatedAdjustments
       };
     });
-  }, [payments, activeEmail.transactions]);
+  }, [payments, activeEmail]);
 
   const activeGroup = useMemo(() => {
+    if (paymentGroups.length === 0) return null;
     return paymentGroups.find((g) => g.payment.id === selectedReceiptId) || paymentGroups[0] || null;
   }, [paymentGroups, selectedReceiptId]);
 
   const unlinkedCards = useMemo(() => {
+    if (!activeEmail) return [];
     return activeEmail.transactions.filter(
       (t) =>
         t.type !== "NEFT Payment" &&
         t.type !== "Receipt Voucher" &&
         !t.parentId
     );
-  }, [activeEmail.transactions]);
+  }, [activeEmail]);
 
   const isAnyInvoiceSelected = useMemo(() => {
+    if (!activeEmail) return false;
     return selectedTxnIds.some((id) => {
       const card = activeEmail.transactions.find((t) => t.id === id);
       return card && (card.type === "Invoice / Bill" || card.type === "Debit Note");
     });
-  }, [selectedTxnIds, activeEmail.transactions]);
+  }, [selectedTxnIds, activeEmail]);
+
+  // Session Summary Memos for Column 3 overview dashboard
+  const totalCredit = useMemo(() => {
+    return payments.reduce((acc, p) => acc + p.amount, 0);
+  }, [payments]);
+
+  const matchedAmount = useMemo(() => {
+    return paymentGroups.reduce((acc, g) => {
+      const invTotal = g.invoices.reduce((sum, inv) => sum + inv.appliedAmount, 0);
+      const adjTotal = g.adjustments.reduce((sum, adj) => sum + adj.appliedAmount, 0);
+      return acc + invTotal + adjTotal;
+    }, 0);
+  }, [paymentGroups]);
+
+  const pendingAllocation = useMemo(() => {
+    return Math.max(0, totalCredit - matchedAmount);
+  }, [totalCredit, matchedAmount]);
+
+  const clarificationCount = useMemo(() => {
+    if (!activeEmail) return 0;
+    return activeEmail.outstandingItems.filter(e => e.status !== "Resolved").length;
+  }, [activeEmail]);
+
+  const totalReceiptsCount = useMemo(() => {
+    return payments.length;
+  }, [payments]);
+
+  const totalLinkedInvoicesCount = useMemo(() => {
+    if (!activeEmail) return 0;
+    return activeEmail.transactions.filter((t) => t.type === "Invoice / Bill" || t.type === "Debit Note").length;
+  }, [activeEmail]);
+
+  const totalExceptionsCount = useMemo(() => {
+    if (!activeEmail) return 0;
+    return activeEmail.outstandingItems.length;
+  }, [activeEmail]);
+
+  const overallProgressPercent = useMemo(() => {
+    if (totalCredit === 0) return 0;
+    return Math.min(100, Math.round((matchedAmount / totalCredit) * 100));
+  }, [matchedAmount, totalCredit]);
 
   return (
     <main
@@ -1667,11 +1785,23 @@ export function TransactionHubPage() {
 
       {/* ─── COLUMN 2: WORKSPACE PANEL (INTERACTIVE CANVAS) ─── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 relative" style={{ background: "var(--secondary)" }}>
-        {/* Workspace Top Toolbar */}
-        <header
-          className="flex items-center justify-between px-6 bg-card"
-          style={{ height: 48, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
-        >
+        {!activeEmail ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none bg-card/20">
+            <div className="w-16 h-16 rounded-2xl bg-card border border-border/80 flex items-center justify-center text-muted-foreground shadow-sm mb-4">
+              <Building size={28} className="opacity-60 text-indigo-500" />
+            </div>
+            <h3 className="text-base font-bold text-foreground mb-1.5">Select a Remediation Item</h3>
+            <p className="text-xs text-muted-foreground max-w-[320px] leading-relaxed">
+              Choose a payment reconciliation item from the Remediation Queue to begin reviewing receipts, invoice allocations, and ERP posting actions.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Workspace Top Toolbar */}
+            <header
+              className="flex items-center justify-between px-6 bg-card"
+              style={{ height: 48, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
+            >
           <div className="flex items-center gap-2">
             <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 flex items-center justify-center">
               <Building size={13} />
@@ -1797,18 +1927,69 @@ export function TransactionHubPage() {
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                    <div className="flex flex-col gap-1.5 text-[10px] text-muted-foreground border-t border-border/40 pt-2 w-full">
                       <div className="flex justify-between items-center w-full">
-                        <span>Posting Date</span>
+                        <span>Context ID</span>
+                        <span className="text-foreground font-mono font-semibold">{payment.docNum}</span>
+                      </div>
+                      <div className="flex justify-between items-center w-full">
+                        <span>Transaction Date</span>
                         <span className="text-foreground">{payment.postingDate}</span>
                       </div>
-                      {payment.remitter && (
-                        <div className="flex justify-between items-center w-full">
-                          <span>Remitter</span>
-                          <span className="text-foreground truncate max-w-[150px] text-right">{payment.remitter}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between items-center w-full">
+                        <span>SAP Document Number</span>
+                        <span className="text-foreground font-mono">{payment.sapDocNum || "10008746"}</span>
+                      </div>
+                      {(() => {
+                        const descVal = payment.description || `NEFT Cr-CHASH00017679291-CHASOINBX01-${payment.remitter || "WPP MEDIA INDIA PRIVATE LIMITED"}--${payment.beneficiary || "TV TODAY NETWORK LTD"}--RE-${payment.ref.replace("UTR ", "")}`;
+                        const parsed = parseNarration(descVal);
+                        return (
+                          <>
+                            <div className="flex justify-between items-center w-full">
+                              <span>Payer / Remitter</span>
+                              <span className="text-foreground font-semibold truncate max-w-[150px]" title={parsed.remitter}>{parsed.remitter}</span>
+                            </div>
+                            <div className="flex justify-between items-center w-full">
+                              <span>Beneficiary</span>
+                              <span className="text-foreground font-semibold truncate max-w-[150px]" title={parsed.beneficiary}>{parsed.beneficiary}</span>
+                            </div>
+                            <div className="flex justify-between items-center w-full">
+                              <span>Transaction Reference</span>
+                              <span className="text-foreground font-mono truncate max-w-[150px]" title={parsed.txnRef}>{parsed.txnRef}</span>
+                            </div>
+                            <div className="flex justify-between items-center w-full">
+                              <span>Bank Reference / Channel</span>
+                              <span className="text-foreground font-mono truncate max-w-[150px]" title={parsed.bankRef}>{parsed.bankRef}</span>
+                            </div>
+                            <div className="flex justify-between items-center w-full">
+                              <span>Bank Description</span>
+                              <span className="text-foreground truncate max-w-[150px]" title={parsed.bankDesc}>{parsed.bankDesc}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                      <div className="flex justify-between items-center w-full">
+                        <span>Branch Code</span>
+                        <span className="text-foreground font-mono">{payment.branchCode || "CHASOINBX01"}</span>
+                      </div>
+                      <div className="flex justify-between items-center w-full border-t border-border/20 pt-1 mt-1">
+                        <span className="font-semibold text-foreground">Credit Amount</span>
+                        <span className="text-foreground font-semibold font-mono">₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
                     </div>
+
+                    {payment.status !== "Resolved" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePostReceiptToERP(payment.id);
+                        }}
+                        className="mt-3 w-full py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-[10px] transition-all flex items-center justify-center gap-1 cursor-pointer border-none shadow-sm hover:shadow"
+                      >
+                        <span>Post to ERP</span>
+                        <ArrowRight size={10} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Render children elements when Expanded */}
@@ -1881,27 +2062,54 @@ export function TransactionHubPage() {
                                   </span>
                                 </div>
 
-                                <div className="flex flex-col gap-1 text-[9.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                                <div className="flex flex-col gap-1 text-[9.5px] text-muted-foreground border-t border-border/40 pt-2.5 w-full">
                                   <div className="flex justify-between items-center w-full">
-                                    <span>Ref</span>
+                                    <span>SAP Doc Number</span>
+                                    <strong className="text-foreground font-mono">{txn.sapDocNum || `2000${txn.id.replace("TXN-", "4928")}`}</strong>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Bill Reference</span>
                                     <strong className="text-foreground font-mono">{txn.docNum}</strong>
                                   </div>
                                   <div className="flex justify-between items-center w-full">
-                                    <span>Allocated</span>
-                                    <span className="font-mono text-foreground font-semibold">
-                                      ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </span>
+                                    <span>Bill Date</span>
+                                    <span className="text-foreground">{txn.postingDate}</span>
                                   </div>
                                   <div className="flex justify-between items-center w-full">
-                                    <span>Remaining</span>
-                                    <span
-                                      className="font-mono font-semibold"
-                                      style={{
-                                        color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
-                                      }}
-                                    >
-                                      ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </span>
+                                    <span>Bill Amount</span>
+                                    <span className="text-foreground font-semibold font-mono">₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>TDS</span>
+                                    <span className="text-foreground font-mono">₹{(txn.tds || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Advance Adjustment</span>
+                                    <span className="text-foreground font-mono">₹{(txn.advanceAdjustment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Paid Amount</span>
+                                    <span className="text-foreground font-mono">₹{(txn.status === "Resolved" ? txn.appliedAmount : 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  
+                                  <div className="border-t border-border/20 my-1 pt-1">
+                                    <div className="flex justify-between items-center w-full">
+                                      <span className="font-semibold">Allocation</span>
+                                      <span className="font-mono text-foreground font-semibold">
+                                        ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center w-full">
+                                      <span className="font-semibold">Remaining Amount</span>
+                                      <span
+                                        className="font-mono font-semibold"
+                                        style={{
+                                          color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
+                                        }}
+                                      >
+                                        ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -2123,18 +2331,21 @@ export function TransactionHubPage() {
             </div>
           </div>
         )}
-      </div>
+      </>
+    )}
+  </div>
 
       {/* ─── COLUMN 3: THREAD ACTIVITY & SUMMARY DRAWER ─── */}
-      <div
-        className="flex flex-col h-full flex-shrink-0 font-sans"
-        style={{
-          width: 340,
-          minWidth: 340,
-          borderLeft: "1px solid var(--border)",
-          background: "var(--card)"
-        }}
-      >
+      {activeEmail && (
+        <div
+          className="flex flex-col h-full flex-shrink-0 font-sans"
+          style={{
+            width: 340,
+            minWidth: 340,
+            borderLeft: "1px solid var(--border)",
+            background: "var(--card)"
+          }}
+        >
         {/* Header */}
         <div
           className="flex flex-col justify-center px-6 py-2 text-left"
@@ -2407,13 +2618,114 @@ export function TransactionHubPage() {
                 }
               }
 
-              // Fallback / No selection state
+              // Fallback / No selection state (Reconciliation Session Summary)
               return (
-                <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-                  <Building size={28} className="text-muted-foreground opacity-60" />
-                  <p className="text-xs text-muted-foreground m-0 max-w-[200px] leading-relaxed">
-                    Select a payment receipt or invoice card on the canvas to view detailed matching insights.
-                  </p>
+                <div className="flex flex-col gap-4 text-left animate-in fade-in duration-200">
+                  {/* Header */}
+                  <div className="flex flex-col gap-1 border-b border-border pb-3">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reconciliation Summary</span>
+                    <h3 className="m-0 text-sm font-bold text-foreground flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-indigo-500" />
+                      Session Overview
+                    </h3>
+                  </div>
+
+                  {/* Summary Cards Grid */}
+                  <div className="grid grid-cols-2 gap-3.5 w-full">
+                    <div className="rounded-xl p-3 border border-border/80 flex flex-col gap-1 text-[11px] bg-card">
+                      <span className="text-muted-foreground text-[10px] font-medium">Total Credit</span>
+                      <span className="text-sm font-bold text-foreground font-mono">₹{totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="rounded-xl p-3 border border-border/80 flex flex-col gap-1 text-[11px] bg-card">
+                      <span className="text-muted-foreground text-[10px] font-medium">Matched Amount</span>
+                      <span className="text-sm font-bold text-emerald-500 font-mono">₹{matchedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="rounded-xl p-3 border border-border/80 flex flex-col gap-1 text-[11px] bg-card">
+                      <span className="text-muted-foreground text-[10px] font-medium">Pending Allocation</span>
+                      <span className="text-sm font-bold text-amber-500 font-mono">₹{pendingAllocation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="rounded-xl p-3 border border-border/80 flex flex-col gap-1 text-[11px] bg-card">
+                      <span className="text-muted-foreground text-[10px] font-medium">Needing Clarification</span>
+                      <span className="text-sm font-bold text-red-500 font-mono">{clarificationCount} Items</span>
+                    </div>
+                  </div>
+
+                  {/* Overall Session Progress */}
+                  <div className="rounded-xl p-3.5 bg-secondary/30 border border-border flex flex-col gap-2 bg-card">
+                    <div className="flex items-center justify-between text-[10.5px] font-medium text-muted-foreground">
+                      <span>Reconciliation Progress</span>
+                      <span className="text-foreground font-bold">{overallProgressPercent}% Complete</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${overallProgressPercent}%` }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-1 border-t border-border/40 pt-2 text-[9.5px]">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-[9px]">Total Receipts</span>
+                        <span className="text-foreground font-semibold font-mono">{totalReceiptsCount}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-[9px]">Linked Invoices</span>
+                        <span className="text-foreground font-semibold font-mono">{totalLinkedInvoicesCount}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-[9px]">Total Exceptions</span>
+                        <span className="text-foreground font-semibold font-mono text-red-500">{totalExceptionsCount}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Matching Overview */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">AI Matching Overview</span>
+                    <div className="rounded-xl p-3 bg-indigo-50/20 dark:bg-indigo-950/10 border border-indigo-500/15 text-[11px] leading-relaxed text-foreground bg-card">
+                      <p className="m-0">
+                        {`The AI agent has pre-analyzed UTR banking references and matched them with outstanding local book items. Reconciled values are prepared for ledger posting. Please review exception items and apply corrections as needed.`}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
+                        <Sparkles size={11} />
+                        <span>{activeEmail ? activeEmail.aiConfidence : 0}% Matching Confidence</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suggested Global Actions */}
+                  {dynamicSuggestedActions.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Suggested Global Actions ({dynamicSuggestedActions.length})</span>
+                      <div className="flex flex-col gap-2 w-full">
+                        {dynamicSuggestedActions.map((action) => (
+                          <button
+                            key={action.id}
+                            onClick={() => setActivePlanAction(action)}
+                            className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent transition-all text-left border border-border interactive-card cursor-pointer bg-card"
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="flex items-center justify-center rounded-lg mt-0.5 flex-shrink-0" style={{ width: 20, height: 20, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}>
+                                <Info size={11} />
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>
+                                  {action.label}
+                                </span>
+                                <p className="m-0 text-[10px] text-muted-foreground leading-normal">
+                                  {action.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <div className="p-1 rounded bg-foreground text-background flex items-center justify-center">
+                                <ArrowRight size={10} />
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -2512,6 +2824,7 @@ export function TransactionHubPage() {
           </button>
         </div>
       </div>
+    )}
 
       {/* ─── ATTACHMENT PREVIEW MODAL (REUSED STYLE) ─── */}
       {previewFile && (
