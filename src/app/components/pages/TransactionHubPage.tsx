@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { ReconciliationCanvas } from "./ReconciliationCanvas";
 import {
   Search,
   ArrowUpDown,
@@ -668,6 +669,12 @@ Refunds Dept`,
 export function TransactionHubPage() {
   const [queue, setQueue] = useState<EmailQueueItem[]>(INITIAL_QUEUE_DATA);
   const [selectedEmailId, setSelectedEmailId] = useState<string>("TXN-EMAIL-005");
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  
+  // New States for Canvas architecture
+  const [expandedReceipts, setExpandedReceipts] = useState<Record<string, boolean>>({});
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEntityType, setSelectedEntityType] = useState<"receipt" | "invoice" | null>(null);
   
   // Search, Filter, Sort state
   const [searchQuery, setSearchQuery] = useState("");
@@ -705,6 +712,38 @@ export function TransactionHubPage() {
     return queue.find((e) => e.id === selectedEmailId) || queue[0];
   }, [queue, selectedEmailId]);
 
+  // Extract all payment receipt cards for the active email
+  const payments = useMemo(() => {
+    return activeEmail.transactions.filter(
+      (t) => t.type === "NEFT Payment" || t.type === "Receipt Voucher"
+    );
+  }, [activeEmail]);
+
+  // Auto-select the first receipt of the active email if current selection doesn't exist in active payments
+  useEffect(() => {
+    if (payments.length > 0) {
+      const exists = payments.some((p) => p.id === selectedReceiptId);
+      if (!exists) {
+        setSelectedReceiptId(payments[0].id);
+        setSelectedEntityId(payments[0].id);
+        setSelectedEntityType("receipt");
+        setSelectedTxnIds([payments[0].id]);
+      }
+      
+      // Auto expand all receipts by default so they display parallel on canvas load
+      const initialExpanded: Record<string, boolean> = {};
+      payments.forEach((p) => {
+        initialExpanded[p.id] = true;
+      });
+      setExpandedReceipts(initialExpanded);
+    } else {
+      setSelectedReceiptId(null);
+      setSelectedEntityId(null);
+      setSelectedEntityType(null);
+      setSelectedTxnIds([]);
+    }
+  }, [payments]);
+
   // Handle email click
   const handleEmailSelect = (id: string) => {
     setSelectedEmailId(id);
@@ -712,6 +751,125 @@ export function TransactionHubPage() {
     setActiveExceptionId(null);
     setActivePlanAction(null);
     setThreadSearchQuery("");
+    setSelectedEntityId(null);
+    setSelectedEntityType(null);
+  };
+
+  // Simulate Posting an individual Invoice to ERP
+  const handlePostInvoiceToERP = (invId: string) => {
+    setQueue((prevQueue) => {
+      return prevQueue.map((email) => {
+        if (email.id !== selectedEmailId) return email;
+
+        const now = new Date();
+        const nowStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        
+        const updatedTxns = email.transactions.map((t) => {
+          if (t.id === invId) {
+            return {
+              ...t,
+              status: "Resolved" as const,
+              remainingBalance: 0,
+              appliedAmount: t.amount
+            };
+          }
+          return t;
+        });
+
+        const target = email.transactions.find((t) => t.id === invId);
+        const docNum = target ? target.docNum : invId;
+
+        const updatedTimeline = [...email.activityTimeline];
+        updatedTimeline.push({
+          id: `TL-ERP-${Date.now()}`,
+          type: "User Action",
+          title: "ERP Posting Succeeded",
+          details: `Invoice ${docNum} successfully posted and cleared in ERP ledger.`,
+          actor: "Alex Johnson",
+          timestamp: `Today, ${nowStr}`
+        });
+
+        // Resolve any outstanding exception linked to this invoice
+        const updatedExceptions = email.outstandingItems.map((ex) => {
+          if (ex.relatedTxnIds.includes(invId)) {
+            return { ...ex, status: "Resolved" as const };
+          }
+          return ex;
+        });
+
+        return {
+          ...email,
+          transactions: updatedTxns,
+          outstandingItems: updatedExceptions,
+          activityTimeline: updatedTimeline,
+          exceptionCount: updatedExceptions.filter((e) => e.status !== "Resolved").length,
+          processingStatus: updatedExceptions.filter((e) => e.status !== "Resolved").length === 0 ? "Resolved" as const : email.processingStatus
+        };
+      });
+    });
+  };
+
+  // Simulate Posting all eligible invoices under selected receipt
+  const handlePostAllEligible = (rcptId: string) => {
+    setQueue((prevQueue) => {
+      return prevQueue.map((email) => {
+        if (email.id !== selectedEmailId) return email;
+
+        const now = new Date();
+        const nowStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        
+        const eligibleInvoices = email.transactions.filter(
+          (t) => t.parentId === rcptId && (t.type === "Invoice / Bill" || t.type === "Debit Note") && t.status !== "Resolved"
+        );
+
+        if (eligibleInvoices.length === 0) return email;
+
+        const updatedTxns = email.transactions.map((t) => {
+          if (t.parentId === rcptId && (t.type === "Invoice / Bill" || t.type === "Debit Note")) {
+            return {
+              ...t,
+              status: "Resolved" as const,
+              remainingBalance: 0
+            };
+          }
+          if (t.id === rcptId) {
+            return {
+              ...t,
+              status: "Resolved" as const,
+              remainingBalance: 0
+            };
+          }
+          return t;
+        });
+
+        const updatedTimeline = [...email.activityTimeline];
+        updatedTimeline.push({
+          id: `TL-ERP-ALL-${Date.now()}`,
+          type: "User Action",
+          title: "Bulk ERP Clearing Posted",
+          details: `Posted clearing matching documents for all ${eligibleInvoices.length} eligible invoices under Receipt ${rcptId}.`,
+          actor: "Alex Johnson",
+          timestamp: `Today, ${nowStr}`
+        });
+
+        const invIds = eligibleInvoices.map((i) => i.id);
+        const updatedExceptions = email.outstandingItems.map((ex) => {
+          if (ex.relatedTxnIds.includes(rcptId) || ex.relatedTxnIds.some((id) => invIds.includes(id))) {
+            return { ...ex, status: "Resolved" as const };
+          }
+          return ex;
+        });
+
+        return {
+          ...email,
+          transactions: updatedTxns,
+          outstandingItems: updatedExceptions,
+          activityTimeline: updatedTimeline,
+          exceptionCount: updatedExceptions.filter((e) => e.status !== "Resolved").length,
+          processingStatus: updatedExceptions.filter((e) => e.status !== "Resolved").length === 0 ? "Resolved" as const : email.processingStatus
+        };
+      });
+    });
   };
 
   // Filtered and Sorted Email List (Work Queue)
@@ -748,16 +906,23 @@ export function TransactionHubPage() {
       });
   }, [queue, searchQuery, statusFilter, sortBy, sortOrder]);
 
-  // Handle transaction card selection click (allows multi selection)
-  const handleTxnCardClick = (id: string) => {
+  // Handle transaction card selection click (sets single active entity and highlights)
+  const handleTxnCardClick = (id: string, type: "receipt" | "invoice") => {
     setActiveExceptionId(null); // Clear exception highlight on direct card click
-    setSelectedTxnIds((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((x) => x !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
+    setSelectedEntityId(id);
+    setSelectedEntityType(type);
+    setSelectedTxnIds([id]);
+    if (type === "receipt") {
+      setSelectedReceiptId(id);
+    }
+  };
+
+  // Toggle expand/collapse state for receipts on canvas
+  const toggleReceiptExpand = (receiptId: string) => {
+    setExpandedReceipts((prev) => ({
+      ...prev,
+      [receiptId]: !prev[receiptId]
+    }));
   };
 
   // Handle Outstanding item selection click
@@ -765,9 +930,32 @@ export function TransactionHubPage() {
     if (activeExceptionId === exception.id) {
       setActiveExceptionId(null);
       setSelectedTxnIds([]);
+      if (selectedReceiptId) {
+        setSelectedEntityId(selectedReceiptId);
+        setSelectedEntityType("receipt");
+        setSelectedTxnIds([selectedReceiptId]);
+      }
     } else {
       setActiveExceptionId(exception.id);
       setSelectedTxnIds(exception.relatedTxnIds); // Highlight associated cards
+      
+      // Try to select the first related invoice or receipt
+      const relatedInv = activeEmail.transactions.find(
+        (t) => exception.relatedTxnIds.includes(t.id) && (t.type === "Invoice / Bill" || t.type === "Debit Note" || t.type === "Credit Note" || t.type === "Refund Entry")
+      );
+      if (relatedInv) {
+        setSelectedEntityId(relatedInv.id);
+        setSelectedEntityType("invoice");
+      } else {
+        const relatedRcpt = activeEmail.transactions.find(
+          (t) => exception.relatedTxnIds.includes(t.id) && (t.type === "NEFT Payment" || t.type === "Receipt Voucher")
+        );
+        if (relatedRcpt) {
+          setSelectedEntityId(relatedRcpt.id);
+          setSelectedEntityType("receipt");
+          setSelectedReceiptId(relatedRcpt.id);
+        }
+      }
     }
   };
 
@@ -1177,30 +1365,41 @@ export function TransactionHubPage() {
     );
   };
 
-  const payments = activeEmail.transactions.filter(
-    (t) => t.type === "NEFT Payment" || t.type === "Receipt Voucher"
-  );
+  const paymentGroups = useMemo(() => {
+    return payments.map((payment) => {
+      const relatedInvoices = activeEmail.transactions.filter(
+        (t) => t.parentId === payment.id && (t.type === "Invoice / Bill" || t.type === "Debit Note")
+      );
+      const relatedAdjustments = activeEmail.transactions.filter(
+        (t) => t.parentId === payment.id && (t.type === "Credit Note" || t.type === "Refund Entry")
+      );
+      return {
+        payment,
+        invoices: relatedInvoices,
+        adjustments: relatedAdjustments
+      };
+    });
+  }, [payments, activeEmail.transactions]);
 
-  const paymentGroups = payments.map((payment) => {
-    const relatedInvoices = activeEmail.transactions.filter(
-      (t) => t.parentId === payment.id && (t.type === "Invoice / Bill" || t.type === "Debit Note")
-    );
-    const relatedAdjustments = activeEmail.transactions.filter(
-      (t) => t.parentId === payment.id && (t.type === "Credit Note" || t.type === "Refund Entry")
-    );
-    return {
-      payment,
-      invoices: relatedInvoices,
-      adjustments: relatedAdjustments
-    };
-  });
+  const activeGroup = useMemo(() => {
+    return paymentGroups.find((g) => g.payment.id === selectedReceiptId) || paymentGroups[0] || null;
+  }, [paymentGroups, selectedReceiptId]);
 
-  const unlinkedCards = activeEmail.transactions.filter(
-    (t) =>
-      t.type !== "NEFT Payment" &&
-      t.type !== "Receipt Voucher" &&
-      !t.parentId
-  );
+  const unlinkedCards = useMemo(() => {
+    return activeEmail.transactions.filter(
+      (t) =>
+        t.type !== "NEFT Payment" &&
+        t.type !== "Receipt Voucher" &&
+        !t.parentId
+    );
+  }, [activeEmail.transactions]);
+
+  const isAnyInvoiceSelected = useMemo(() => {
+    return selectedTxnIds.some((id) => {
+      const card = activeEmail.transactions.find((t) => t.id === id);
+      return card && (card.type === "Invoice / Bill" || card.type === "Debit Note");
+    });
+  }, [selectedTxnIds, activeEmail.transactions]);
 
   return (
     <main
@@ -1445,19 +1644,20 @@ export function TransactionHubPage() {
                         </p>
                       </div>
 
-                      {item.longEmailThread.map((t, tIdx) => (
-                        <div key={tIdx} className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
+                      {item.longEmailThread.map((thread, thIdx) => (
+                        <div key={thIdx} className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
                           <div className="flex justify-between items-center text-[8.5px]">
-                            <strong className="text-foreground">{t.sender.split("@")[0]}</strong>
-                            <span className="text-muted-foreground">{t.date.split(",")[0]}</span>
+                            <strong className="text-foreground">{thread.sender.split("@")[0]}</strong>
+                            <span className="text-muted-foreground">{thread.date.split(",")[0]}</span>
                           </div>
                           <p className="m-0 text-muted-foreground truncate leading-normal">
-                            {t.body}
+                            {thread.body}
                           </p>
                         </div>
                       ))}
                     </div>
                   )}
+
                 </div>
               );
             })
@@ -1465,7 +1665,7 @@ export function TransactionHubPage() {
         </div>
       </div>
 
-      {/* ─── COLUMN 2: WORKSPACE PANEL ─── */}
+      {/* ─── COLUMN 2: WORKSPACE PANEL (INTERACTIVE CANVAS) ─── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 relative" style={{ background: "var(--secondary)" }}>
         {/* Workspace Top Toolbar */}
         <header
@@ -1473,38 +1673,40 @@ export function TransactionHubPage() {
           style={{ height: 48, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
         >
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500">
-              <Sparkles size={13} />
+            <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 flex items-center justify-center">
+              <Building size={13} />
             </span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-              AI Reconciliation Workspace
+              Payment Allocation Workspace
             </span>
             <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
               QUEUE REF: {activeEmail.id}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-4">
+            <span style={{ fontSize: 10, color: "var(--muted-foreground)" }} className="hidden sm:inline">
+              🖐 Drag to explore • Ctrl + Scroll to zoom
+            </span>
             <span className="rounded-full px-2 py-0.5 font-semibold text-[9px] bg-indigo-100 dark:bg-indigo-950/20 text-indigo-500 font-mono">
               AI Confidence: {activeEmail.aiConfidence}%
             </span>
           </div>
         </header>
 
-        {/* Scrollable Reconciliation Area */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-5 relative">
-          
-          <div
-            className="rounded-2xl p-6 flex flex-col gap-8 bg-card text-left border border-border"
-            style={{
-              boxShadow: "0 4px 12px rgba(0,0,0,0.01)"
-            }}
-          >
-            {paymentGroups.map((group, gIdx) => {
+        {/* Payment Allocation Interactive Canvas */}
+        <ReconciliationCanvas>
+          <div className="flex flex-row items-start gap-8 p-6 select-none" style={{ minWidth: "max-content", minHeight: "100%" }}>
+            
+            {/* Parallel Receipt Lanes */}
+            {paymentGroups.map((group) => {
               const { payment, invoices, adjustments } = group;
-              const isPaymentSelected = selectedTxnIds.includes(payment.id);
+              const isExpanded = !!expandedReceipts[payment.id];
+              const isSelected = selectedEntityId === payment.id;
+              
               const totalApplied = invoices.reduce((acc, c) => acc + c.appliedAmount, 0) + adjustments.reduce((acc, c) => acc + c.appliedAmount, 0);
               const progressPercent = Math.min(100, Math.round((totalApplied / (payment.amount || 1)) * 100));
+              const statusLabel = progressPercent === 100 ? "Fully Allocated" : `${progressPercent}% Mapped`;
 
               let receiptLabel = "Payment Receipt";
               if (payment.type === "NEFT Payment") {
@@ -1522,417 +1724,340 @@ export function TransactionHubPage() {
               }
 
               return (
-                <div
-                  key={payment.id}
-                  className="flex flex-col gap-5 text-left"
+                <div 
+                  key={payment.id} 
+                  className="flex flex-col items-center flex-shrink-0 w-[380px] bg-card/45 border border-border/65 rounded-2xl p-5 shadow-sm"
+                  style={{
+                    borderColor: isSelected ? "rgba(107,140,255,0.6)" : "var(--border)",
+                    boxShadow: isSelected ? "0 4px 20px rgba(107,140,255,0.06)" : "none"
+                  }}
                 >
-                  {/* Subtle divider before each section except the first */}
-                  {gIdx > 0 && <hr className="border-border/40 my-3" />}
-
-                  {/* Source Payment Receipt Header */}
-                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                    <div className="flex flex-col gap-0.5 text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1 rounded bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 flex items-center justify-center">
-                          <Receipt size={14} />
-                        </span>
-                        <strong style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                          {receiptLabel}
-                        </strong>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono mt-1">
-                        <span>{payment.ref.startsWith("UTR") || payment.ref.startsWith("Doc Ref") ? payment.ref : `Reference: ${payment.ref}`}</span>
-                        <span>·</span>
-                        <span className="font-bold text-foreground">₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                    <span
-                      className="rounded px-2 py-0.5 text-[10px] font-bold"
-                      style={{
-                        background: progressPercent === 100 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
-                        color: progressPercent === 100 ? "#22c55e" : "#f59e0b"
-                      }}
-                    >
-                      {progressPercent === 100 ? "Fully Allocated" : `${progressPercent}% Mapped`}
-                    </span>
-                  </div>
-
-                  {/* Flow Block: Source Payment Receipt -> Arrow -> Grid of Invoices */}
-                  <div className="flex flex-col items-center gap-4 bg-secondary/20 p-5 rounded-2xl border border-border/40">
-                    
-                    {/* 1. SOURCE PAYMENT RECEIPT */}
-                    <div className="w-full max-w-md flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase mb-1.5 tracking-wider">
-                        Source Payment Receipt
+                  {/* Receipt Header & Expand/Collapse Toggle */}
+                  <div className="flex items-center justify-between w-full mb-3 border-b border-border/40 pb-2.5">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        {receiptLabel}
                       </span>
-                      <button
-                        onClick={() => handleTxnCardClick(payment.id)}
-                        className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[170px]"
+                      <span className="text-[11px] font-mono text-foreground font-semibold truncate max-w-[180px] mt-0.5">
+                        {payment.ref}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[8px] font-bold"
                         style={{
-                          background: isPaymentSelected ? "var(--secondary)" : "var(--card)",
-                          borderColor: isPaymentSelected ? "rgba(107,140,255,0.8)" : "var(--border)",
-                          cursor: "pointer",
-                          boxShadow: "0 2px 6px rgba(0,0,0,0.01)"
+                          background: progressPercent === 100 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                          color: progressPercent === 100 ? "#22c55e" : "#f59e0b"
                         }}
                       >
-                        <div className="flex items-center justify-between w-full">
-                          <span style={{ fontSize: 10, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {payment.type}
-                          </span>
-                          <span
-                            className="rounded px-1.5 py-0.5 text-[8.5px] font-bold animate-pulse-subtle"
-                            style={{
-                              background: payment.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
-                              color: payment.status === "Resolved" ? "#22c55e" : "#f59e0b"
-                            }}
-                          >
-                            {payment.status}
-                          </span>
-                        </div>
-
-                        <div className="my-1">
-                          <span className="text-[9.5px] text-muted-foreground block font-medium">Receipt Amount</span>
-                          <span style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                            ₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2.5 w-full">
-                          <div className="flex justify-between items-center w-full gap-2">
-                            <span>Ref</span>
-                            <strong className="font-mono text-foreground text-right truncate max-w-[150px]">{payment.ref}</strong>
-                          </div>
-                          {payment.remitter && (
-                            <div className="flex justify-between items-center w-full gap-2">
-                              <span>Remitter</span>
-                              <span className="text-foreground text-right truncate max-w-[150px]">{payment.remitter}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between items-center w-full gap-2">
-                            <span>Posting Date</span>
-                            <span className="text-foreground text-right">{payment.postingDate}</span>
-                          </div>
-                        </div>
+                        {statusLabel}
+                      </span>
+                      <button
+                        onClick={() => toggleReceiptExpand(payment.id)}
+                        className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer border border-border flex items-center justify-center bg-card interactive-card"
+                        style={{ width: 24, height: 24 }}
+                        title={isExpanded ? "Collapse receipt flow" : "Expand receipt flow"}
+                      >
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                       </button>
                     </div>
+                  </div>
 
-                    {/* Vertical Connector Arrow */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-0.5 h-6 bg-border relative">
+                  {/* Source Payment Receipt Card */}
+                  <div
+                    onClick={() => handleTxnCardClick(payment.id, "receipt")}
+                    className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[150px] interactive-card"
+                    style={{
+                      background: isSelected ? "var(--secondary)" : "var(--card)",
+                      borderColor: isSelected ? "rgba(107,140,255,0.8)" : "var(--border)",
+                      cursor: "pointer",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.01)"
+                    }}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span style={{ fontSize: 9.5, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {payment.type}
+                      </span>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+                        style={{
+                          background: payment.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                          color: payment.status === "Resolved" ? "#22c55e" : "#f59e0b"
+                        }}
+                      >
+                        {payment.status}
+                      </span>
+                    </div>
+
+                    <div className="my-1">
+                      <span className="text-[9px] text-muted-foreground block font-medium">Receipt Amount</span>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                        ₹{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                      <div className="flex justify-between items-center w-full">
+                        <span>Posting Date</span>
+                        <span className="text-foreground">{payment.postingDate}</span>
+                      </div>
+                      {payment.remitter && (
+                        <div className="flex justify-between items-center w-full">
+                          <span>Remitter</span>
+                          <span className="text-foreground truncate max-w-[150px] text-right">{payment.remitter}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Render children elements when Expanded */}
+                  {isExpanded && (
+                    <>
+                      {/* Vertical Connector Line */}
+                      <div className="w-px h-6 bg-border relative my-1">
                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
                       </div>
-                    </div>
 
-                    {/* 2. RELATED INVOICE GRID */}
-                    <div className="w-full flex flex-col items-center gap-2">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                        Linked Invoices ({invoices.length})
-                      </span>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                        {invoices.map((txn) => {
-                          const isSelected = selectedTxnIds.includes(txn.id);
-                          
-                          let statusBg = "rgba(136,136,150,0.08)";
-                          let statusColor = "var(--muted-foreground)";
-                          let cardBorderColor = "var(--border)";
-
-                          if (txn.status === "Outstanding") {
-                            statusBg = "rgba(239,68,68,0.08)";
-                            statusColor = "#ef4444";
-                          } else if (txn.status === "Available Credit") {
-                            statusBg = "rgba(34,197,94,0.08)";
-                            statusColor = "#22c55e";
-                          } else if (txn.status === "Resolved") {
-                            statusBg = "rgba(34,197,94,0.12)";
-                            statusColor = "#22c55e";
-                          }
-
-                          if (isSelected) {
-                            cardBorderColor = "rgba(107,140,255,0.8)";
-                          }
-
-                          return (
-                            <button
-                              key={txn.id}
-                              onClick={() => handleTxnCardClick(txn.id)}
-                              className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[180px]"
-                              style={{
-                                background: isSelected ? "var(--secondary)" : "var(--card)",
-                                borderColor: cardBorderColor,
-                                cursor: "pointer",
-                                boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
-                              }}
-                            >
-                              <div className="flex items-center justify-between w-full">
-                                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                  Invoice
-                                </span>
-                                <span
-                                  className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
-                                  style={{ background: statusBg, color: statusColor }}
-                                >
-                                  {txn.status}
-                                </span>
-                              </div>
-
-                              <div className="my-1">
-                                <span className="text-[9.5px] text-muted-foreground block font-medium">Invoice Total</span>
-                                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                                  ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-
-                              <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
-                                <div className="flex justify-between items-center w-full gap-2">
-                                  <span>Ref</span>
-                                  <strong className="text-foreground font-mono text-right">{txn.docNum}</strong>
-                                </div>
-                                <div className="flex justify-between items-center w-full gap-2">
-                                  <span>Allocated From This Receipt</span>
-                                  <span className="font-mono text-foreground font-semibold text-right">
-                                    ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center w-full gap-2">
-                                  <span>Remaining after Allocation</span>
-                                  <span
-                                    className="font-mono font-semibold text-right"
-                                    style={{
-                                      color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
-                                    }}
-                                  >
-                                    ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 3. RELATED ADJUSTMENTS (CN, REFUNDS) */}
-                    {adjustments.length > 0 && (
-                      <>
-                        {/* Vertical Connector Arrow */}
-                        <div className="flex flex-col items-center">
-                          <div className="w-0.5 h-6 bg-border relative">
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
-                          </div>
+                      {/* Linked Invoice Cards */}
+                      <div className="w-full flex flex-col gap-2.5">
+                        <div className="flex items-center justify-between text-left">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Linked Invoices ({invoices.length})
+                          </span>
                         </div>
 
-                        <div className="w-full flex flex-col items-center gap-2">
-                          <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider mb-1">
-                            Adjustments / Credit Notes ({adjustments.length})
-                          </span>
-                          
-                          <div className="flex flex-wrap justify-center gap-4 w-full">
-                            {adjustments.map((txn) => {
-                              const isSelected = selectedTxnIds.includes(txn.id);
-                              let borderCol = "var(--border)";
-                              if (isSelected) borderCol = "rgba(107,140,255,0.8)";
+                        <div className="flex flex-col gap-3 w-full">
+                          {invoices.map((txn) => {
+                            const isInvSelected = selectedEntityId === txn.id;
+                            
+                            let statusBg = "rgba(136,136,150,0.08)";
+                            let statusColor = "var(--muted-foreground)";
+                            let cardBorderColor = "var(--border)";
 
-                              return (
-                                <button
-                                  key={txn.id}
-                                  onClick={() => handleTxnCardClick(txn.id)}
-                                  className="rounded-xl p-4 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none min-h-[160px]"
-                                  style={{
-                                    width: 220,
-                                    background: isSelected ? "var(--secondary)" : "var(--card)",
-                                    borderColor: borderCol,
-                                    cursor: "pointer",
-                                    boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between w-full">
-                                    <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                      {txn.type}
+                            if (txn.status === "Outstanding") {
+                              statusBg = "rgba(239,68,68,0.08)";
+                              statusColor = "#ef4444";
+                            } else if (txn.status === "Available Credit") {
+                              statusBg = "rgba(34,197,94,0.08)";
+                              statusColor = "#22c55e";
+                            } else if (txn.status === "Resolved") {
+                              statusBg = "rgba(34,197,94,0.12)";
+                              statusColor = "#22c55e";
+                            }
+
+                            if (isInvSelected) {
+                              cardBorderColor = "rgba(107,140,255,0.8)";
+                            }
+
+                            return (
+                              <div
+                                key={txn.id}
+                                onClick={() => handleTxnCardClick(txn.id, "invoice")}
+                                className="rounded-xl p-3.5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none w-full min-h-[180px] interactive-card bg-card"
+                                style={{
+                                  borderColor: cardBorderColor,
+                                  cursor: "pointer",
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.01)",
+                                  background: isInvSelected ? "var(--secondary)" : "var(--card)"
+                                }}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    Invoice
+                                  </span>
+                                  <span
+                                    className="rounded px-1.5 py-0.5 text-[8px] font-bold"
+                                    style={{ background: statusBg, color: statusColor }}
+                                  >
+                                    {txn.status}
+                                  </span>
+                                </div>
+
+                                <div className="my-1">
+                                  <span className="text-[9px] text-muted-foreground block font-medium">Invoice Total</span>
+                                  <span style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                                    ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-col gap-1 text-[9.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Ref</span>
+                                    <strong className="text-foreground font-mono">{txn.docNum}</strong>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Allocated</span>
+                                    <span className="font-mono text-foreground font-semibold">
+                                      ₹{txn.appliedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </span>
+                                  </div>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>Remaining</span>
                                     <span
-                                      className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+                                      className="font-mono font-semibold"
                                       style={{
-                                        background: txn.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
-                                        color: txn.status === "Resolved" ? "#22c55e" : "#f59e0b"
+                                        color: txn.remainingBalance > 0 ? "#ef4444" : "var(--muted-foreground)"
                                       }}
                                     >
-                                      {txn.status}
+                                      ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </span>
                                   </div>
+                                </div>
 
-                                  <div className="my-1">
-                                    <span className="text-[9.5px] text-muted-foreground block font-medium">Value</span>
-                                    <span style={{ fontSize: 15, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                                      ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </span>
+                                {txn.status !== "Resolved" && (
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePostInvoiceToERP(txn.id);
+                                    }}
+                                    className="mt-2.5 w-full py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 font-semibold text-[10px] border border-indigo-500/20 transition-all flex items-center justify-center gap-1 cursor-pointer interactive-card"
+                                  >
+                                    <span>Post to ERP</span>
+                                    <ArrowRight size={10} />
                                   </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                                  <div className="flex flex-col gap-1.5 text-[10.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
-                                    <div className="flex justify-between items-center w-full gap-2">
-                                      <span>Ref</span>
-                                      <strong className="font-mono text-foreground text-right truncate max-w-[120px]">{txn.docNum}</strong>
-                                    </div>
-                                    <div className="flex justify-between items-center w-full gap-2">
-                                      <span>Remaining after Allocation</span>
-                                      <span className="font-mono text-foreground font-semibold text-right">
-                                        ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {/* Related Adjustments (Credit Notes, Refunds) */}
+                      {adjustments.length > 0 && (
+                        <>
+                          <div className="w-px h-6 bg-border relative my-1">
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
+                          </div>
+
+                          <div className="w-full flex flex-col gap-2">
+                            <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider text-left w-full">
+                              Adjustments / Credits ({adjustments.length})
+                            </span>
+                            
+                            <div className="flex flex-col gap-3.5 w-full">
+                              {adjustments.map((txn) => {
+                                const isAdjSelected = selectedEntityId === txn.id;
+                                let borderCol = "var(--border)";
+                                if (isAdjSelected) borderCol = "rgba(107,140,255,0.8)";
+
+                                return (
+                                  <div
+                                    key={txn.id}
+                                    onClick={() => handleTxnCardClick(txn.id, "invoice")}
+                                    className="rounded-xl p-3.5 flex flex-col justify-between text-left transition-all hover:scale-[1.01] border select-none min-h-[140px] interactive-card bg-card"
+                                    style={{
+                                      borderColor: borderCol,
+                                      cursor: "pointer",
+                                      boxShadow: "0 2px 4px rgba(0,0,0,0.01)",
+                                      background: isAdjSelected ? "var(--secondary)" : "var(--card)"
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        {txn.type}
+                                      </span>
+                                      <span
+                                        className="rounded px-1.5 py-0.5 text-[8px] font-bold"
+                                        style={{
+                                          background: txn.status === "Resolved" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                                          color: txn.status === "Resolved" ? "#22c55e" : "#f59e0b"
+                                        }}
+                                      >
+                                        {txn.status}
                                       </span>
                                     </div>
+
+                                    <div className="my-1">
+                                      <span className="text-[9px] text-muted-foreground block font-medium">Value</span>
+                                      <span style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                                        ₹{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1 text-[9.5px] text-muted-foreground border-t border-border/40 pt-2 w-full">
+                                      <div className="flex justify-between items-center w-full">
+                                        <span>Ref</span>
+                                        <strong className="font-mono text-foreground truncate max-w-[120px]">{txn.docNum}</strong>
+                                      </div>
+                                      <div className="flex justify-between items-center w-full">
+                                        <span>Remaining Balance</span>
+                                        <span className="font-mono text-foreground font-semibold">
+                                          ₹{txn.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
-                                </button>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
+                        </>
+                      )}
+
+                      {/* Allocation Summary Progress */}
+                      {(() => {
+                        const totalApplied = invoices.reduce((acc, c) => acc + c.appliedAmount, 0) + adjustments.reduce((acc, c) => acc + c.appliedAmount, 0);
+                        const progressPercent = Math.min(100, Math.round((totalApplied / (payment.amount || 1)) * 100));
+
+                        return (
+                          <div className="w-full bg-card border border-border/40 rounded-xl p-3.5 flex flex-col gap-2 mt-4 text-left">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <CheckCircle2 size={11} className="text-emerald-500" />
+                                Allocation Status
+                              </span>
+                              <span style={{ fontSize: 9, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+                                {progressPercent}%
+                              </span>
+                            </div>
+
+                            <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden flex">
+                              <div
+                                className="bg-emerald-500 h-full transition-all duration-300"
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+
+                            <div className="flex justify-between items-center text-[9.5px] mt-0.5">
+                              <div className="flex flex-col">
+                                <span className="text-muted-foreground text-[8px]">Receipt Value</span>
+                                <strong className="font-mono text-foreground">₹{payment.amount.toLocaleString()}</strong>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-muted-foreground text-[8px]">Allocated</span>
+                                <strong className="font-mono text-emerald-500">₹{totalApplied.toLocaleString()}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Bulk ERP Posting Action */}
+                      {invoices.some((inv) => inv.status !== "Resolved") && (
+                        <div className="w-full mt-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePostAllEligible(payment.id);
+                            }}
+                            className="w-full rounded-xl py-2.5 font-semibold transition-all hover:scale-[1.01] cursor-pointer text-xs flex items-center justify-center gap-2 text-white border-none shadow-sm hover:shadow-md interactive-card"
+                            style={{
+                              background: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+                            }}
+                          >
+                            <Sparkles size={11} />
+                            <span>Post All Eligible to SAP ERP</span>
+                          </button>
                         </div>
-                      </>
-                    )}
-
-                    {/* 4. APPLIED ALLOCATION PROGRESS BAR */}
-                    <div className="w-full max-w-lg bg-card border border-border/40 rounded-xl p-3.5 flex flex-col gap-2 mt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                          <CheckCircle2 size={12} className="text-emerald-500" />
-                          Group Allocation Status
-                        </span>
-                        <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
-                          Mapped: {progressPercent}%
-                        </span>
-                      </div>
-
-                      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-emerald-500 h-full transition-all duration-300"
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-
-                      <div className="flex justify-between items-center text-[10.5px] mt-0.5">
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-[8.5px]">Total Receipt</span>
-                          <strong className="font-mono text-foreground">₹{payment.amount.toLocaleString()}</strong>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-muted-foreground text-[8.5px]">Total Allocated</span>
-                          <strong className="font-mono text-emerald-500">₹{totalApplied.toLocaleString()}</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
+                      )}
+                    </>
+                  )}
                 </div>
               );
             })}
           </div>
-
-          {unlinkedCards.length > 0 && (
-            <div className="rounded-2xl p-6 bg-card text-left border border-border">
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                UNLINKED OUTSTANDING ITEMS
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-                {unlinkedCards.map((txn) => {
-                  const isSelected = selectedTxnIds.includes(txn.id);
-                  return (
-                    <button
-                      key={txn.id}
-                      onClick={() => handleTxnCardClick(txn.id)}
-                      className="rounded-xl p-4 flex flex-col justify-between text-left transition-all border w-full min-h-[170px]"
-                      style={{
-                        background: isSelected ? "var(--secondary)" : "var(--card)",
-                        borderColor: isSelected ? "rgba(107,140,255,0.8)" : "var(--border)"
-                      }}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--foreground)" }}>{txn.type}</span>
-                        <span className="rounded px-1.5 py-0.5 text-[8.5px] font-bold bg-red-100 text-red-500">{txn.status}</span>
-                      </div>
-                      <div className="my-1">
-                        <span style={{ fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>₹{txn.amount.toLocaleString()}</span>
-                      </div>
-                      <div className="text-[10.5px] font-mono">{txn.docNum}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* B. OUTSTANDING ITEMS (RECONCILIATION FLAGS) */}
-          <div className="flex flex-col gap-2.5 mt-2">
-            <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-              OUTSTANDING ITEMS (REMEDIAL ACTION QUEUE)
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {activeEmail.outstandingItems.map((ex) => {
-                const isSelected = activeExceptionId === ex.id;
-                const isResolved = ex.status === "Resolved";
-
-                let color = "#f59e0b"; // amber
-                let bg = "rgba(245,158,11,0.05)";
-                let borderColor = "var(--border)";
-
-                if (isResolved) {
-                  color = "#22c55e"; // green
-                  bg = "rgba(34,197,94,0.05)";
-                } else if (ex.priority === "Critical" || ex.priority === "High") {
-                  color = "#ef4444"; // red
-                  bg = "rgba(239,68,68,0.05)";
-                }
-
-                if (isSelected) {
-                  borderColor = color;
-                }
-
-                return (
-                  <button
-                    key={ex.id}
-                    onClick={() => !isResolved && handleExceptionClick(ex)}
-                    disabled={isResolved}
-                    className="rounded-xl p-4 flex flex-col gap-2 text-left transition-all hover:scale-[1.01] border-none"
-                    style={{
-                      background: isSelected ? bg : "var(--card)",
-                      border: `1.5px solid ${borderColor}`,
-                      cursor: isResolved ? "default" : "pointer",
-                      opacity: isResolved ? 0.6 : 1,
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
-                    }}
-                  >
-                    <div className="flex items-center justify-between w-full text-xs border-b border-border pb-1.5">
-                      <span style={{ fontWeight: 700, color }}>{ex.type}</span>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span
-                          className="rounded px-1.5 py-0.5 text-[8.5px] font-bold"
-                          style={{
-                            background: ex.priority === "Critical" || ex.priority === "High" ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
-                            color: ex.priority === "Critical" || ex.priority === "High" ? "#ef4444" : "#f59e0b"
-                          }}
-                        >
-                          {ex.priority}
-                        </span>
-                        <span style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
-                          {ex.confidence}% AI
-                        </span>
-                      </div>
-                    </div>
-                    <p className="m-0" style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.4 }}>
-                      {ex.explanation}
-                    </p>
-                    <div className="flex justify-between items-baseline mt-1.5 pt-1.5 border-t border-border/40">
-                      <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
-                        Ref Code: <span className="font-mono">{ex.refNum}</span>
-                      </span>
-                      <strong style={{ fontSize: 12, color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                        ₹{ex.amount.toLocaleString()}
-                      </strong>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-        </div>
+        </ReconciliationCanvas>
 
         {/* AI EXECUTION PREVIEW (SLIDER FOOTER CARD) */}
         {activePlanAction && (
@@ -2002,7 +2127,7 @@ export function TransactionHubPage() {
 
       {/* ─── COLUMN 3: THREAD ACTIVITY & SUMMARY DRAWER ─── */}
       <div
-        className="flex flex-col h-full flex-shrink-0"
+        className="flex flex-col h-full flex-shrink-0 font-sans"
         style={{
           width: 340,
           minWidth: 340,
@@ -2012,102 +2137,290 @@ export function TransactionHubPage() {
       >
         {/* Header */}
         <div
-          className="flex items-center gap-2.5 px-4 py-3"
+          className="flex flex-col justify-center px-6 py-2 text-left"
           style={{ borderBottom: "1px solid var(--border)", height: 48, flexShrink: 0 }}
         >
-          <div
-            className="flex items-center justify-center rounded-full"
-            style={{ width: 24, height: 24, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
-          >
-            <History size={13} />
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center justify-center rounded-full flex-shrink-0"
+              style={{ width: 22, height: 22, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+            >
+              <Sparkles size={11} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+              AI Reconciliation Workspace
+            </span>
           </div>
-          <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--foreground)" }}>
-            Reconciliation Activity Workspace
-          </span>
         </div>
 
-        {/* Drawer Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
+        {/* Column 3 Body: Fixed Details Context Panel (Top) & Timeline (Bottom) */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           
-          {/* Dynamic Top Section based on selection state */}
-          {selectedTxnIds.length === 0 && !activeExceptionId ? (
-            /* CONCISE THREAD SUMMARY */
-            <div className="flex flex-col gap-2 text-left animate-in fade-in duration-200">
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                CONCISE THREAD SUMMARY
-              </span>
-              <div
-                className="rounded-xl p-3.5 bg-secondary/50 text-xs border leading-relaxed"
-                style={{ color: "var(--foreground)", borderColor: "var(--border)" }}
-              >
-                {activeEmail.threadSummary}
-              </div>
-            </div>
-          ) : (
-            /* DYNAMIC AI INSIGHT & SUGGESTED ACTIONS */
-            <div className="flex flex-col gap-4 animate-in fade-in duration-200">
-              {/* AI INSIGHT */}
-              <div className="flex flex-col gap-2 text-left">
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                  AI MATCHING RECONCILIATION INSIGHT
-                </span>
-                <div
-                  className="rounded-xl p-3.5 flex flex-col gap-1.5 bg-indigo-50/30 dark:bg-indigo-950/10 border text-xs leading-relaxed"
-                  style={{ color: "var(--foreground)", borderColor: "rgba(107,140,255,0.15)" }}
-                >
-                  <p className="m-0">{dynamicAIInsight.text}</p>
-                  <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[10px] mt-1">
-                    <Sparkles size={11} />
-                    <span>{dynamicAIInsight.confidence}% Confidence</span>
-                  </div>
-                </div>
-              </div>
+          {/* Top Contextual Details Section */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 border-b border-border/80">
+            {(() => {
+              const selectedReceipt = activeEmail.transactions.find((t) => t.id === selectedEntityId);
+              const selectedGroup = paymentGroups.find((g) => g.payment.id === selectedEntityId);
 
-              {/* SUGGESTED ACTIONS */}
-              <div className="flex flex-col gap-2 text-left">
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
-                  SUGGESTED ACTIONS ({dynamicSuggestedActions.length})
-                </span>
-                <div className="flex flex-col gap-2">
-                  {dynamicSuggestedActions.map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={() => setActivePlanAction(action)}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent hover:scale-[1.002] transition-all text-left border border-border"
-                      style={{ cursor: "pointer" }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div
-                          className="flex items-center justify-center rounded-lg mt-0.5 flex-shrink-0"
-                          style={{ width: 20, height: 20, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+              if (selectedEntityType === "receipt" && selectedReceipt && selectedGroup) {
+                const totalApplied = selectedGroup.invoices.reduce((acc, c) => acc + c.appliedAmount, 0) + selectedGroup.adjustments.reduce((acc, c) => acc + c.appliedAmount, 0);
+                const balance = selectedReceipt.amount - totalApplied;
+                const progressPercent = Math.min(100, Math.round((totalApplied / (selectedReceipt.amount || 1)) * 100));
+
+                let receiptLabel = "Payment Receipt";
+                if (selectedReceipt.type === "NEFT Payment") {
+                  receiptLabel = "NEFT Receipt";
+                } else if (selectedReceipt.type === "Receipt Voucher") {
+                  if (selectedReceipt.ref.toLowerCase().includes("wire") || selectedReceipt.ref.toLowerCase().includes("hdfc") || selectedReceipt.ref.toLowerCase().includes("9812")) {
+                    receiptLabel = "Wire Transfer";
+                  } else {
+                    receiptLabel = "Receipt Voucher";
+                  }
+                } else if (selectedReceipt.type === "Refund Entry") {
+                  receiptLabel = "Refund Receipt";
+                } else if (selectedReceipt.type === "Credit Note") {
+                  receiptLabel = "Credit Receipt";
+                }
+
+                return (
+                  <div className="flex flex-col gap-4 text-left animate-in fade-in duration-200">
+                    {/* Entity Details Header */}
+                    <div className="flex flex-col gap-1 border-b border-border pb-3">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Selection</span>
+                      <h3 className="m-0 text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <Receipt size={14} className="text-indigo-500" />
+                        {receiptLabel} Details
+                      </h3>
+                    </div>
+
+                    {/* Receipt Summary Info Card */}
+                    <div className="rounded-xl p-3.5 bg-secondary/40 border border-border flex flex-col gap-2.5 text-[11px] w-full bg-card">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Reference:</span>
+                        <span className="font-mono font-semibold text-foreground truncate max-w-[170px]">{selectedReceipt.ref}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Receipt Value:</span>
+                        <span className="font-mono font-semibold text-foreground">₹{selectedReceipt.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground font-semibold">Allocated Value:</span>
+                        <span className="font-mono font-semibold text-emerald-500">₹{totalApplied.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Unallocated Balance:</span>
+                        <span className="font-mono font-semibold text-amber-500">₹{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Posting Date:</span>
+                        <span className="font-semibold text-foreground">{selectedReceipt.postingDate}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Reconciliation Status:</span>
+                        <span
+                          className="rounded px-1.5 py-0.2 text-[9px] font-bold"
+                          style={{
+                            background: progressPercent === 100 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                            color: progressPercent === 100 ? "#22c55e" : "#f59e0b"
+                          }}
                         >
-                          <Info size={11} />
+                          {progressPercent === 100 ? "Fully Reconciled" : `${progressPercent}% Mapped`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* AI Matching Insight */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">AI Matching Insight</span>
+                      <div className="rounded-xl p-3 bg-indigo-50/20 dark:bg-indigo-950/10 border border-indigo-500/15 text-[11px] leading-relaxed text-foreground">
+                        <p className="m-0">
+                          {`The AI agent matched reference ${selectedReceipt.ref} with ${selectedGroup.invoices.length} billing items in local books. Suggested actions below represent optimal clearing sequences.`}
+                        </p>
+                        <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
+                          <Sparkles size={11} />
+                          <span>{activeEmail.aiConfidence}% Matching Confidence</span>
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>
-                            {action.label}
-                          </span>
-                          <p className="m-0 text-[10px] text-muted-foreground leading-normal">
-                            {action.description}
+                      </div>
+                    </div>
+
+                    {/* Suggested Actions for Receipt */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Suggested Actions ({dynamicSuggestedActions.length})</span>
+                      <div className="flex flex-col gap-2 w-full">
+                        {dynamicSuggestedActions.map((action) => (
+                          <button
+                            key={action.id}
+                            onClick={() => setActivePlanAction(action)}
+                            className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent transition-all text-left border border-border interactive-card cursor-pointer"
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="flex items-center justify-center rounded-lg mt-0.5 flex-shrink-0" style={{ width: 20, height: 20, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}>
+                                <Info size={11} />
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>
+                                  {action.label}
+                                </span>
+                                <p className="m-0 text-[10px] text-muted-foreground leading-normal">
+                                  {action.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                              <div className="p-1 rounded bg-foreground text-background">
+                                <ArrowRight size={10} />
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (selectedEntityType === "invoice" && selectedReceiptId) {
+                const selectedInvoice = activeEmail.transactions.find((t) => t.id === selectedEntityId);
+                const parentReceipt = selectedInvoice ? activeEmail.transactions.find((t) => t.id === selectedInvoice.parentId) : null;
+                const relatedExceptions = activeEmail.outstandingItems.filter((ex) => ex.relatedTxnIds.includes(selectedEntityId!));
+
+                if (selectedInvoice) {
+                  return (
+                    <div className="flex flex-col gap-4 text-left animate-in fade-in duration-200">
+                      {/* Entity Details Header */}
+                      <div className="flex flex-col gap-1 border-b border-border pb-3">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active Selection</span>
+                        <h3 className="m-0 text-sm font-bold text-foreground flex items-center gap-1.5">
+                          <FileText size={14} className="text-indigo-500" />
+                          Invoice Details ({selectedInvoice.docNum})
+                        </h3>
+                      </div>
+
+                      {/* Invoice Details Card */}
+                      <div className="rounded-xl p-3.5 bg-secondary/40 border border-border flex flex-col gap-2.5 text-[11px] w-full bg-card">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Invoice Reference:</span>
+                          <span className="font-semibold text-foreground font-mono">{selectedInvoice.docNum}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Original Invoice Total:</span>
+                          <span className="font-mono font-semibold text-foreground">₹{selectedInvoice.amount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground font-semibold">Allocated Inward:</span>
+                          <span className="font-mono font-semibold text-emerald-500">₹{selectedInvoice.appliedAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Remaining Balance:</span>
+                          <span className="font-mono font-semibold text-red-500">₹{selectedInvoice.remainingBalance.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Posting Date:</span>
+                          <span className="font-semibold text-foreground">{selectedInvoice.postingDate}</span>
+                        </div>
+                        {parentReceipt && (
+                          <div className="flex justify-between items-center border-t border-border/40 pt-2 mt-1">
+                            <span className="text-muted-foreground">Parent Receipt:</span>
+                            <span className="font-mono text-indigo-500 font-semibold truncate max-w-[150px]">{parentReceipt.ref}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Related Exceptions Alert box */}
+                      {relatedExceptions.map((ex) => (
+                        <div key={ex.id} className="rounded-xl p-3 border border-red-500/20 bg-red-500/5 text-[10.5px] leading-relaxed text-foreground flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 text-red-500 font-bold uppercase text-[9px] tracking-wider">
+                            <AlertTriangle size={11} />
+                            <span>Exception Alert: {ex.type}</span>
+                          </div>
+                          <p className="m-0 text-muted-foreground leading-normal">{ex.explanation}</p>
+                        </div>
+                      ))}
+
+                      {/* AI Matching Insight */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">AI Reconciliation Insight</span>
+                        <div className="rounded-xl p-3 bg-indigo-50/20 dark:bg-indigo-950/10 border border-indigo-500/15 text-[11px] leading-relaxed text-foreground">
+                          <p className="m-0">
+                            {dynamicAIInsight.text}
                           </p>
+                          <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
+                            <Sparkles size={11} />
+                            <span>{dynamicAIInsight.confidence}% Confidence</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                        <div className="p-1 rounded bg-foreground text-background">
-                          <ArrowRight size={10} />
+
+                      {/* Suggested Actions for Invoice */}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Suggested Actions ({dynamicSuggestedActions.length})</span>
+                        <div className="flex flex-col gap-2 w-full">
+                          {dynamicSuggestedActions.map((action) => (
+                            <button
+                              key={action.id}
+                              onClick={() => setActivePlanAction(action)}
+                              className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary hover:bg-accent transition-all text-left border border-border interactive-card cursor-pointer"
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex items-center justify-center rounded-lg mt-0.5 flex-shrink-0" style={{ width: 20, height: 20, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}>
+                                  <Info size={11} />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>
+                                    {action.label}
+                                  </span>
+                                  <p className="m-0 text-[10px] text-muted-foreground leading-normal">
+                                    {action.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                <div className="p-1 rounded bg-foreground text-background flex items-center justify-center">
+                                  <ArrowRight size={10} />
+                                </div>
+                              </div>
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    </button>
-                  ))}
+
+                      {/* ERP Posting Context */}
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">SAP ERP Posting Context</span>
+                        <div className="rounded-xl p-3 bg-secondary/30 border border-border flex flex-col gap-2 text-[10.5px]">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Target System:</span>
+                            <span className="font-medium text-foreground">SAP S/4HANA Finance</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Clearing Key:</span>
+                            <span className="font-mono text-foreground">01 (Debit Cust Account)</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Ledger Mapping:</span>
+                            <span className="text-emerald-500 font-semibold">{selectedInvoice.status === "Resolved" ? "Posted & Cleared" : "Draft Allocation Document Ready"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              }
+
+              // Fallback / No selection state
+              return (
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                  <Building size={28} className="text-muted-foreground opacity-60" />
+                  <p className="text-xs text-muted-foreground m-0 max-w-[200px] leading-relaxed">
+                    Select a payment receipt or invoice card on the canvas to view detailed matching insights.
+                  </p>
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
+          </div>
 
-          <hr style={{ border: "none", borderTop: "1px dashed var(--border)", margin: 0 }} />
-
-          {/* Section 2: Unified Chronological Activity Timeline */}
-          <div className="flex flex-col gap-3 text-left">
+          {/* Bottom Timeline Section (Fixed Height, Scrollable) */}
+          <div className="h-[250px] flex-shrink-0 overflow-y-auto px-4 py-4 flex flex-col gap-3 border-t border-border bg-card/65 select-text">
             <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
               UNIFIED ACTIVITY TIMELINE
             </span>
@@ -2116,7 +2429,6 @@ export function TransactionHubPage() {
               {activeEmail.activityTimeline.map((event, eIdx) => {
                 const isLast = eIdx === activeEmail.activityTimeline.length - 1;
                 
-                // Color timeline markers by event type
                 let markerBg = "rgba(136,136,150,0.08)";
                 let markerColor = "var(--muted-foreground)";
 
@@ -2136,12 +2448,10 @@ export function TransactionHubPage() {
 
                 return (
                   <div key={event.id} className="flex items-start gap-3 relative pb-5 text-left">
-                    {/* Vertical line connector */}
                     {!isLast && (
                       <div className="absolute w-0.5" style={{ left: 10, top: 20, bottom: 0, background: "var(--border)" }} />
                     )}
 
-                    {/* Timeline dot icon indicator */}
                     <div
                       className="flex items-center justify-center rounded-full z-10 flex-shrink-0"
                       style={{
@@ -2158,22 +2468,21 @@ export function TransactionHubPage() {
                       {event.type[0]}
                     </div>
 
-                    {/* Timeline Event Details */}
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 w-full">
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0 font-sans">
+                      <div className="flex items-center justify-between gap-1 w-full text-left">
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }} className="truncate">
                           {event.title}
                         </span>
-                        <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+                        <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", flexShrink: 0 }}>
                           {event.timestamp.split(",")[1] || event.timestamp}
                         </span>
                       </div>
                       {event.details && (
-                        <p className="m-0 text-muted-foreground text-[10.5px] leading-normal mt-0.5">
+                        <p className="m-0 text-muted-foreground text-[10.5px] leading-normal mt-0.5 text-left font-sans">
                           {event.details}
                         </p>
                       )}
-                      <div className="flex items-center gap-1.5 mt-1 text-[8.5px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 mt-1 text-[8.5px] text-muted-foreground text-left">
                         <span className="font-semibold">{event.actor}</span>
                         <span>·</span>
                         <span>{event.type}</span>
@@ -2184,6 +2493,7 @@ export function TransactionHubPage() {
               })}
             </div>
           </div>
+
         </div>
 
         {/* Reset State Button */}
