@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from "react";
 
 interface ReconciliationCanvasProps {
   children: React.ReactNode;
+  topLeftControls?: React.ReactNode;
 }
 
-export function ReconciliationCanvas({ children }: ReconciliationCanvasProps) {
+export function ReconciliationCanvas({ children, topLeftControls }: ReconciliationCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const transformRef = useRef({ x: 0, y: 0, scale: 1 });
@@ -211,6 +212,14 @@ export function ReconciliationCanvas({ children }: ReconciliationCanvasProps) {
           Reset
         </button>
       </div>
+      {topLeftControls && (
+        <div 
+          className="absolute top-3 left-3 flex items-center gap-1.5 p-1 rounded-xl bg-card border border-border/80 shadow-md select-none z-20"
+          style={{ pointerEvents: "auto" }}
+        >
+          {topLeftControls}
+        </div>
+      )}
     </div>
   );
 }
