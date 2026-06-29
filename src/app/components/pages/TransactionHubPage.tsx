@@ -1632,14 +1632,12 @@ export function TransactionHubPage() {
                 <div
                   key={item.id}
                   onClick={() => handleEmailSelect(item.id)}
-                  className="flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200"
-                  style={{
-                    background: isSelected ? "var(--accent)" : "transparent",
-                    border: `1.5px solid ${isSelected ? "var(--border)" : "transparent"}`,
-                    cursor: "pointer",
-                    boxShadow: isSelected ? "0 4px 12px rgba(0,0,0,0.02)" : "none",
-                    position: "relative"
-                  }}
+                  className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
+                    isSelected
+                      ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                      : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
+                  }`}
+                  style={{}}
                 >
                   {/* Status & Confidence Header */}
                   <div className="flex items-center justify-between w-full">
@@ -1655,9 +1653,6 @@ export function TransactionHubPage() {
                       }}
                     >
                       {item.processingStatus}
-                    </span>
-                    <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontWeight: 600 }}>
-                      {item.aiConfidence}% AI Confidence
                     </span>
                   </div>
 
@@ -1720,7 +1715,7 @@ export function TransactionHubPage() {
                         handleEmailSelect(item.id);
                         setShowEmailModal(true);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1 rounded px-2 py-1 hover:bg-secondary border transition-colors cursor-pointer text-[10px] font-bold text-foreground bg-card border-border"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 hover:bg-secondary/60 hover:text-foreground border border-transparent transition-colors cursor-pointer text-[10px] font-medium text-muted-foreground bg-transparent"
                     >
                       <Mail size={11} />
                       <span>View Email</span>
@@ -1817,9 +1812,6 @@ export function TransactionHubPage() {
           <div className="flex items-center gap-4">
             <span style={{ fontSize: 10, color: "var(--muted-foreground)" }} className="hidden sm:inline">
               🖐 Drag to explore • Ctrl + Scroll to zoom
-            </span>
-            <span className="rounded-full px-2 py-0.5 font-semibold text-[9px] bg-indigo-100 dark:bg-indigo-950/20 text-indigo-500 font-mono">
-              AI Confidence: {activeEmail.aiConfidence}%
             </span>
           </div>
         </header>
@@ -2364,11 +2356,11 @@ export function TransactionHubPage() {
           </div>
         </div>
 
-        {/* Column 3 Body: Fixed Details Context Panel (Top) & Timeline (Bottom) */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        {/* Column 3 Body: Single scrollable panel */}
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 min-h-0 relative">
           
           {/* Top Contextual Details Section */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 border-b border-border/80">
+          <div className="flex flex-col gap-4">
             {(() => {
               const selectedReceipt = activeEmail.transactions.find((t) => t.id === selectedEntityId);
               const selectedGroup = paymentGroups.find((g) => g.payment.id === selectedEntityId);
@@ -2447,10 +2439,6 @@ export function TransactionHubPage() {
                         <p className="m-0">
                           {`The AI agent matched reference ${selectedReceipt.ref} with ${selectedGroup.invoices.length} billing items in local books. Suggested actions below represent optimal clearing sequences.`}
                         </p>
-                        <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
-                          <Sparkles size={11} />
-                          <span>{activeEmail.aiConfidence}% Matching Confidence</span>
-                        </div>
                       </div>
                     </div>
 
@@ -2555,10 +2543,6 @@ export function TransactionHubPage() {
                           <p className="m-0">
                             {dynamicAIInsight.text}
                           </p>
-                          <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
-                            <Sparkles size={11} />
-                            <span>{dynamicAIInsight.confidence}% Confidence</span>
-                          </div>
                         </div>
                       </div>
 
@@ -2685,10 +2669,6 @@ export function TransactionHubPage() {
                       <p className="m-0">
                         {`The AI agent has pre-analyzed UTR banking references and matched them with outstanding local book items. Reconciled values are prepared for ledger posting. Please review exception items and apply corrections as needed.`}
                       </p>
-                      <div className="flex items-center gap-1.5 text-indigo-500 font-semibold text-[9.5px] mt-2">
-                        <Sparkles size={11} />
-                        <span>{activeEmail ? activeEmail.aiConfidence : 0}% Matching Confidence</span>
-                      </div>
                     </div>
                   </div>
 
@@ -2731,8 +2711,8 @@ export function TransactionHubPage() {
             })()}
           </div>
 
-          {/* Bottom Timeline Section (Fixed Height, Scrollable) */}
-          <div className="h-[250px] flex-shrink-0 overflow-y-auto px-4 py-4 flex flex-col gap-3 border-t border-border bg-card/65 select-text">
+          {/* Bottom Timeline Section (Continuous Flow) */}
+          <div className="flex flex-col gap-3 border-t border-border pt-4 select-text">
             <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>
               UNIFIED ACTIVITY TIMELINE
             </span>
