@@ -985,6 +985,13 @@ export function TransactionHubPage() {
     setSelectedTxnIds([id]);
     if (type === "receipt") {
       setSelectedReceiptId(id);
+    } else if (type === "invoice") {
+      if (activeEmail) {
+        const selectedInvoice = activeEmail.transactions.find((t) => t.id === id);
+        if (selectedInvoice && selectedInvoice.parentId) {
+          setSelectedReceiptId(selectedInvoice.parentId);
+        }
+      }
     }
   };
 
@@ -2478,7 +2485,7 @@ export function TransactionHubPage() {
                 );
               }
 
-              if (selectedEntityType === "invoice" && selectedReceiptId) {
+              if (selectedEntityType === "invoice") {
                 const selectedInvoice = activeEmail.transactions.find((t) => t.id === selectedEntityId);
                 const parentReceipt = selectedInvoice ? activeEmail.transactions.find((t) => t.id === selectedInvoice.parentId) : null;
                 const relatedExceptions = activeEmail.outstandingItems.filter((ex) => ex.relatedTxnIds.includes(selectedEntityId!));

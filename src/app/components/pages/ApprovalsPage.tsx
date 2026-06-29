@@ -155,8 +155,6 @@ export function ApprovalsPage() {
 
   return (
     <main className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-6">
-      {/* Header */}
-      <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--foreground)", letterSpacing: "-0.02em" }}>Approvals</h1>
 
       {/* Summary cards — horizontal row */}
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>

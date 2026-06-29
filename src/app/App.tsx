@@ -197,6 +197,13 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Reset Activity Workspace and context on module/route change
+  useEffect(() => {
+    setActivePanel(null);
+    setActiveRecord(null);
+    setActiveDetailRecord(null);
+  }, [active]);
+
   if (!isLoggedIn) {
     return (
       <LoginPage
@@ -236,6 +243,8 @@ export default function App() {
       const { type, id, status } = activeDetailRecord;
       const handleClose = () => {
         setActiveDetailRecord(null);
+        setActivePanel(null);
+        setActiveRecord(null);
         setNavContext(prev => ({
           ...prev,
           detailPageOrigin: null,
@@ -330,10 +339,8 @@ export default function App() {
         );
     }
   }
-
   const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
-  // Inbox and Approvals have their own inner layout (full page with header inside)
-  const hasOwnHeader = ["Approvals"].includes(active);
+  const hasOwnHeader = false;
 
   return (
     <PanelContext.Provider value={{ 
@@ -387,7 +394,7 @@ export default function App() {
                 <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
                   {pageTitles[active]}
                 </h1>
-                {(active === "Overview" || active === "Inbox" || active === "Transaction Hub") && (
+                {(active === "Overview" || active === "Inbox" || active === "Transaction Hub" || active === "Approvals") && (
                   <>
                     <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
                     <CompanySwitch />

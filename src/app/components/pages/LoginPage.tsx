@@ -107,9 +107,15 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
             <div className="flex items-center justify-between relative bg-card/65 dark:bg-card/45 backdrop-blur-md rounded-2xl p-5 border border-border shadow-sm gap-2">
               {/* Flow line background */}
-              <div className="absolute left-[15%] right-[15%] top-[45%] h-[1.5px] bg-dashed border-t border-dashed border-border z-0" />
+              <div 
+                className="absolute left-[16.6%] right-[16.6%] bg-dashed border-t border-dashed border-border z-0" 
+                style={{ top: 40, transform: "translateY(-50%)", height: 1 }}
+              />
               {/* Animating dot */}
-              <div className="absolute left-[15%] top-[45%] w-2 h-2 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(79,110,247,0.8)] z-0 animate-flow" />
+              <div 
+                className="absolute w-2.5 h-2.5 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(79,110,247,0.8)] z-0 animate-flow" 
+                style={{ top: 40, transform: "translateY(-50%)" }}
+              />
 
               {/* Node 1: Contract */}
               <div className="flex flex-col items-center gap-2 z-10 flex-1">
@@ -189,10 +195,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         {/* CSS Keyframes for visualization animation */}
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes flow {
-            0% { left: 18%; opacity: 0; }
+            0% { left: 16.6%; opacity: 0; }
             10% { opacity: 1; }
             90% { opacity: 1; }
-            100% { left: 82%; opacity: 0; }
+            100% { left: 83.3%; opacity: 0; }
           }
           .animate-flow {
             animation: flow 4s infinite linear;
