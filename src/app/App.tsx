@@ -15,6 +15,7 @@ import { InboxPage, initialItems, InboxItem } from "./components/pages/InboxPage
 import { ApprovalsPage } from "./components/pages/ApprovalsPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
+import { FSCPPage } from "./components/pages/FSCPPage";
 import { UserProfile } from "./components/UserProfile";
 import { TransactionHubPage } from "./components/pages/TransactionHubPage";
 import { PODetailPage } from "./components/pages/PODetailPage";
@@ -326,6 +327,8 @@ export default function App() {
         return <TransactionHubPage />;
       case "Approvals":
         return <ApprovalsPage />;
+      case "FSCP":
+        return <FSCPPage />;
       case "Overview":
         return (
           <OverviewPage
