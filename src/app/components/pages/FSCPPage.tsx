@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Percent,
   Sliders,
-  Activity
+  Activity,
+  ChevronRight
 } from "lucide-react";
 
 // Types
@@ -433,6 +434,41 @@ const DOMAIN_ICONS: Record<string, React.ComponentType<any>> = {
 };
 
 export function FSCPPage() {
+  const renderIssueBadge = (count: number) => {
+    let badgeBg = "#6b7280"; // default grey
+    if (count > 0) {
+      if (selectedKPI === "Close Blocker") {
+        badgeBg = "#ef4444"; // Red
+      } else if (selectedKPI === "Moderate Issue") {
+        badgeBg = "#f59e0b"; // Orange/Amber
+      } else if (selectedKPI === "No Issue") {
+        badgeBg = "#10b981"; // Green
+      }
+    }
+    return (
+      <span 
+        className="absolute rounded-full font-bold flex items-center justify-center animate-fadeIn"
+        style={{
+          top: "-6px",
+          right: "-6px",
+          transform: "translate(25%, -25%)",
+          fontSize: "9px",
+          fontWeight: 800,
+          background: badgeBg,
+          color: "#fff",
+          border: "none",
+          outline: "none",
+          boxShadow: "none",
+          width: "18px",
+          height: "18px",
+          zIndex: 5
+        }}
+      >
+        {count}
+      </span>
+    );
+  };
+
   const [issues, setIssues] = useState<FSCPIssue[]>(INITIAL_ISSUES);
   const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
@@ -442,6 +478,10 @@ export function FSCPPage() {
   const [showIssueList, setShowIssueList] = useState(false);
   const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
   const [showComposer, setShowComposer] = useState<FSCPIssue | null>(null);
+  const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   
   // Email template state
   const [emailTo, setEmailTo] = useState("");
@@ -763,6 +803,24 @@ Finance Close Command Center`);
                 <div
                   key={domain}
                   onClick={() => {
+                    if (count === 0) {
+                      let msg = "";
+                      if (selectedKPI === "Close Blocker") {
+                        msg = "No Close Blocker issues were identified for the selected finance domain during the current financial close cycle.";
+                      } else if (selectedKPI === "Moderate Issue") {
+                        msg = "No Moderate Issues were identified for the selected finance domain during the current financial close cycle.";
+                      } else {
+                        msg = "This finance domain currently has no reconciled items under the 'No Issues' category.";
+                      }
+
+                      setNoActiveIssuesContext({
+                        title: "No Active Issues",
+                        message: msg
+                      });
+                      setSelectedDomain(null);
+                      setActiveProcess(null);
+                      return;
+                    }
                     setSelectedDomain(isActive ? null : domain);
                     setActiveProcess(null);
                   }}
@@ -786,23 +844,7 @@ Finance Close Command Center`);
                   }}
                 >
                   {/* Overlapping badge: 50% in, 50% out */}
-                  <span 
-                    className="absolute rounded-full font-bold px-1.5 py-0.5"
-                    style={{
-                      top: "-6px",
-                      right: "-6px",
-                      transform: "translate(25%, -25%)",
-                      fontSize: "9px",
-                      fontWeight: 800,
-                      border: "2px solid var(--card)",
-                      background: count > 0 ? (selectedKPI === "Close Blocker" ? "#ef4444" : "#f59e0b") : "var(--border)",
-                      color: count > 0 ? "#fff" : "var(--muted-foreground)",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.12)",
-                      zIndex: 5
-                    }}
-                  >
-                    {count}
-                  </span>
+                  {renderIssueBadge(count)}
 
                   {/* Centered icon */}
                   <div 
@@ -843,42 +885,64 @@ Finance Close Command Center`);
                 {selectedDomain} • Business Processes
               </h2>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 gap-4">
                 {FINANCE_DOMAINS[selectedDomain].map((process) => {
                   const count = getProcessCount(process, selectedKPI);
+                  const isEmphasized = count > 0;
+                  const themeColor = selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981";
+                  const themeBg = selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.03)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.03)" : "rgba(16, 185, 129, 0.03)";
+
                   return (
                     <div
                       key={process}
-                      onClick={() => handleOpenProcess(process)}
-                      className="flex flex-col justify-between p-3.5 rounded-lg border cursor-pointer transition-all duration-150"
+                      onClick={() => {
+                        if (count === 0) {
+                          let msg = "";
+                          if (selectedKPI === "Close Blocker") {
+                            msg = "No Close Blocker issues were identified for the selected business process during the current financial close cycle.";
+                          } else if (selectedKPI === "Moderate Issue") {
+                            msg = "No Moderate Issues were identified for the selected business process during the current financial close cycle.";
+                          } else {
+                            msg = "This business process currently has no reconciled items under the 'No Issues' category.";
+                          }
+
+                          setNoActiveIssuesContext({
+                            title: "No Active Issues",
+                            message: msg
+                          });
+                          setActiveProcess(null);
+                          return;
+                        }
+                        handleOpenProcess(process);
+                      }}
+                      className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-200"
                       style={{
-                        background: "var(--secondary)",
-                        borderColor: "var(--border)",
+                        position: "relative",
+                        background: isEmphasized ? themeBg : "var(--secondary)",
+                        borderColor: isEmphasized ? themeColor : "var(--border)",
+                        boxShadow: isEmphasized ? `0 2px 8px ${themeColor}15` : "none"
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "#3b82f6";
+                        e.currentTarget.style.borderColor = themeColor;
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        e.currentTarget.style.boxShadow = `0 4px 12px ${themeColor}20`;
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.borderColor = isEmphasized ? themeColor : "var(--border)";
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = isEmphasized ? `0 2px 8px ${themeColor}15` : "none";
                       }}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>
-                          {process}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Selected Issues</span>
-                        <span 
-                          className="px-1.5 py-0.5 rounded text-xs font-bold"
-                          style={{
-                            background: count > 0 ? (selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.15)" : "rgba(245, 158, 11, 0.15)") : "rgba(255,255,255,0.05)",
-                            color: count > 0 ? (selectedKPI === "Close Blocker" ? "#ef4444" : "#f59e0b") : "var(--muted-foreground)"
-                          }}
-                        >
-                          {count}
-                        </span>
-                      </div>
+                      {/* Overlapping badge at top right: 50% in, 50% out */}
+                      {renderIssueBadge(count)}
+
+                      {/* Business Process Name */}
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", paddingRight: "16px" }}>
+                        {process}
+                      </span>
+
+                      {/* Right Chevron indicating drilldown */}
+                      <ChevronRight size={14} style={{ color: isEmphasized ? themeColor : "var(--muted-foreground)" }} />
                     </div>
                   );
                 })}
@@ -1243,6 +1307,35 @@ Finance Close Command Center`);
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+      {/* ─── 7. No Active Issues Dialog Overlay ─── */}
+      {noActiveIssuesContext && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div 
+            className="w-full max-w-md rounded-xl border p-6 flex flex-col items-center justify-center text-center shadow-2xl animate-fadeIn"
+            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+          >
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4">
+              <CheckCircle size={24} />
+            </div>
+            
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>
+              {noActiveIssuesContext.title}
+            </h3>
+            
+            <p className="mt-2 mb-6 text-center text-xs" style={{ color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+              {noActiveIssuesContext.message}
+            </p>
+
+            <button
+              onClick={() => setNoActiveIssuesContext(null)}
+              className="px-5 py-2 rounded text-xs font-bold border-none cursor-pointer w-full transition-colors"
+              style={{ background: "var(--foreground)", color: "var(--background)" }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

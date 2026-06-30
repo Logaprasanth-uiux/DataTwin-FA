@@ -101,7 +101,7 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
       {/* Floating Divider Handle Collapse/Expand Toggle */}
       <button
         onClick={toggleCollapse}
-        className="absolute z-50 flex items-center justify-center rounded-full cursor-pointer hover:bg-secondary/80 border transition-all duration-200"
+        className="absolute z-20 flex items-center justify-center rounded-full cursor-pointer hover:bg-secondary/80 border transition-all duration-200"
         style={{
           width: 24,
           height: 24,
