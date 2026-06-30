@@ -36,7 +36,7 @@ if (typeof document !== "undefined" && !document.getElementById("__mic_pulse_sty
 type NavFn = (page: string, highlightId?: string, mode?: string) => void;
 
 interface Message {
-  role: "ai" | "user";
+  role: "ai" | "user" | "context";
   text: string;
   reviewCard?: ExtractedDataModel;
 }
@@ -1265,6 +1265,144 @@ function generateGeneralAnswer(text: string): string {
   return "I'm here to help you manage your finance workflows. You can ask me to raise a PO, onboard a vendor, submit an invoice, search for records, or check the status of any document. Try saying: \"Help\" to see all options.";
 }
 
+interface PageConfig {
+  subtitle: string;
+  welcome: string;
+  suggestions: { id: string; label: string; icon: string }[];
+}
+
+function getContextTitle(page: string): string {
+  if (page === "Purchase Order") return "Purchase Orders";
+  if (page === "Bill") return "Bills";
+  return page;
+}
+
+function getPageConfig(page: string): PageConfig {
+  const p = page ? page.trim() : "Overview";
+  
+  switch (p) {
+    case "Overview":
+      return {
+        subtitle: "Business Insights Assistant",
+        welcome: "Hi! I'm your Business Insights AI Copilot. Ask about business performance, pending actions, dashboard metrics, or what needs your attention today.",
+        suggestions: [
+          { id: "summarize_perf", label: "Summarize business performance", icon: "📊" },
+          { id: "pending_actions", label: "Show pending actions", icon: "⚡" },
+          { id: "explain_metrics", label: "Explain dashboard metrics", icon: "💡" },
+          { id: "needs_attention", label: "What needs my attention today?", icon: "❓" },
+        ]
+      };
+    case "Approvals":
+      return {
+        subtitle: "Approvals • AI Assistant",
+        welcome: "Hi! I'm your Approvals AI Copilot. Ask about pending approvals, aging, high priority approvals, or specific exceptions.",
+        suggestions: [
+          { id: "pending_approvals", label: "Show pending approvals", icon: "⏳" },
+          { id: "why_rejected", label: "Why was this request rejected?", icon: "❌" },
+          { id: "aging", label: "Approval aging", icon: "📅" },
+          { id: "high_priority", label: "High priority approvals", icon: "🔥" },
+        ]
+      };
+    case "Report":
+      return {
+        subtitle: "Reports • AI Assistant",
+        welcome: "Hi! I'm your Financial Reports AI Copilot. I can help generate financial reports, explain metrics, export insights, or compare periods.",
+        suggestions: [
+          { id: "generate_report", label: "Generate financial report", icon: "📈" },
+          { id: "explain_report", label: "Explain report", icon: "📑" },
+          { id: "export_insights", label: "Export insights", icon: "📤" },
+          { id: "compare_periods", label: "Compare periods", icon: "⚖️" },
+        ]
+      };
+    case "Organization":
+      return {
+        subtitle: "Organization • AI Assistant",
+        welcome: "Hi! I'm your Organization AI Copilot. Ask about business units, department hierarchies, approvers, or search employees.",
+        suggestions: [
+          { id: "find_unit", label: "Find business unit", icon: "🏢" },
+          { id: "show_hierarchy", label: "Show department hierarchy", icon: "🌲" },
+          { id: "find_approver", label: "Find approver", icon: "👤" },
+          { id: "search_employee", label: "Search employee", icon: "🔍" },
+        ]
+      };
+    case "Vendor":
+      return {
+        subtitle: "Vendor Intelligence • AI Assistant",
+        welcome: "Hi! I'm your Vendor Intelligence AI Copilot. Ask about finding/creating vendors, payment histories, or risk summaries.",
+        suggestions: [
+          { id: "find_vendor", label: "Find vendor", icon: "🤝" },
+          { id: "create_vendor", label: "Create vendor", icon: "➕" },
+          { id: "vendor_history", label: "Vendor payment history", icon: "📜" },
+          { id: "vendor_risk", label: "Vendor risk summary", icon: "⚠️" },
+        ]
+      };
+    case "Purchase Order":
+      return {
+        subtitle: "Semantic Extraction • Purchase Order Assistant",
+        welcome: "Hi! I'm your Purchase Order AI Copilot. I can help create POs, search purchase orders, explain statuses, and answer procurement questions.",
+        suggestions: [
+          { id: "raise_po", label: "Raise Purchase Order", icon: "📦" },
+          { id: "find_po", label: "Find Purchase Order", icon: "🔍" },
+          { id: "po_status", label: "Check PO Status", icon: "✅" },
+          { id: "add_invoice", label: "Add Invoice", icon: "🧾" },
+        ]
+      };
+    case "Bill":
+      return {
+        subtitle: "Bills • AI Assistant",
+        welcome: "Hi! I'm your Bills AI Copilot. I can help create bills, search invoices, match POs, or summarize payment due info.",
+        suggestions: [
+          { id: "create_bill", label: "Create Bill", icon: "💵" },
+          { id: "find_bill", label: "Find Bill", icon: "🔍" },
+          { id: "match_bill", label: "Match Bill with PO", icon: "🧩" },
+          { id: "due_summary", label: "Payment Due Summary", icon: "📊" },
+        ]
+      };
+    case "Accounts Payable":
+      return {
+        subtitle: "Accounts Payable • Finance Assistant",
+        welcome: "Hi! I'm your Accounts Payable AI Copilot. Ask about invoices, vendor balances, payment schedules, exceptions, or aging reports.",
+        suggestions: [
+          { id: "overdue_invoices", label: "Show overdue invoices", icon: "🚨" },
+          { id: "outstanding_bal", label: "Vendor outstanding balance", icon: "💳" },
+          { id: "payment_aging", label: "Explain payment aging", icon: "⏳" },
+          { id: "payment_schedule", label: "Upcoming payment schedule", icon: "📅" },
+        ]
+      };
+    case "Accounts Receivable":
+      return {
+        subtitle: "Receivables Intelligence • Finance Assistant",
+        welcome: "Hi! I'm your Accounts Receivable AI Copilot. I can help track collections, outstanding invoices, payment predictions, and customer balances.",
+        suggestions: [
+          { id: "customer_outstanding", label: "Customer outstanding invoices", icon: "📈" },
+          { id: "overdue_collections", label: "Show overdue collections", icon: "📞" },
+          { id: "predict_delays", label: "Predict payment delays", icon: "🔮" },
+          { id: "cash_collection", label: "Cash collection summary", icon: "💰" },
+        ]
+      };
+    case "FSCP":
+      return {
+        subtitle: "Financial Close Assistant",
+        welcome: "Hi! I'm your Financial Close AI Copilot. I can help monitor close activities, reconciliation progress, journal entries, and outstanding tasks.",
+        suggestions: [
+          { id: "close_checklist", label: "Show close checklist", icon: "📋" },
+          { id: "close_progress", label: "Month-end progress", icon: "🔄" },
+          { id: "close_tasks", label: "Outstanding close tasks", icon: "📌" },
+          { id: "reconciliation_issues", label: "Explain reconciliation issues", icon: "🔍" },
+        ]
+      };
+    default:
+      return {
+        subtitle: `${p} • AI Assistant`,
+        welcome: `Hi! I'm your ${p} AI Copilot. I can help answer questions and process tasks for the ${p} module.`,
+        suggestions: [
+          { id: `${p.toLowerCase()}_summary`, label: `Show ${p} summary`, icon: "📋" },
+          { id: `${p.toLowerCase()}_actions`, label: `List actions for ${p}`, icon: "⚡" },
+        ]
+      };
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface CopilotState {
@@ -1301,12 +1439,7 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
       panelCtx.setActivePanel(val ? "ai" : null);
     }
   };
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "ai",
-      text: "Hi! I'm your DataTwin AI Copilot. Tell me what you need — I'll extract the details, show you a structured review, and populate the form automatically.\n\nExample: \"Raise a PO for CloudNet Solutions worth ₹250000 for front-end development, Engineering dept, Net 30 payment terms.\"",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -1353,6 +1486,24 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
       }
     }
   }, [activePage, copilot.active, copilot.step]);
+
+  useEffect(() => {
+    if (!activePage) return;
+    const config = getPageConfig(activePage);
+    const title = getContextTitle(activePage);
+    
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === "context" && last.text === title) {
+        return prev;
+      }
+      return [
+        ...prev,
+        { role: "context", text: title },
+        { role: "ai", text: config.welcome }
+      ];
+    });
+  }, [activePage]);
 
   function addMessage(role: "ai" | "user", text: string, reviewCard?: ExtractedDataModel) {
     try {
@@ -1905,9 +2056,17 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
       check_invoice: { type: "status_invoice", category: "status_lookup",  text: "Check status of Invoice INV-2026-001" },
     };
     const sample = samples[id];
-    if (!sample) return;
-    addMessage("user", sample.text);
-    startCopilotWorkflow({ type: sample.type, category: sample.category }, sample.text);
+    if (sample) {
+      addMessage("user", sample.text);
+      startCopilotWorkflow({ type: sample.type, category: sample.category }, sample.text);
+    } else {
+      const config = getPageConfig(activePage || "Overview");
+      const item = config.suggestions.find(s => s.id === id);
+      if (item) {
+        addMessage("user", item.label);
+        startCopilotWorkflow({ type: "general_question", category: "general_question" }, item.label);
+      }
+    }
   }
 
   // ── Global Error Banner ────────────────────────────────────────────────────
@@ -1974,7 +2133,7 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
         </div>
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>DataTwin Copilot</p>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Semantic Extraction · Agent Mode</p>
+          <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{getPageConfig(activePage || "Overview").subtitle}</p>
         </div>
         <button
           onClick={() => setOpen(false)}
@@ -2091,82 +2250,96 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
-        {messages.map((msg, i) => (
-          <div key={i} className="flex flex-col" style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-            <div
-              className="rounded-xl px-3 py-2"
-              style={{
-                maxWidth: "90%",
-                background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
-                color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
-              <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
+        {messages.map((msg, i) => {
+          if (msg.role === "context") {
+            return (
+              <div key={i} className="flex flex-col items-center justify-center my-3 w-full border-b border-border/30 pb-2">
+                <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)" }}>
+                  Current Context
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", marginTop: 1 }}>
+                  {msg.text}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div key={i} className="flex flex-col" style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+              <div
+                className="rounded-xl px-3 py-2"
+                style={{
+                  maxWidth: "90%",
+                  background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
+                  color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
 
-              {/* View Record button */}
-              {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
-                <button
-                  onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
-                  className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
-                  style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
-                >
-                  View Details: {copilot.createdId} →
-                </button>
+                {/* View Record button */}
+                {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
+                  <button
+                    onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
+                    className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
+                    style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
+                  >
+                    View Details: {copilot.createdId} →
+                  </button>
+                )}
+              </div>
+
+              {/* Result Cards — rendered below the last AI message carrying a result */}
+              {msg.role === "ai" && copilot.resultPayload && i === messages.length - 1 && (
+                <div style={{ width: "100%", marginTop: 8 }}>
+                  {copilot.resultPayload.type === "status" && (
+                    <StatusCard
+                      intentType={copilot.resultPayload.intentType}
+                      query={copilot.resultPayload.query}
+                      onNavigate={onNavigate}
+                    />
+                  )}
+                  {copilot.resultPayload.type === "search" && (
+                    <SearchResultsCard
+                      intentType={copilot.resultPayload.intentType}
+                      onNavigate={onNavigate}
+                    />
+                  )}
+                  {copilot.resultPayload.type === "approval" && (
+                    <ApprovalCard
+                      intentType={copilot.resultPayload.intentType}
+                      query={copilot.resultPayload.query}
+                      onAction={handleApprovalAction}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Review Card — rendered below AI message */}
+              {msg.role === "ai" && msg.reviewCard && (
+                <div style={{ width: "100%", marginTop: 8 }}>
+                  <ReviewCard
+                    model={msg.reviewCard}
+                    onConfirm={handleReviewConfirm}
+                    onEdit={(key, val) => {
+                      // Update pending model
+                      setPendingReviewModel(prev => prev ? {
+                        ...prev,
+                        [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
+                      } : prev);
+                    }}
+                    onCancel={handleReviewCancel}
+                  />
+                </div>
               )}
             </div>
-
-            {/* Result Cards — rendered below the last AI message carrying a result */}
-            {msg.role === "ai" && copilot.resultPayload && i === messages.length - 1 && (
-              <div style={{ width: "100%", marginTop: 8 }}>
-                {copilot.resultPayload.type === "status" && (
-                  <StatusCard
-                    intentType={copilot.resultPayload.intentType}
-                    query={copilot.resultPayload.query}
-                    onNavigate={onNavigate}
-                  />
-                )}
-                {copilot.resultPayload.type === "search" && (
-                  <SearchResultsCard
-                    intentType={copilot.resultPayload.intentType}
-                    onNavigate={onNavigate}
-                  />
-                )}
-                {copilot.resultPayload.type === "approval" && (
-                  <ApprovalCard
-                    intentType={copilot.resultPayload.intentType}
-                    query={copilot.resultPayload.query}
-                    onAction={handleApprovalAction}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Review Card — rendered below AI message */}
-            {msg.role === "ai" && msg.reviewCard && (
-              <div style={{ width: "100%", marginTop: 8 }}>
-                <ReviewCard
-                  model={msg.reviewCard}
-                  onConfirm={handleReviewConfirm}
-                  onEdit={(key, val) => {
-                    // Update pending model
-                    setPendingReviewModel(prev => prev ? {
-                      ...prev,
-                      [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
-                    } : prev);
-                  }}
-                  onCancel={handleReviewCancel}
-                />
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
 
         {/* Initial suggestions */}
-        {!copilot.active && messages.length <= 1 && (
+        {!copilot.active && !messages.some(m => m.role === "user") && (
           <div className="flex flex-col gap-1.5 mt-1">
-            {suggestions.map((s) => (
+            {getPageConfig(activePage || "Overview").suggestions.map((s) => (
               <button
                 key={s.id}
                 onClick={() => handleSuggestion(s.id)}
@@ -2184,9 +2357,9 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
         )}
 
         {/* Post-conversation suggestions */}
-        {!copilot.active && messages.length > 1 && (
+        {!copilot.active && messages.some(m => m.role === "user") && (
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {suggestions.map((s) => (
+            {getPageConfig(activePage || "Overview").suggestions.map((s) => (
               <button
                 key={s.id}
                 onClick={() => handleSuggestion(s.id)}

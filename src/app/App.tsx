@@ -200,11 +200,17 @@ export default function App() {
   }, []);
 
   // Reset Activity Workspace and context on module/route change
+  const prevActiveRef = useRef(active);
   useEffect(() => {
-    setActivePanel(null);
-    setActiveRecord(null);
-    setActiveDetailRecord(null);
-  }, [active]);
+    if (prevActiveRef.current !== active) {
+      if (activePanel === "activity") {
+        setActivePanel(null);
+      }
+      setActiveRecord(null);
+      setActiveDetailRecord(null);
+      prevActiveRef.current = active;
+    }
+  }, [active, activePanel]);
 
   if (!isLoggedIn) {
     return (
@@ -412,9 +418,7 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               {renderContent()}
             </div>
-            {active !== "Accounts Receivable" && (
-              <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
-            )}
+            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
             {active !== "Accounts Receivable" && activePanel === "activity" && (
               <ActivityWorkspace hasHeaderOffset={isListPage || hasOwnHeader} />
             )}
