@@ -104,12 +104,14 @@ const detailsOwner = (process: string) => {
 
 // Target Issue count configurations per request
 const PROCESS_COUNTS: Record<string, number> = {
-  "General Ledger": 5,
-  "Accounts Payable": 7,
-  "Accounts Receivable": 4,
-  "Fixed Assets": 8,
-  "Bank & Cash": 6,
-  "Inventory Accounting": 5,
+  "General Ledger": 6,
+  "Accounts Payable": 8,
+  "Accounts Receivable": 5,
+  "Fixed Assets": 7,
+  "Bank & Cash": 4,
+  "Allocations": 6,
+  "Manual Allocations": 5,
+  "P&L Preparation": 8,
   "GST Compliance": 0,
   "FP&A Benchmarking": 0,
   "Finance Recovery": 0
@@ -120,9 +122,10 @@ const generateMockIssues = (): FSCPIssue[] => {
   const list: FSCPIssue[] = [];
   const companyCodes = ["US01", "EU02", "IN02", "APAC09", "UK03"];
   const severities = ["Critical" as const, "High" as const, "Medium" as const, "Low" as const];
+  const types: FSCPIssueType[] = ["Close Blocker", "Moderate Issue", "No Issue"];
 
-  const getProcessDetails = (process: string, index: number, isBlocker: boolean) => {
-    // Realistic process-specific issue name libraries to avoid redundancy
+  const getProcessDetails = (process: string, index: number, type: FSCPIssueType) => {
+    // Process-specific unique name libraries to build an authentic finance ledger feel
     const apNames = [
       "Duplicate Vendor Invoice Posted",
       "Stale Purchase Order Outstanding Balance",
@@ -130,7 +133,8 @@ const generateMockIssues = (): FSCPIssue[] => {
       "Unmatched Freight Expense Accrual",
       "Vendor Profile Bank Data Discrepancy",
       "High Value Material Receipt Missing Inbound Voucher",
-      "AP Payment Run Bank Discrepancy"
+      "AP Payment Run Bank Discrepancy",
+      "Overdue Supplier Liability Aging Block"
     ];
     const faNames = [
       "Asset Acquisition Depreciation Mismatch",
@@ -140,14 +144,17 @@ const generateMockIssues = (): FSCPIssue[] => {
       "Fixed Asset Disposal Calculation Discrepancy",
       "Asset Useful Life Classification Error",
       "Unmatched CIP Balance in Capital Projects",
-      "Asset Cost Pool Allocation Difference"
+      "Asset Cost Pool Allocation Difference",
+      "Tax vs Book Depreciation Variance"
     ];
     const glNames = [
       "Month-end Consolidation Rate Mismatch",
       "Manual Accrual Rule Misalignment",
       "Subledger Balance Sync Failure",
       "Unposted Corporate Allocations Entry",
-      "Trial Balance Account Mapping Exception"
+      "Trial Balance Account Mapping Exception",
+      "Consolidation Elimination Entry Deficit",
+      "Intercompany Balance Discrepancy"
     ];
     const bcNames = [
       "Chase Operating Account Balance Discrepancy",
@@ -155,13 +162,15 @@ const generateMockIssues = (): FSCPIssue[] => {
       "Foreign Cash Translation Difference",
       "Stale Outbound Check Listing Out-of-Sync",
       "Cash Ledger Posting Rule Violation",
-      "Bank Charge Fee Verification Variance"
+      "Bank Charge Fee Verification Variance",
+      "Lockbox Cash Application Variance"
     ];
     const arNames = [
       "Unallocated Customer Collections Cash Match",
       "Billing Dispute Credit Note Hold",
       "Stale Customer Debit Invoice Validation Failure",
-      "Bad Debt Reserve Allocation Variance"
+      "Bad Debt Reserve Allocation Variance",
+      "Credit Limit Limit Exceeded Authorization Variance"
     ];
     const invNames = [
       "Inventory WMS to GL Sync Variance",
@@ -203,7 +212,7 @@ const generateMockIssues = (): FSCPIssue[] => {
       name = bcNames[idx];
       reason = `Reconciliation balance variance found between subledger cash account and banking report #${index}.`;
       suggestedAction = ["Reconcile bank transactions", "Review ledger cash applications", "Verify currency translation rates."];
-      blockerType: blockerType = "Cash Book Variance";
+      blockerType = "Cash Book Variance";
       ownerRole = "Treasury Manager";
     } else if (process.includes("General Ledger") || process.includes("Accrual") || process.includes("Allocation")) {
       const idx = (index - 1) % glNames.length;
@@ -226,64 +235,57 @@ const generateMockIssues = (): FSCPIssue[] => {
 
   Object.keys(FINANCE_DOMAINS).forEach((domain) => {
     FINANCE_DOMAINS[domain].forEach((process) => {
-      let numIssues = 3; // default
+      let numIssues = 4; // default
       if (PROCESS_COUNTS[process] !== undefined) {
         numIssues = PROCESS_COUNTS[process];
-      } else if (["GST Compliance", "FP&A Benchmarking", "Finance Recovery"].includes(process)) {
-        numIssues = 0; // leaves zero issue flow fully testable
       } else {
-        numIssues = (process.length % 3) + 3; // varying count between 3 and 5
+        // Natural variation count
+        numIssues = (process.length % 3) + 4; // 4, 5, or 6
       }
 
       if (numIssues === 0) return;
 
-      for (let i = 1; i <= numIssues; i++) {
-        let type: FSCPIssueType = "No Issue";
-        if (i === 1) {
-          type = "Close Blocker";
-        } else if (i === 2) {
-          type = "Moderate Issue";
-        } else if (i === 3) {
-          type = "No Issue";
-        } else {
-          // split remaining issues
-          type = i % 3 === 0 ? "Close Blocker" : i % 3 === 1 ? "Moderate Issue" : "No Issue";
+      // Generate exactly numIssues for EACH of the three categories (Close Blocker, Moderate Issue, No Issue)
+      // This guarantees the badge count and the Issue List counts align perfectly to the specified counts.
+      types.forEach((type, typeIdx) => {
+        for (let i = 1; i <= numIssues; i++) {
+          const details = getProcessDetails(process, i, type);
+
+          // unique offset per type/index
+          const codeIdx = (i + typeIdx) % companyCodes.length;
+
+          list.push({
+            id: `${type === "Close Blocker" ? "BLK" : type === "Moderate Issue" ? "MOD" : "OK"}-${process.substring(0, 3).toUpperCase()}-2026-${type.substring(0, 2).toUpperCase()}-${String(i).padStart(2, '0')}`,
+            name: type === "No Issue" ? `${process} Balanced Ledger Verification #${i}` : details.name,
+            domain,
+            process,
+            impact: type === "No Issue" ? 0 : Math.floor(15000 + Math.random() * (type === "Close Blocker" ? 420000 : 70000) + (i * 6500)),
+            type,
+            companyCode: companyCodes[codeIdx],
+            fiscalYear: "2026",
+            period: "P06",
+            assetNumber: `DOC-${type.substring(0, 2).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000 + (i * 12))}`,
+            subAssetNumber: type === "Close Blocker" ? "0000" : "N/A",
+            assetDescription: `${process} transaction ledger balance audit #${i}`,
+            blockerType: type === "No Issue" ? "None" : details.blockerType,
+            severity: type === "Close Blocker" ? (i % 2 === 0 ? "Critical" : "High") : type === "Moderate Issue" ? "Medium" : "Low",
+            reason: type === "No Issue" ? `Trial balance confirmation for ${process} completed validation check #${i}.` : details.reason,
+            sourceFile: `${process.toLowerCase().replace(/[^a-z0-9]/g, "_")}_${type.toLowerCase().substring(0, 3)}_june_${i}.xlsx`,
+            suggestedAction: type === "No Issue" ? ["No actions required."] : details.suggestedAction,
+            ownerRole: details.ownerRole,
+            status: type === "No Issue" ? "Resolved" : "Open",
+            ageingDays: type === "No Issue" ? 1 : Math.floor(3 + Math.random() * 12 + i),
+            timeline: type === "No Issue" ? [
+              { dateLabel: "3 days ago", description: "Standard balance validation completed" },
+              { dateLabel: "2 days ago", description: "Discrepancy resolved successfully" }
+            ] : [
+              { dateLabel: "3 days ago", description: `${type} detected in source ledger` },
+              { dateLabel: "2 days ago", description: "AI recommendation checklist generated" },
+              { dateLabel: "Yesterday", description: "Status initialized as Open" }
+            ]
+          });
         }
-
-        const isBlocker = type === "Close Blocker";
-        const details = getProcessDetails(process, i, isBlocker);
-
-        list.push({
-          id: `${type === "Close Blocker" ? "BLK" : type === "Moderate Issue" ? "MOD" : "OK"}-${process.substring(0, 3).toUpperCase()}-2026-${String(i).padStart(2, '0')}`,
-          name: type === "No Issue" ? `${process} standard reconciled ledger item #${i}` : details.name,
-          domain,
-          process,
-          impact: type === "No Issue" ? 0 : Math.floor(10000 + Math.random() * (type === "Close Blocker" ? 450000 : 75000)),
-          type,
-          companyCode: companyCodes[Math.floor(Math.random() * companyCodes.length)],
-          fiscalYear: "2026",
-          period: "P06",
-          assetNumber: `DOC-${type.substring(0, 2).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-          subAssetNumber: type === "Close Blocker" ? "0000" : "N/A",
-          assetDescription: `${process} transaction balance audit ledger #${i}`,
-          blockerType: type === "No Issue" ? "None" : details.blockerType,
-          severity: type === "Close Blocker" ? severities[Math.floor(Math.random() * 2)] : type === "Moderate Issue" ? "Medium" : "Low",
-          reason: type === "No Issue" ? "No active discrepancies or issues identified. Account balances are reconciled." : details.reason,
-          sourceFile: `${process.toLowerCase().replace(/[^a-z0-9]/g, "_")}_raw_june_${i}.xlsx`,
-          suggestedAction: type === "No Issue" ? ["No actions required."] : details.suggestedAction,
-          ownerRole: details.ownerRole,
-          status: type === "No Issue" ? "Resolved" : "Open",
-          ageingDays: type === "No Issue" ? 1 : Math.floor(3 + Math.random() * 15),
-          timeline: type === "No Issue" ? [
-            { dateLabel: "3 days ago", description: "Standard balance validation completed" },
-            { dateLabel: "2 days ago", description: "Discrepancy resolved successfully" }
-          ] : [
-            { dateLabel: "3 days ago", description: `${type} detected in source ledger` },
-            { dateLabel: "2 days ago", description: "AI recommendation checklist generated" },
-            { dateLabel: "Yesterday", description: "Status initialized as Open" }
-          ]
-        });
-      }
+      });
     });
   });
 
