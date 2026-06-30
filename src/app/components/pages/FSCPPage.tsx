@@ -27,6 +27,7 @@ import {
 
 // Types
 export type FSCPIssueType = "No Issue" | "Moderate Issue" | "Close Blocker";
+export type FSCPViewMode = "View 1" | "View 2" | "View 3";
 
 export interface TimelineEvent {
   dateLabel: string;
@@ -102,19 +103,86 @@ const detailsOwner = (process: string) => {
   return "General Accounting Lead";
 };
 
-// Target Issue count configurations per request
+// Target Issue count configurations per request.
+// Configured to ensure some domains and some business processes are completely empty (0 issues),
+// allowing View 2 ("Exceptions Only") to filter them out accurately.
 const PROCESS_COUNTS: Record<string, number> = {
+  // Core Finance (AR is empty)
   "General Ledger": 6,
   "Accounts Payable": 8,
-  "Accounts Receivable": 5,
+  "Accounts Receivable": 0,
   "Fixed Assets": 7,
   "Bank & Cash": 4,
+
+  // Transaction Finance (CRM, Order-to-Cash, Payroll are empty)
+  "Inventory Accounting": 5,
+  "CRM Service & Revenue Operations": 0,
+  "Procure-to-Pay": 4,
+  "Order-to-Cash": 0,
+  "Payroll": 0,
+
+  // Intercompany Finance (only AP Booking and AR Billing have issues)
+  "AP Booking": 4,
+  "AR Billing": 5,
+  "Advances, Receivables & Confirmation": 0,
+  "AR Confirmation & Reporting": 0,
+  "AR Reconciliation, Confirmation & Reporting": 0,
+  "Cash Applications": 0,
+  "Settlement of AP": 0,
+
+  // General Accounting (only Allocations, Manual Allocations, P&L Prep have issues)
   "Allocations": 6,
   "Manual Allocations": 5,
   "P&L Preparation": 8,
+  "Accrual Journals": 0,
+  "MTM & EGA Provisions": 0,
+  "Month-End Close Monitoring": 0,
+  "Other Manual Journals": 0,
+  "P&L Review": 0,
+  "Provision Journals": 0,
+  "Reclass & Recharge Journals": 0,
+  "Revenue Review": 0,
+  "Subledger Close": 0,
+  "Tax Provision Journals": 0,
+
+  // Reporting & Compliance (only GAAP Adjustments has issues)
+  "GAAP Adjustments": 4,
+  "Balance Sheet Notes / Schedules": 0,
+  "Consolidation Package Corrections": 0,
+  "Consolidation Package Preparation & Upload": 0,
+  "Eliminations & Top Entries": 0,
+  "Internal Control Checklists": 0,
+  "Management Sign-Off": 0,
+  "Post-Close Financial Analysis": 0,
+  "Post-Close Reporting": 0,
+
+  // Financial Planning (Entire Domain is empty)
+  "Final Budget / Forecast Sign-Off": 0,
+  "P&L Budget Preparation": 0,
+  "P&L Budget Review": 0,
+  "P&L Budget Submission": 0,
+  "P&L Re-Forecast": 0,
+  "Revenue Budget Preparation": 0,
+  "Revenue Budget Review": 0,
+  "Revenue Re-Forecast": 0,
+
+  // Tax & Compliance (Entire Domain is empty)
   "GST Compliance": 0,
+  "TDS Compliance": 0,
+  "Statutory Returns": 0,
+  "Audit Support": 0,
+  "Tax Provisioning": 0,
+  "Transfer Pricing": 0,
+
+  // Planning & Control (only Cost Accounting has issues)
+  "Cost Accounting": 4,
+  "Profit Center Analysis": 0,
   "FP&A Benchmarking": 0,
-  "Finance Recovery": 0
+
+  // Intelligence & Risk (Entire Domain is empty)
+  "Anomaly Detection": 0,
+  "Finance Recovery": 0,
+  "Audit Trail": 0
 };
 
 // Dynamic Mock Issue Generator
@@ -125,7 +193,6 @@ const generateMockIssues = (): FSCPIssue[] => {
   const types: FSCPIssueType[] = ["Close Blocker", "Moderate Issue", "No Issue"];
 
   const getProcessDetails = (process: string, index: number, type: FSCPIssueType) => {
-    // Process-specific unique name libraries to build an authentic finance ledger feel
     const apNames = [
       "Duplicate Vendor Invoice Posted",
       "Stale Purchase Order Outstanding Balance",
@@ -245,13 +312,9 @@ const generateMockIssues = (): FSCPIssue[] => {
 
       if (numIssues === 0) return;
 
-      // Generate exactly numIssues for EACH of the three categories (Close Blocker, Moderate Issue, No Issue)
-      // This guarantees the badge count and the Issue List counts align perfectly to the specified counts.
       types.forEach((type, typeIdx) => {
         for (let i = 1; i <= numIssues; i++) {
           const details = getProcessDetails(process, i, type);
-
-          // unique offset per type/index
           const codeIdx = (i + typeIdx) % companyCodes.length;
 
           list.push({
@@ -299,6 +362,11 @@ export function FSCPPage() {
   const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [activeProcess, setActiveProcess] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
+
+  // New View 3 States
+  const [view3Domain, setView3Domain] = useState<string | null>(null);
+  const [view3KPI, setView3KPI] = useState<FSCPIssueType | null>(null);
   
   // Modals state
   const [showIssueList, setShowIssueList] = useState(false);
@@ -389,14 +457,17 @@ Close Control Monitor`;
     return issues.filter(i => i.process === process && i.type === type).length;
   };
 
-  const renderIssueBadge = (count: number) => {
+  const activeKPIFilter = viewMode === "View 3" ? view3KPI : selectedKPI;
+
+  const renderIssueBadge = (count: number, overrideKPI?: FSCPIssueType) => {
+    const kpi = overrideKPI || activeKPIFilter;
     let badgeBg = "#6b7280"; // neutral grey
     if (count > 0) {
-      if (selectedKPI === "Close Blocker") {
+      if (kpi === "Close Blocker") {
         badgeBg = "#ef4444";
-      } else if (selectedKPI === "Moderate Issue") {
+      } else if (kpi === "Moderate Issue") {
         badgeBg = "#f59e0b";
-      } else if (selectedKPI === "No Issue") {
+      } else if (kpi === "No Issue") {
         badgeBg = "#10b981";
       }
     }
@@ -572,10 +643,24 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
   };
 
   const filteredIssues = issues.filter(
-    i => i.process === activeProcess && i.type === selectedKPI
+    i => i.process === activeProcess && i.type === activeKPIFilter
   );
 
   const totalImpact = filteredIssues.reduce((sum, i) => sum + i.impact, 0);
+
+  // Domains & Processes Visibility Filtering based on View Mode (View 1 / View 2)
+  const domainsToRender = Object.keys(FINANCE_DOMAINS).filter(domain => {
+    if (viewMode === "View 1") return true;
+    // View 2: Exceptions Only -> Only domains containing records with count > 0 for selected KPI
+    return getDomainCount(domain, selectedKPI) > 0;
+  });
+
+  const getProcessesToRender = (domain: string) => {
+    const allProcesses = FINANCE_DOMAINS[domain] || [];
+    if (viewMode === "View 1") return allProcesses;
+    // View 2: Exceptions Only -> Only processes containing records with count > 0 for selected KPI
+    return allProcesses.filter(process => getProcessCount(process, selectedKPI) > 0);
+  };
 
   return (
     <main className="flex-1 overflow-y-auto px-8 py-6 relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
@@ -600,7 +685,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
         </div>
       )}
 
-      {/* Header Info */}
+      {/* Header Info with Segmented View Mode Toggle */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
@@ -610,276 +695,617 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
             Real-time Financial Close Command Center • P06 Closing Period
           </p>
         </div>
-      </div>
 
-      {/* ─── 1. Executive Close Overview Dashboard (KPI Cards) ─── */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        
-        {/* Card: Close Blockers */}
+        {/* 3-Option Segmented Toggle */}
         <div 
-          onClick={() => handleSelectKPI("Close Blocker")}
-          className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "Close Blocker" ? "shadow-md" : ""}`}
-          style={{
-            background: "var(--card)",
-            border: selectedKPI === "Close Blocker" ? "1px solid #ef4444" : "1px solid var(--border)",
-            boxShadow: selectedKPI === "Close Blocker" ? "0 4px 20px rgba(239, 68, 68, 0.15)" : "none"
+          className="p-1 rounded-lg flex items-center border"
+          style={{ 
+            background: "var(--secondary)", 
+            borderColor: "var(--border)"
           }}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em" }}>Close Blockers</span>
-            <ShieldAlert size={18} style={{ color: "#ef4444" }} />
-          </div>
-          <div className="text-3xl font-extrabold" style={{ color: "#ef4444" }}>
-            {counts["Close Blocker"]}
-          </div>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Requires Immediate Resolution</p>
-        </div>
-
-        {/* Card: Moderate Issues */}
-        <div 
-          onClick={() => handleSelectKPI("Moderate Issue")}
-          className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "Moderate Issue" ? "shadow-md" : ""}`}
-          style={{
-            background: "var(--card)",
-            border: selectedKPI === "Moderate Issue" ? "1px solid #f59e0b" : "1px solid var(--border)",
-            boxShadow: selectedKPI === "Moderate Issue" ? "0 4px 20px rgba(245, 158, 11, 0.15)" : "none"
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Moderate Issues</span>
-            <AlertTriangle size={18} style={{ color: "#f59e0b" }} />
-          </div>
-          <div className="text-3xl font-extrabold" style={{ color: "#f59e0b" }}>
-            {counts["Moderate Issue"]}
-          </div>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Warning Status • Track Closely</p>
-        </div>
-
-        {/* Card: No Issues */}
-        <div 
-          onClick={() => handleSelectKPI("No Issue")}
-          className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "No Issue" ? "shadow-md" : ""}`}
-          style={{
-            background: "var(--card)",
-            border: selectedKPI === "No Issue" ? "1px solid #10b981" : "1px solid var(--border)",
-            boxShadow: selectedKPI === "No Issue" ? "0 4px 20px rgba(16, 185, 129, 0.15)" : "none"
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.05em" }}>No Issues</span>
-            <CheckCircle size={18} style={{ color: "#10b981" }} />
-          </div>
-          <div className="text-3xl font-extrabold" style={{ color: "#10b981" }}>
-            {counts["No Issue"]}
-          </div>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Processes fully reconciled</p>
-        </div>
-
-        {/* Card: Total */}
-        <div 
-          className="rounded-xl p-4 border"
-          style={{
-            background: "var(--card)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Monitor Points</span>
-            <FileText size={18} style={{ color: "var(--muted-foreground)" }} />
-          </div>
-          <div className="text-3xl font-extrabold" style={{ color: "var(--foreground)" }}>
-            {counts.Total}
-          </div>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Standard FSCP scope</p>
-        </div>
-
-      </div>
-
-      {/* Placeholder Overview when no KPI is selected */}
-      {!selectedKPI && (
-        <div className="text-center py-12 rounded-xl border border-dashed animate-fadeIn" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-            Select Close Blockers, Moderate Issues or No Issues above to begin analysis.
-          </p>
-        </div>
-      )}
-
-      {/* ─── 2. KPI Drilldown Section (Domains Row + Divider + Dynamic Area) ─── */}
-      {selectedKPI && (
-        <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase">
-              Domain Breakdown: {selectedKPI} List
-            </h2>
-            <span 
-              className="text-xs px-2.5 py-1 rounded-full font-semibold"
+          {(["View 1", "View 2", "View 3"] as const).map((view) => (
+            <button
+              key={view}
+              onClick={() => setViewMode(view)}
+              className="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 border-none cursor-pointer"
               style={{
-                background: selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.1)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)",
-                color: selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981"
+                background: viewMode === view ? "var(--card)" : "transparent",
+                color: viewMode === view ? "var(--foreground)" : "var(--muted-foreground)",
+                boxShadow: viewMode === view ? "0 2px 8px rgba(0, 0, 0, 0.1)" : "none"
               }}
             >
-              Active Filter: {selectedKPI}s
-            </span>
+              {view}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── View 3 Layout (Domain-Centric Workflow) ─── */}
+      {viewMode === "View 3" ? (
+        <div className="animate-fadeIn">
+          
+          {/* Informational Summary Cards (Click disabled) */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="rounded-xl p-4 border" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em" }}>Close Blockers</span>
+                <ShieldAlert size={18} style={{ color: "#ef4444" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#ef4444" }}>
+                {counts["Close Blocker"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Close Blocker Count</p>
+            </div>
+
+            <div className="rounded-xl p-4 border" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Moderate Issues</span>
+                <AlertTriangle size={18} style={{ color: "#f59e0b" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#f59e0b" }}>
+                {counts["Moderate Issue"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Moderate Issue Count</p>
+            </div>
+
+            <div className="rounded-xl p-4 border" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.05em" }}>No Issues</span>
+                <CheckCircle size={18} style={{ color: "#10b981" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#10b981" }}>
+                {counts["No Issue"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Reconciled Item Count</p>
+            </div>
+
+            <div className="rounded-xl p-4 border" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Monitor Points</span>
+                <FileText size={18} style={{ color: "var(--muted-foreground)" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "var(--foreground)" }}>
+                {counts.Total}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Standard FSCP Scope</p>
+            </div>
           </div>
 
-          {/* Compact horizontal row grid (9 cols) */}
-          <div className="grid grid-cols-9 gap-3 w-full py-3 select-none">
-            {Object.keys(FINANCE_DOMAINS).map((domain) => {
-              const count = getDomainCount(domain, selectedKPI);
-              const isActive = selectedDomain === domain;
-              const IconComponent = DOMAIN_ICONS[domain] || DollarSign;
-              return (
-                <div
-                  key={domain}
-                  onClick={() => {
-                    if (count === 0) {
-                      let msg = "";
-                      if (selectedKPI === "Close Blocker") {
-                        msg = "No Close Blocker issues were identified for the selected finance domain during the current financial close cycle.";
-                      } else if (selectedKPI === "Moderate Issue") {
-                        msg = "No Moderate Issues were identified for the selected finance domain during the current financial close cycle.";
-                      } else {
-                        msg = "This finance domain currently has no reconciled items under the 'No Issues' category.";
-                      }
+          {/* 9 Finance Domains selection grid */}
+          <div className="rounded-xl border p-5 mb-8" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase">
+                Finance Domains Selection
+              </h2>
+              {view3Domain && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-500 font-semibold animate-fadeIn">
+                  Active Domain: {view3Domain}
+                </span>
+              )}
+            </div>
 
-                      setNoActiveIssuesContext({
-                        title: "No Active Issues",
-                        message: msg
-                      });
-                      setSelectedDomain(null);
+            <div className="grid grid-cols-9 gap-3 w-full py-3 select-none">
+              {Object.keys(FINANCE_DOMAINS).map((domain) => {
+                const isActive = view3Domain === domain;
+                const count = getDomainCount(domain, view3KPI || "Close Blocker");
+                const IconComponent = DOMAIN_ICONS[domain] || DollarSign;
+
+                return (
+                  <div
+                    key={domain}
+                    onClick={() => {
+                      setView3Domain(isActive ? null : domain);
+                      setView3KPI(null); // Reset selected issue type when changing domain
                       setActiveProcess(null);
-                      return;
-                    }
-                    setSelectedDomain(isActive ? null : domain);
-                    setActiveProcess(null);
-                  }}
-                  className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200"
-                  style={{
-                    position: "relative",
-                    background: isActive ? "var(--secondary)" : "var(--card)",
-                    borderColor: isActive ? "#3b82f6" : "var(--border)",
-                    boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.12)" : "none",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.borderColor = "var(--muted-foreground)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) e.currentTarget.style.borderColor = "var(--border)";
-                  }}
-                >
-                  {/* Overlapping badge */}
-                  {renderIssueBadge(count)}
-
-                  {/* Centered icon */}
-                  <div 
-                    className="p-1.5 rounded-lg mb-2" 
-                    style={{ 
-                      background: isActive ? "rgba(59, 130, 246, 0.1)" : "var(--border)", 
-                      color: isActive ? "#3b82f6" : "var(--muted-foreground)",
-                      display: "inline-flex",
+                    }}
+                    className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200"
+                    style={{
+                      position: "relative",
+                      background: isActive ? "var(--secondary)" : "var(--card)",
+                      borderColor: isActive ? "#3b82f6" : "var(--border)",
+                      boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.12)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
-                      justifyContent: "center"
+                      justifyContent: "center",
+                      textAlign: "center"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.borderColor = "var(--muted-foreground)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.borderColor = "var(--border)";
                     }}
                   >
-                    <IconComponent size={16} />
+                    {/* Render badge on domains if count exists */}
+                    {renderIssueBadge(count, view3KPI || "Close Blocker")}
+
+                    <div 
+                      className="p-1.5 rounded-lg mb-2" 
+                      style={{ 
+                        background: isActive ? "rgba(59, 130, 246, 0.1)" : "var(--border)", 
+                        color: isActive ? "#3b82f6" : "var(--muted-foreground)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                    >
+                      <IconComponent size={16} />
+                    </div>
+
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--foreground)", lineHeight: "1.1", wordBreak: "break-word" }}>
+                      {domain}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Divider */}
+            <hr className="my-6" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+            {/* Dynamic Drilldowns Below */}
+            {!view3Domain ? (
+              <div className="text-center py-8">
+                <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                  Select a Finance Domain to view domain-specific issues.
+                </p>
+              </div>
+            ) : (
+              <div className="animate-fadeIn">
+                
+                {/* Domain-specific issue cards */}
+                <h3 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">
+                  {view3Domain} • Select Issue Type
+                </h3>
+
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  
+                  {/* Blocker Card */}
+                  <div
+                    onClick={() => {
+                      const count = getDomainCount(view3Domain, "Close Blocker");
+                      if (count === 0) {
+                        setNoActiveIssuesContext({
+                          title: "No Active Issues",
+                          message: `No Close Blocker issues were identified for ${view3Domain} during the current financial close cycle.`
+                        });
+                        setView3KPI(null);
+                        return;
+                      }
+                      setView3KPI("Close Blocker");
+                    }}
+                    className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${view3KPI === "Close Blocker" ? "shadow-md" : ""}`}
+                    style={{
+                      background: "var(--card)",
+                      border: view3KPI === "Close Blocker" ? "1px solid #ef4444" : "1px solid var(--border)",
+                      boxShadow: view3KPI === "Close Blocker" ? "0 4px 15px rgba(239, 68, 68, 0.12)" : "none"
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", textTransform: "uppercase" }}>Close Blockers</span>
+                      <ShieldAlert size={16} style={{ color: "#ef4444" }} />
+                    </div>
+                    <div className="text-2xl font-bold" style={{ color: "#ef4444" }}>
+                      {getDomainCount(view3Domain, "Close Blocker")}
+                    </div>
                   </div>
 
-                  {/* Title below */}
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--foreground)", lineHeight: "1.1", wordBreak: "break-word" }}>
-                    {domain}
-                  </span>
+                  {/* Moderate Card */}
+                  <div
+                    onClick={() => {
+                      const count = getDomainCount(view3Domain, "Moderate Issue");
+                      if (count === 0) {
+                        setNoActiveIssuesContext({
+                          title: "No Active Issues",
+                          message: `No Moderate Issues were identified for ${view3Domain} during the current financial close cycle.`
+                        });
+                        setView3KPI(null);
+                        return;
+                      }
+                      setView3KPI("Moderate Issue");
+                    }}
+                    className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${view3KPI === "Moderate Issue" ? "shadow-md" : ""}`}
+                    style={{
+                      background: "var(--card)",
+                      border: view3KPI === "Moderate Issue" ? "1px solid #f59e0b" : "1px solid var(--border)",
+                      boxShadow: view3KPI === "Moderate Issue" ? "0 4px 15px rgba(245, 158, 11, 0.12)" : "none"
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase" }}>Moderate Issues</span>
+                      <AlertTriangle size={16} style={{ color: "#f59e0b" }} />
+                    </div>
+                    <div className="text-2xl font-bold" style={{ color: "#f59e0b" }}>
+                      {getDomainCount(view3Domain, "Moderate Issue")}
+                    </div>
+                  </div>
+
+                  {/* No Issue Card */}
+                  <div
+                    onClick={() => {
+                      const count = getDomainCount(view3Domain, "No Issue");
+                      if (count === 0) {
+                        setNoActiveIssuesContext({
+                          title: "No Active Issues",
+                          message: `No items categorized as "No Issues" were found for ${view3Domain} during the current close cycle.`
+                        });
+                        setView3KPI(null);
+                        return;
+                      }
+                      setView3KPI("No Issue");
+                    }}
+                    className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${view3KPI === "No Issue" ? "shadow-md" : ""}`}
+                    style={{
+                      background: "var(--card)",
+                      border: view3KPI === "No Issue" ? "1px solid #10b981" : "1px solid var(--border)",
+                      boxShadow: view3KPI === "No Issue" ? "0 4px 15px rgba(16, 185, 129, 0.12)" : "none"
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#10b981", textTransform: "uppercase" }}>No Issues</span>
+                      <CheckCircle size={16} style={{ color: "#10b981" }} />
+                    </div>
+                    <div className="text-2xl font-bold" style={{ color: "#10b981" }}>
+                      {getDomainCount(view3Domain, "No Issue")}
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
+
+                {/* Divider */}
+                <hr className="my-6" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+                {!view3KPI ? (
+                  <div className="text-center py-4">
+                    <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                      Select Close Blockers, Moderate Issues or No Issues above to view business processes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="animate-fadeIn">
+                    <h4 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">
+                      {view3Domain} • {view3KPI} Business Processes
+                    </h4>
+
+                    <div className="grid grid-cols-4 gap-4">
+                      {FINANCE_DOMAINS[view3Domain].map((process) => {
+                        const count = getProcessCount(process, view3KPI);
+                        const isEmphasized = count > 0;
+                        const themeColor = view3KPI === "Close Blocker" ? "#ef4444" : view3KPI === "Moderate Issue" ? "#f59e0b" : "#10b981";
+                        const themeBg = view3KPI === "Close Blocker" ? "rgba(239, 68, 68, 0.03)" : view3KPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.03)" : "rgba(16, 185, 129, 0.03)";
+
+                        return (
+                          <div
+                            key={process}
+                            onClick={() => {
+                              if (count === 0) {
+                                setNoActiveIssuesContext({
+                                  title: "No Active Issues",
+                                  message: `No ${view3KPI}s were identified for the business process: ${process}.`
+                                });
+                                return;
+                              }
+                              handleOpenProcess(process);
+                            }}
+                            className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
+                            style={{
+                              position: "relative",
+                              background: isEmphasized ? themeBg : "var(--secondary)",
+                              borderColor: isEmphasized ? themeColor : "var(--border)",
+                              boxShadow: isEmphasized ? `0 2px 8px ${themeColor}15` : "none"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = themeColor;
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                              e.currentTarget.style.boxShadow = `0 4px 12px ${themeColor}20`;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = isEmphasized ? themeColor : "var(--border)";
+                              e.currentTarget.style.transform = "none";
+                              e.currentTarget.style.boxShadow = isEmphasized ? `0 2px 8px ${themeColor}15` : "none";
+                            }}
+                          >
+                            {/* Render overlapping badge */}
+                            {renderIssueBadge(count, view3KPI)}
+
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", paddingRight: "16px" }}>
+                              {process}
+                            </span>
+
+                            <ChevronRight size={14} style={{ color: isEmphasized ? themeColor : "var(--muted-foreground)" }} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
 
-          {/* Divider */}
-          <hr className="my-6" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+        </div>
+      ) : (
+        /* ─── View 1 and View 2 Layout ─── */
+        <>
+          {/* Executive Close Overview Dashboard (KPI Cards) */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            
+            {/* Card: Close Blockers */}
+            <div 
+              onClick={() => handleSelectKPI("Close Blocker")}
+              className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "Close Blocker" ? "shadow-md" : ""}`}
+              style={{
+                background: "var(--card)",
+                border: selectedKPI === "Close Blocker" ? "1px solid #ef4444" : "1px solid var(--border)",
+                boxShadow: selectedKPI === "Close Blocker" ? "0 4px 20px rgba(239, 68, 68, 0.15)" : "none"
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em" }}>Close Blockers</span>
+                <ShieldAlert size={18} style={{ color: "#ef4444" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#ef4444" }}>
+                {counts["Close Blocker"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Requires Immediate Resolution</p>
+            </div>
 
-          {/* Dynamic Area below divider */}
-          {!selectedDomain ? (
-            <div className="text-center py-8">
+            {/* Card: Moderate Issues */}
+            <div 
+              onClick={() => handleSelectKPI("Moderate Issue")}
+              className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "Moderate Issue" ? "shadow-md" : ""}`}
+              style={{
+                background: "var(--card)",
+                border: selectedKPI === "Moderate Issue" ? "1px solid #f59e0b" : "1px solid var(--border)",
+                boxShadow: selectedKPI === "Moderate Issue" ? "0 4px 20px rgba(245, 158, 11, 0.15)" : "none"
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Moderate Issues</span>
+                <AlertTriangle size={18} style={{ color: "#f59e0b" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#f59e0b" }}>
+                {counts["Moderate Issue"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Warning Status • Track Closely</p>
+            </div>
+
+            {/* Card: No Issues */}
+            <div 
+              onClick={() => handleSelectKPI("No Issue")}
+              className={`rounded-xl p-4 transition-all duration-200 cursor-pointer ${selectedKPI === "No Issue" ? "shadow-md" : ""}`}
+              style={{
+                background: "var(--card)",
+                border: selectedKPI === "No Issue" ? "1px solid #10b981" : "1px solid var(--border)",
+                boxShadow: selectedKPI === "No Issue" ? "0 4px 20px rgba(16, 185, 129, 0.15)" : "none"
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.05em" }}>No Issues</span>
+                <CheckCircle size={18} style={{ color: "#10b981" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "#10b981" }}>
+                {counts["No Issue"]}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Processes fully reconciled</p>
+            </div>
+
+            {/* Card: Total */}
+            <div 
+              className="rounded-xl p-4 border"
+              style={{
+                background: "var(--card)",
+                borderColor: "var(--border)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total Monitor Points</span>
+                <FileText size={18} style={{ color: "var(--muted-foreground)" }} />
+              </div>
+              <div className="text-3xl font-extrabold" style={{ color: "var(--foreground)" }}>
+                {counts.Total}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Standard FSCP scope</p>
+            </div>
+
+          </div>
+
+          {/* Placeholder Overview when no KPI is selected */}
+          {!selectedKPI && (
+            <div className="text-center py-12 rounded-xl border border-dashed animate-fadeIn" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
               <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-                Select a Finance Domain to view the business processes.
+                Select Close Blockers, Moderate Issues or No Issues above to begin analysis.
               </p>
             </div>
-          ) : (
-            <div className="animate-fadeIn">
-              <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">
-                {selectedDomain} • Business Processes
-              </h2>
+          )}
 
-              <div className="grid grid-cols-4 gap-4">
-                {FINANCE_DOMAINS[selectedDomain].map((process) => {
-                  const count = getProcessCount(process, selectedKPI);
-                  const isEmphasized = count > 0;
-                  const themeColor = selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981";
-                  const themeBg = selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.03)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.03)" : "rgba(16, 185, 129, 0.03)";
+          {/* KPI Drilldown Section */}
+          {selectedKPI && (
+            <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase">
+                  Domain Breakdown: {selectedKPI} List ({viewMode})
+                </h2>
+                <span 
+                  className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                  style={{
+                    background: selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.1)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                    color: selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981"
+                  }}
+                >
+                  Active Filter: {selectedKPI}s
+                </span>
+              </div>
 
+              {/* Compact horizontal row grid */}
+              <div 
+                className="w-full py-3 select-none"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${viewMode === "View 2" ? "auto-fill" : "9"}, minmax(${viewMode === "View 2" ? "105px" : "0px"}, 1fr))`,
+                  gap: "12px"
+                }}
+              >
+                {domainsToRender.map((domain) => {
+                  const count = getDomainCount(domain, selectedKPI);
+                  const isActive = selectedDomain === domain;
+                  const IconComponent = DOMAIN_ICONS[domain] || DollarSign;
                   return (
                     <div
-                      key={process}
+                      key={domain}
                       onClick={() => {
                         if (count === 0) {
                           let msg = "";
                           if (selectedKPI === "Close Blocker") {
-                            msg = "No Close Blocker issues were identified for the selected business process during the current financial close cycle.";
+                            msg = "No Close Blocker issues were identified for the selected finance domain during the current financial close cycle.";
                           } else if (selectedKPI === "Moderate Issue") {
-                            msg = "No Moderate Issues were identified for the selected business process during the current financial close cycle.";
+                            msg = "No Moderate Issues were identified for the selected finance domain during the current financial close cycle.";
                           } else {
-                            msg = "This business process currently has no reconciled items under the 'No Issues' category.";
+                            msg = "This finance domain currently has no reconciled items under the 'No Issues' category.";
                           }
 
                           setNoActiveIssuesContext({
                             title: "No Active Issues",
                             message: msg
                           });
+                          setSelectedDomain(null);
                           setActiveProcess(null);
                           return;
                         }
-                        handleOpenProcess(process);
+                        setSelectedDomain(isActive ? null : domain);
+                        setActiveProcess(null);
                       }}
-                      className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-200"
+                      className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
                       style={{
                         position: "relative",
-                        background: isEmphasized ? themeBg : "var(--secondary)",
-                        borderColor: isEmphasized ? themeColor : "var(--border)",
-                        boxShadow: isEmphasized ? `0 2px 8px ${themeColor}15` : "none"
+                        background: isActive ? "var(--secondary)" : "var(--card)",
+                        borderColor: isActive ? "#3b82f6" : "var(--border)",
+                        boxShadow: isActive ? "0 4px 12px rgba(59, 130, 246, 0.12)" : "none",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        textAlign: "center"
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = themeColor;
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow = `0 4px 12px ${themeColor}20`;
+                        if (!isActive) e.currentTarget.style.borderColor = "var(--muted-foreground)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = isEmphasized ? themeColor : "var(--border)";
-                        e.currentTarget.style.transform = "none";
-                        e.currentTarget.style.boxShadow = isEmphasized ? `0 2px 8px ${themeColor}15` : "none";
+                        if (!isActive) e.currentTarget.style.borderColor = "var(--border)";
                       }}
                     >
                       {/* Overlapping badge */}
                       {renderIssueBadge(count)}
 
-                      {/* Business Process Name */}
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", paddingRight: "16px" }}>
-                        {process}
-                      </span>
+                      {/* Centered icon */}
+                      <div 
+                        className="p-1.5 rounded-lg mb-2" 
+                        style={{ 
+                          background: isActive ? "rgba(59, 130, 246, 0.1)" : "var(--border)", 
+                          color: isActive ? "#3b82f6" : "var(--muted-foreground)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <IconComponent size={16} />
+                      </div>
 
-                      {/* Right Chevron indicating drilldown */}
-                      <ChevronRight size={14} style={{ color: isEmphasized ? themeColor : "var(--muted-foreground)" }} />
+                      {/* Title below */}
+                      <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--foreground)", lineHeight: "1.1", wordBreak: "break-word" }}>
+                        {domain}
+                      </span>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Divider */}
+              <hr className="my-6" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+              {/* Dynamic Area below divider */}
+              {!selectedDomain ? (
+                <div className="text-center py-8">
+                  <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                    Select a Finance Domain to view the business processes.
+                  </p>
+                </div>
+              ) : (
+                <div className="animate-fadeIn">
+                  <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">
+                    {selectedDomain} • Business Processes
+                  </h2>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    {getProcessesToRender(selectedDomain).map((process) => {
+                      const count = getProcessCount(process, selectedKPI);
+                      const isEmphasized = count > 0;
+                      const themeColor = selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981";
+                      const themeBg = selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.03)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.03)" : "rgba(16, 185, 129, 0.03)";
+
+                      return (
+                        <div
+                          key={process}
+                          onClick={() => {
+                            if (count === 0) {
+                              let msg = "";
+                              if (selectedKPI === "Close Blocker") {
+                                msg = "No Close Blocker issues were identified for the selected business process during the current financial close cycle.";
+                              } else if (selectedKPI === "Moderate Issue") {
+                                msg = "No Moderate Issues were identified for the selected business process during the current financial close cycle.";
+                              } else {
+                                msg = "This business process currently has no reconciled items under the 'No Issues' category.";
+                              }
+
+                              setNoActiveIssuesContext({
+                                title: "No Active Issues",
+                                message: msg
+                              });
+                              setActiveProcess(null);
+                              return;
+                            }
+                            handleOpenProcess(process);
+                          }}
+                          className="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
+                          style={{
+                            position: "relative",
+                            background: isEmphasized ? themeBg : "var(--secondary)",
+                            borderColor: isEmphasized ? themeColor : "var(--border)",
+                            boxShadow: isEmphasized ? `0 2px 8px ${themeColor}15` : "none"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = themeColor;
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                            e.currentTarget.style.boxShadow = `0 4px 12px ${themeColor}20`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = isEmphasized ? themeColor : "var(--border)";
+                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.boxShadow = isEmphasized ? `0 2px 8px ${themeColor}15` : "none";
+                          }}
+                        >
+                          {/* Overlapping badge */}
+                          {renderIssueBadge(count)}
+
+                          {/* Business Process Name */}
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", paddingRight: "16px" }}>
+                            {process}
+                          </span>
+
+                          {/* Right Chevron indicating drilldown */}
+                          <ChevronRight size={14} style={{ color: isEmphasized ? themeColor : "var(--muted-foreground)" }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
-
-        </div>
+        </>
       )}
 
       {/* ─── 3. Issue List Popup ─── */}
@@ -892,7 +1318,9 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
             <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
               <div>
                 <h3 className="text-base font-bold">{activeProcess} Close Issues</h3>
-                <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{selectedDomain} • Level: {selectedKPI}</p>
+                <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
+                  {viewMode === "View 3" ? view3Domain : selectedDomain} • Level: {activeKPIFilter}
+                </p>
               </div>
               <button 
                 onClick={() => { setShowIssueList(false); setActiveProcess(null); }}
@@ -910,7 +1338,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   </div>
                   <h4 style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>No Active Issues</h4>
                   <p className="max-w-md mt-2" style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
-                    No {selectedKPI === "Close Blocker" ? "Close Blocker" : selectedKPI === "Moderate Issue" ? "Moderate Issue" : "No Issue"} issues were identified for the selected business process during the current financial close cycle.
+                    No {activeKPIFilter === "Close Blocker" ? "Close Blocker" : activeKPIFilter === "Moderate Issue" ? "Moderate Issue" : "No Issue"} issues were identified for the selected business process during the current financial close cycle.
                   </p>
                 </div>
               ) : (
