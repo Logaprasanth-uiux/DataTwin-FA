@@ -32,7 +32,9 @@ const documentsNav = [
 ];
 
 const operationsNav = [
-  { icon: Activity, label: "Transaction Hub" },
+  { icon: CheckCircle2, label: "Accounts Payable" },
+  { icon: Activity, label: "Accounts Receivable" },
+  { icon: RefreshCw, label: "FSCP" },
 ];
 
 interface SidebarProps {
@@ -191,7 +193,7 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
 
         {!isCollapsed && (
           <p style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.08em", padding: "16px 8px 6px" }}>
-            OPERATIONS
+            TRANSACTION HUB
           </p>
         )}
         {operationsNav.map(({ icon: Icon, label }) => {

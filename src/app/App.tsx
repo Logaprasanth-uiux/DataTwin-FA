@@ -68,7 +68,9 @@ const pageTitles: Record<string, string> = {
   Vendor: "Vendor",
   "Purchase Order": "Purchase Order",
   Bill: "Bill",
-  "Transaction Hub": "Transaction Hub",
+  "Accounts Payable": "Accounts Payable",
+  "Accounts Receivable": "Accounts Receivable",
+  FSCP: "Financial Statement Close Process",
 };
 
 const ALL_CARDS = [
@@ -314,7 +316,7 @@ export default function App() {
         );
       case "Inbox":
         return <InboxPage items={inboxItems} setItems={setInboxItems} onNavigate={handleNavigate} />;
-      case "Transaction Hub":
+      case "Accounts Receivable":
         return <TransactionHubPage />;
       case "Approvals":
         return <ApprovalsPage />;
@@ -394,7 +396,7 @@ export default function App() {
                 <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
                   {pageTitles[active]}
                 </h1>
-                {(active === "Overview" || active === "Inbox" || active === "Transaction Hub" || active === "Approvals") && (
+                {(active === "Overview" || active === "Inbox" || active === "Accounts Receivable" || active === "Approvals") && (
                   <>
                     <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
                     <CompanySwitch />
@@ -410,10 +412,10 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               {renderContent()}
             </div>
-            {active !== "Transaction Hub" && (
+            {active !== "Accounts Receivable" && (
               <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
             )}
-            {active !== "Transaction Hub" && activePanel === "activity" && (
+            {active !== "Accounts Receivable" && activePanel === "activity" && (
               <ActivityWorkspace hasHeaderOffset={isListPage || hasOwnHeader} />
             )}
           </div>
