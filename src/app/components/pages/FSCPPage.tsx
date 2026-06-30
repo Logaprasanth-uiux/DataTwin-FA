@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Sparkles, 
   Download, 
@@ -18,11 +18,20 @@ import {
   Percent,
   Sliders,
   Activity,
-  ChevronRight
+  ChevronRight,
+  User,
+  Calendar,
+  Layers,
+  ArrowDown
 } from "lucide-react";
 
 // Types
 export type FSCPIssueType = "No Issue" | "Moderate Issue" | "Close Blocker";
+
+export interface TimelineEvent {
+  dateLabel: string;
+  description: string;
+}
 
 export interface FSCPIssue {
   id: string;
@@ -45,369 +54,9 @@ export interface FSCPIssue {
   ownerRole: string;
   status: "Open" | "In Progress" | "Resolved";
   ageingDays: number;
+  timeline: TimelineEvent[];
 }
 
-// Initial mockup data
-const INITIAL_ISSUES: FSCPIssue[] = [
-  {
-    id: "BLK-FA-2026-001",
-    name: "Fixed Asset Depreciation Mismatch",
-    domain: "Core Finance",
-    process: "Fixed Assets",
-    impact: 145000,
-    type: "Close Blocker",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "AST-9812-A",
-    subAssetNumber: "0000",
-    assetDescription: "HQ Server Hardware Rack Blade 4",
-    blockerType: "Depreciation Discrepancy",
-    severity: "Critical",
-    reason: "The physical server asset tag does not match the active ledger inventory due to an unposted retirement event in P05. This discrepancy blocks standard month-end deprecation journal generation.",
-    sourceFile: "fixed_assets_ledger_v2.xlsx",
-    suggestedAction: [
-      "Update the asset tag and assign the responsible owner.",
-      "Validate the physical existence of the asset.",
-      "Complete the required master data corrections.",
-      "Re-run the validation before financial close."
-    ],
-    ownerRole: "Fixed Asset Manager",
-    status: "Open",
-    ageingDays: 5
-  },
-  {
-    id: "BLK-AP-2026-003",
-    name: "High Value Goods Receipt Invoice Unmatched",
-    domain: "Core Finance",
-    process: "Accounts Payable",
-    impact: 890000,
-    type: "Close Blocker",
-    companyCode: "EU02",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "GRN-2026-5541",
-    subAssetNumber: "N/A",
-    assetDescription: "Bulk Steel Shipment Inbound",
-    blockerType: "Three-way Match Lock",
-    severity: "High",
-    reason: "A purchase order invoice was loaded without matching a signed goods receipt note (GRN). Due to the high value threshold limit, the system placed a strict hard-block on the close subledger.",
-    sourceFile: "grn_matching_ledger.csv",
-    suggestedAction: [
-      "Retrieve the signed paper GRN from the logistics vault.",
-      "Verify the quantity differences with the supplier.",
-      "Force-clear the match code status after senior management sign-off."
-    ],
-    ownerRole: "Accounts Payable Lead",
-    status: "Open",
-    ageingDays: 7
-  },
-  {
-    id: "BLK-IA-2026-005",
-    name: "Inventory Valuation Discrepancy",
-    domain: "Transaction Finance",
-    process: "Inventory Accounting",
-    impact: 670000,
-    type: "Close Blocker",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "INV-RACK-B",
-    subAssetNumber: "0012",
-    assetDescription: "Finished Goods Stored in Warehouse A",
-    blockerType: "Valuation Mismatch",
-    severity: "High",
-    reason: "A system sync lag led to a cost mismatch between the warehouse log (WMS) and the core general ledger. Standard inventory write-downs cannot be processed.",
-    sourceFile: "inventory_wms_reconciliation.xlsx",
-    suggestedAction: [
-      "Trigger manual synchronization on the warehouse database gateway.",
-      "Audit physical storage racks for goods category variance.",
-      "Update system unit costs manually."
-    ],
-    ownerRole: "Inventory Accountant",
-    status: "Open",
-    ageingDays: 4
-  },
-  {
-    id: "BLK-IC-2026-006",
-    name: "Intercompany Trade Balance Variance",
-    domain: "Intercompany Finance",
-    process: "Advances, Receivables & Confirmation",
-    impact: 1250000,
-    type: "Close Blocker",
-    companyCode: "GL-US / GL-EU",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "IC-TR-991",
-    subAssetNumber: "0000",
-    assetDescription: "Cross-border component sales",
-    blockerType: "Intercompany Out-of-Balance",
-    severity: "Critical",
-    reason: "Transaction US-0182 was recorded as revenue in GL-US but was not posted as a liability in GL-EU due to a currency conversion difference. The group-level close is blocked.",
-    sourceFile: "intercompany_recon_sheet_june.csv",
-    suggestedAction: [
-      "Post missing intercompany journal voucher in GL-EU.",
-      "Adjust exchange rates in line with standard group directives.",
-      "Run the balance validation scripts."
-    ],
-    ownerRole: "Group Treasury Director",
-    status: "Open",
-    ageingDays: 8
-  },
-  {
-    id: "BLK-GA-2026-007",
-    name: "Accrual Ledger Database Read Failure",
-    domain: "General Accounting",
-    process: "Accrual Journals",
-    impact: 450000,
-    type: "Close Blocker",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "ACR-SYS-99",
-    subAssetNumber: "0000",
-    assetDescription: "Oracle Cloud Accrual Subsystem",
-    blockerType: "Ledger Read Variance",
-    severity: "High",
-    reason: "Standard accrual routines locked after a transaction database timeout. The subledger has not yet been rolled into the general ledger.",
-    sourceFile: "accruals_database_log.txt",
-    suggestedAction: [
-      "Contact IT DBA to clear transaction locks.",
-      "Run database rebuild script on target subledger tables.",
-      "Manually trigger month-end consolidation."
-    ],
-    ownerRole: "Accounting Systems Manager",
-    status: "Open",
-    ageingDays: 3
-  },
-  {
-    id: "MOD-GL-2026-010",
-    name: "Fixed Assets Suspense Account Balance",
-    domain: "Core Finance",
-    process: "General Ledger",
-    impact: 34000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "N/A",
-    subAssetNumber: "N/A",
-    assetDescription: "FA Suspense Clearing Accounts",
-    blockerType: "Suspense Cleardown Variance",
-    severity: "Medium",
-    reason: "A small transaction flow was routed to a suspense account pending identification of the correct cost center.",
-    sourceFile: "gl_suspense_reconciled.xlsx",
-    suggestedAction: [
-      "Identify correct department mapping.",
-      "Post correcting clearing journal entry."
-    ],
-    ownerRole: "General Accounting Lead",
-    status: "Open",
-    ageingDays: 14
-  },
-  {
-    id: "MOD-AP-2026-011",
-    name: "Vendor Invoice Missing Tax Certificate",
-    domain: "Core Finance",
-    process: "Accounts Payable",
-    impact: 78000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "N/A",
-    subAssetNumber: "N/A",
-    assetDescription: "Invoice from Green Facilities",
-    blockerType: "Compliance Audit Hold",
-    severity: "Medium",
-    reason: "Invoice payment is currently on hold as the vendor has not provided an updated tax compliance exemption form.",
-    sourceFile: "compliance_checklist_v1.xlsx",
-    suggestedAction: [
-      "Request tax exemption form from Green Facilities account lead.",
-      "Temporarily release hold if formal waiver is provided."
-    ],
-    ownerRole: "Accounts Payable Clerk",
-    status: "Open",
-    ageingDays: 10
-  },
-  {
-    id: "MOD-AR-2026-012",
-    name: "Aging Collections Exception Credit",
-    domain: "Core Finance",
-    process: "Accounts Receivable",
-    impact: 120000,
-    type: "Moderate Issue",
-    companyCode: "IN02",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "CUST-8022",
-    subAssetNumber: "N/A",
-    assetDescription: "Acme Asia Outstanding Invoice Balance",
-    blockerType: "Aging Debt Dispute",
-    severity: "Medium",
-    reason: "Customer requested clarification on raw freight pricing before clearing invoice payment. Pending resolution.",
-    sourceFile: "outstanding_receivables_aging.csv",
-    suggestedAction: [
-      "Send updated freight breakdown sheet.",
-      "Agree on partial settlement."
-    ],
-    ownerRole: "Collections Manager",
-    status: "Open",
-    ageingDays: 20
-  },
-  {
-    id: "MOD-IA-2026-015",
-    name: "Inventory Cost Model Recalculation Hold",
-    domain: "Transaction Finance",
-    process: "Inventory Accounting",
-    impact: 55000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "FIFO-MOD-1",
-    subAssetNumber: "N/A",
-    assetDescription: "Cost recalculation models",
-    blockerType: "Cost Revaluation Delay",
-    severity: "Medium",
-    reason: "The FIFO pricing routine flagged a single component cost outlier which needs manual override review.",
-    sourceFile: "inventory_fifo_cost.xlsx",
-    suggestedAction: [
-      "Override cost outlier flags in system console.",
-      "Recalculate cost totals."
-    ],
-    ownerRole: "Inventory Accountant",
-    status: "Open",
-    ageingDays: 5
-  },
-  {
-    id: "MOD-P2P-2026-018",
-    name: "Supplier Invoice Batch Approval Delay",
-    domain: "Transaction Finance",
-    process: "Procure-to-Pay",
-    impact: 195000,
-    type: "Moderate Issue",
-    companyCode: "EU02",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "BATCH-890",
-    subAssetNumber: "N/A",
-    assetDescription: "Batch Invoices from SwiftCargo",
-    blockerType: "Batch Approval Delay",
-    severity: "Medium",
-    reason: "A cargo transit delay triggered an invoice dispute, holding up standard batch approvals.",
-    sourceFile: "p2p_invoice_disputes.csv",
-    suggestedAction: [
-      "Verify delivery sign-off records.",
-      "Release undisputed invoices in batch."
-    ],
-    ownerRole: "Procurement Auditor",
-    status: "Open",
-    ageingDays: 6
-  },
-  {
-    id: "MOD-IC-2026-020",
-    name: "Intercompany Booking Discrepancy",
-    domain: "Intercompany Finance",
-    process: "AP Booking",
-    impact: 60000,
-    type: "Moderate Issue",
-    companyCode: "GL-EU",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "N/A",
-    subAssetNumber: "N/A",
-    assetDescription: "Services Intercompany Allocations",
-    blockerType: "Unbooked Intercompany Charge",
-    severity: "Medium",
-    reason: "A monthly management fee invoice was loaded under the wrong cost center in GL-EU.",
-    sourceFile: "intercompany_bookings.csv",
-    suggestedAction: [
-      "Re-allocate charge to correct management cost center.",
-      "Clear discrepancies."
-    ],
-    ownerRole: "Intercompany Specialist",
-    status: "Open",
-    ageingDays: 4
-  },
-  {
-    id: "MOD-GA-2026-022",
-    name: "Month-End Allocation Variance",
-    domain: "General Accounting",
-    process: "Allocations",
-    impact: 85000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "ALLOC-R-12",
-    subAssetNumber: "N/A",
-    assetDescription: "Corporate Overhead Allocation Rollup",
-    blockerType: "Allocation Run Variance",
-    severity: "Medium",
-    reason: "Overhead expense allocation rules did not balance to zero due to a newly added business unit without a designated driver.",
-    sourceFile: "allocation_rules_ledger.xlsx",
-    suggestedAction: [
-      "Assign correct driver allocation rules for the new business unit.",
-      "Execute cost rollup simulation."
-    ],
-    ownerRole: "Corporate Controller",
-    status: "Open",
-    ageingDays: 5
-  },
-  {
-    id: "MOD-RC-2026-025",
-    name: "Balance Sheet Schedule Variance",
-    domain: "Reporting & Compliance",
-    process: "Balance Sheet Notes / Schedules",
-    impact: 95000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "SCH-BS-8",
-    subAssetNumber: "N/A",
-    assetDescription: "Notes on Deferred Income Taxes",
-    blockerType: "Schedule Audit Variance",
-    severity: "Medium",
-    reason: "Audit schedule template had formula error in line 12 leading to minor variance against reported balances.",
-    sourceFile: "bs_schedule_notes.xlsx",
-    suggestedAction: [
-      "Correct formula in audit schedule template.",
-      "Validate balance sheet outputs."
-    ],
-    ownerRole: "Reporting Manager",
-    status: "Open",
-    ageingDays: 3
-  },
-  {
-    id: "MOD-FP-2026-028",
-    name: "Budget Roll Forward Validation Hold",
-    domain: "Financial Planning",
-    process: "Final Budget / Forecast Sign-Off",
-    impact: 110000,
-    type: "Moderate Issue",
-    companyCode: "US01",
-    fiscalYear: "2026",
-    period: "P06 (June)",
-    assetNumber: "N/A",
-    subAssetNumber: "N/A",
-    assetDescription: "OpEx forecast model roll forward",
-    blockerType: "Roll Forward Hold",
-    severity: "Medium",
-    reason: "A division lead is currently out of office, holding up the final sign-off validation checklist for Q3 forecasts.",
-    sourceFile: "forecast_signoff_log.txt",
-    suggestedAction: [
-      "Request temporary delegation authority from secondary lead.",
-      "Mark Q3 checklist as provisionally approved."
-    ],
-    ownerRole: "Planning Director",
-    status: "Open",
-    ageingDays: 4
-  }
-];
-
-// Domains mapping to their processes list
 const FINANCE_DOMAINS: Record<string, string[]> = {
   "Core Finance": ["General Ledger", "Accounts Payable", "Accounts Receivable", "Fixed Assets", "Bank & Cash"],
   "Transaction Finance": ["Inventory Accounting", "CRM Service & Revenue Operations", "Procure-to-Pay", "Order-to-Cash", "Payroll"],
@@ -420,7 +69,6 @@ const FINANCE_DOMAINS: Record<string, string[]> = {
   "Intelligence & Risk": ["Anomaly Detection", "Finance Recovery", "Audit Trail"]
 };
 
-// Domain Icons lookup
 const DOMAIN_ICONS: Record<string, React.ComponentType<any>> = {
   "Core Finance": DollarSign,
   "Transaction Finance": ArrowLeftRight,
@@ -433,16 +81,321 @@ const DOMAIN_ICONS: Record<string, React.ComponentType<any>> = {
   "Intelligence & Risk": Activity
 };
 
+const getActionTypes = (process: string): string[] => {
+  if (process.includes("Asset")) {
+    return ["Asset Tag Update", "Physical Inventory Audit", "Ledger Correction", "Depreciation Re-run"];
+  } else if (process.includes("Payable") || process.includes("AP") || process.includes("Procure")) {
+    return ["PO Matching Review", "Supplier Dispute Log", "Payment Release", "Vendor Account Hold"];
+  } else if (process.includes("Receivable") || process.includes("AR") || process.includes("Order")) {
+    return ["Credit Note Issue", "Customer Remittance Match", "Dispute Resolution", "Invoice Re-send"];
+  } else if (process.includes("Bank") || process.includes("Cash") || process.includes("Settlement")) {
+    return ["Reconcile Bank Transactions", "Review Cash Application", "Verify Conversion Rates", "Adjust Bank Fees"];
+  } else {
+    return ["Master Data Correction", "Manual Reconciliation", "Manager Sign-Off", "Accrual Adjusted"];
+  }
+};
+
+const detailsOwner = (process: string) => {
+  if (process.includes("Asset")) return "Fixed Asset Lead";
+  if (process.includes("Payable") || process.includes("AP")) return "AP Supervisor";
+  if (process.includes("Receivable") || process.includes("AR")) return "AR Supervisor";
+  return "General Accounting Lead";
+};
+
+// Target Issue count configurations per request
+const PROCESS_COUNTS: Record<string, number> = {
+  "General Ledger": 5,
+  "Accounts Payable": 7,
+  "Accounts Receivable": 4,
+  "Fixed Assets": 8,
+  "Bank & Cash": 6,
+  "Inventory Accounting": 5,
+  "GST Compliance": 0,
+  "FP&A Benchmarking": 0,
+  "Finance Recovery": 0
+};
+
+// Dynamic Mock Issue Generator
+const generateMockIssues = (): FSCPIssue[] => {
+  const list: FSCPIssue[] = [];
+  const companyCodes = ["US01", "EU02", "IN02", "APAC09", "UK03"];
+  const severities = ["Critical" as const, "High" as const, "Medium" as const, "Low" as const];
+
+  const getProcessDetails = (process: string, index: number, isBlocker: boolean) => {
+    // Realistic process-specific issue name libraries to avoid redundancy
+    const apNames = [
+      "Duplicate Vendor Invoice Posted",
+      "Stale Purchase Order Outstanding Balance",
+      "AP Invoice Price Variance Limit Exceeded",
+      "Unmatched Freight Expense Accrual",
+      "Vendor Profile Bank Data Discrepancy",
+      "High Value Material Receipt Missing Inbound Voucher",
+      "AP Payment Run Bank Discrepancy"
+    ];
+    const faNames = [
+      "Asset Acquisition Depreciation Mismatch",
+      "HQ Hardware Server Blade Unposted Retirement",
+      "Munich Hub Capitalized Lease Valuation Variance",
+      "Impairment Adjustment Journal Blocked",
+      "Fixed Asset Disposal Calculation Discrepancy",
+      "Asset Useful Life Classification Error",
+      "Unmatched CIP Balance in Capital Projects",
+      "Asset Cost Pool Allocation Difference"
+    ];
+    const glNames = [
+      "Month-end Consolidation Rate Mismatch",
+      "Manual Accrual Rule Misalignment",
+      "Subledger Balance Sync Failure",
+      "Unposted Corporate Allocations Entry",
+      "Trial Balance Account Mapping Exception"
+    ];
+    const bcNames = [
+      "Chase Operating Account Balance Discrepancy",
+      "Wire Transfer Clearing Synch Delay",
+      "Foreign Cash Translation Difference",
+      "Stale Outbound Check Listing Out-of-Sync",
+      "Cash Ledger Posting Rule Violation",
+      "Bank Charge Fee Verification Variance"
+    ];
+    const arNames = [
+      "Unallocated Customer Collections Cash Match",
+      "Billing Dispute Credit Note Hold",
+      "Stale Customer Debit Invoice Validation Failure",
+      "Bad Debt Reserve Allocation Variance"
+    ];
+    const invNames = [
+      "Inventory WMS to GL Sync Variance",
+      "Finished Goods Write-Down Adjustment Lock",
+      "Standard Cost Rollup Calculation Exception",
+      "Physical Count Valuation Variance",
+      "Consigned Stock Balance Discrepancy"
+    ];
+
+    let name = `${process} Verification Exception #${index}`;
+    let reason = `Standard month-end check flagged discrepancy #${index} in ${process} transaction logs.`;
+    let suggestedAction = ["Correct master data", "Review allocation drivers", "Re-run validations."];
+    let blockerType = "Closing Discrepancy";
+    let ownerRole = "General Accounting Lead";
+
+    if (process.includes("Asset")) {
+      const idx = (index - 1) % faNames.length;
+      name = faNames[idx];
+      reason = `Depreciation subledger runs do not align with asset register records for line item #${index} due to unposted capital changes.`;
+      suggestedAction = ["Update asset master information", "Complete retirement posting", "Validate the physical existence of the asset."];
+      blockerType = "Depreciation Variance";
+      ownerRole = "Fixed Asset Lead";
+    } else if (process.includes("Payable") || process.includes("AP") || process.includes("Procure")) {
+      const idx = (index - 1) % apNames.length;
+      name = apNames[idx];
+      reason = `Three-way matching process locked transaction voucher #${index} due to shipping rate variances between purchase order and supplier statement.`;
+      suggestedAction = ["Verify three-way match", "Validate supplier confirmation", "Hold unapproved payment batch."];
+      blockerType = "Three-way Match Error";
+      ownerRole = "AP Supervisor";
+    } else if (process.includes("Receivable") || process.includes("AR") || process.includes("Order")) {
+      const idx = (index - 1) % arNames.length;
+      name = arNames[idx];
+      reason = `Subledger reconciliation identified unmatched cash allocations on account entry #${index} from local collections.`;
+      suggestedAction = ["Reconcile customer collections", "Issue billing dispute credit note", "Check invoice delivery status."];
+      blockerType = "Receivables Variance";
+      ownerRole = "AR Supervisor";
+    } else if (process.includes("Bank") || process.includes("Cash") || process.includes("Settlement")) {
+      const idx = (index - 1) % bcNames.length;
+      name = bcNames[idx];
+      reason = `Reconciliation balance variance found between subledger cash account and banking report #${index}.`;
+      suggestedAction = ["Reconcile bank transactions", "Review ledger cash applications", "Verify currency translation rates."];
+      blockerType: blockerType = "Cash Book Variance";
+      ownerRole = "Treasury Manager";
+    } else if (process.includes("General Ledger") || process.includes("Accrual") || process.includes("Allocation")) {
+      const idx = (index - 1) % glNames.length;
+      name = glNames[idx];
+      reason = `Re-run checks failed for general ledger adjustments #${index} due to inactive profit centers reference codes.`;
+      suggestedAction = ["Correct master data", "Review manual journal allocation drivers", "Re-run consolidation package checks."];
+      blockerType = "Closing Discrepancy";
+      ownerRole = "General Accounting Lead";
+    } else if (process.includes("Inventory")) {
+      const idx = (index - 1) % invNames.length;
+      name = invNames[idx];
+      reason = `Inventory ledger variance detected in warehouse balance upload v${index} compared to general ledger totals.`;
+      suggestedAction = ["Verify inventory cost rollup", "Update warehouse ledger costings", "Complete write-down adjustment."];
+      blockerType = "Inventory Valuation mismatch";
+      ownerRole = "Inventory Controller";
+    }
+
+    return { name, reason, suggestedAction, blockerType, ownerRole };
+  };
+
+  Object.keys(FINANCE_DOMAINS).forEach((domain) => {
+    FINANCE_DOMAINS[domain].forEach((process) => {
+      let numIssues = 3; // default
+      if (PROCESS_COUNTS[process] !== undefined) {
+        numIssues = PROCESS_COUNTS[process];
+      } else if (["GST Compliance", "FP&A Benchmarking", "Finance Recovery"].includes(process)) {
+        numIssues = 0; // leaves zero issue flow fully testable
+      } else {
+        numIssues = (process.length % 3) + 3; // varying count between 3 and 5
+      }
+
+      if (numIssues === 0) return;
+
+      for (let i = 1; i <= numIssues; i++) {
+        let type: FSCPIssueType = "No Issue";
+        if (i === 1) {
+          type = "Close Blocker";
+        } else if (i === 2) {
+          type = "Moderate Issue";
+        } else if (i === 3) {
+          type = "No Issue";
+        } else {
+          // split remaining issues
+          type = i % 3 === 0 ? "Close Blocker" : i % 3 === 1 ? "Moderate Issue" : "No Issue";
+        }
+
+        const isBlocker = type === "Close Blocker";
+        const details = getProcessDetails(process, i, isBlocker);
+
+        list.push({
+          id: `${type === "Close Blocker" ? "BLK" : type === "Moderate Issue" ? "MOD" : "OK"}-${process.substring(0, 3).toUpperCase()}-2026-${String(i).padStart(2, '0')}`,
+          name: type === "No Issue" ? `${process} standard reconciled ledger item #${i}` : details.name,
+          domain,
+          process,
+          impact: type === "No Issue" ? 0 : Math.floor(10000 + Math.random() * (type === "Close Blocker" ? 450000 : 75000)),
+          type,
+          companyCode: companyCodes[Math.floor(Math.random() * companyCodes.length)],
+          fiscalYear: "2026",
+          period: "P06",
+          assetNumber: `DOC-${type.substring(0, 2).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          subAssetNumber: type === "Close Blocker" ? "0000" : "N/A",
+          assetDescription: `${process} transaction balance audit ledger #${i}`,
+          blockerType: type === "No Issue" ? "None" : details.blockerType,
+          severity: type === "Close Blocker" ? severities[Math.floor(Math.random() * 2)] : type === "Moderate Issue" ? "Medium" : "Low",
+          reason: type === "No Issue" ? "No active discrepancies or issues identified. Account balances are reconciled." : details.reason,
+          sourceFile: `${process.toLowerCase().replace(/[^a-z0-9]/g, "_")}_raw_june_${i}.xlsx`,
+          suggestedAction: type === "No Issue" ? ["No actions required."] : details.suggestedAction,
+          ownerRole: details.ownerRole,
+          status: type === "No Issue" ? "Resolved" : "Open",
+          ageingDays: type === "No Issue" ? 1 : Math.floor(3 + Math.random() * 15),
+          timeline: type === "No Issue" ? [
+            { dateLabel: "3 days ago", description: "Standard balance validation completed" },
+            { dateLabel: "2 days ago", description: "Discrepancy resolved successfully" }
+          ] : [
+            { dateLabel: "3 days ago", description: `${type} detected in source ledger` },
+            { dateLabel: "2 days ago", description: "AI recommendation checklist generated" },
+            { dateLabel: "Yesterday", description: "Status initialized as Open" }
+          ]
+        });
+      }
+    });
+  });
+
+  return list;
+};
+
+const INITIAL_ISSUES: FSCPIssue[] = generateMockIssues();
+
 export function FSCPPage() {
+  const [issues, setIssues] = useState<FSCPIssue[]>(INITIAL_ISSUES);
+  const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [activeProcess, setActiveProcess] = useState<string | null>(null);
+  
+  // Modals state
+  const [showIssueList, setShowIssueList] = useState(false);
+  const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
+  const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+  
+  // Resolution Assignment Form fields
+  const [assignActionType, setAssignActionType] = useState("");
+  const [assignOwner, setAssignOwner] = useState("");
+  const [assignDept, setAssignDept] = useState("");
+  const [assignPriority, setAssignPriority] = useState("Medium");
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assignNotes, setAssignNotes] = useState("");
+
+  // Communication fields
+  const [mailTo, setMailTo] = useState("");
+  const [mailCc, setMailCc] = useState("");
+  const [mailSubject, setMailSubject] = useState("");
+  const [mailBody, setMailBody] = useState("");
+
+  // Success toast message
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
+
+  // Prefill forms when details overlay loads
+  useEffect(() => {
+    if (showDetails) {
+      const actions = getActionTypes(showDetails.process);
+      setAssignActionType(actions[0] || "Master Data Correction");
+      setAssignOwner(showDetails.ownerRole);
+      setAssignDept(showDetails.domain);
+      setAssignPriority(showDetails.severity === "Critical" || showDetails.severity === "High" ? "High" : "Medium");
+      
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 3);
+      setAssignDueDate(defaultDate.toISOString().substring(0, 10));
+      setAssignNotes("");
+
+      setMailTo(showDetails.ownerRole.toLowerCase().replace(/[^a-z]/g, "") + "@datatwin.ai");
+      setMailCc("finance-close-control@datatwin.ai");
+      setMailSubject(`[Action Required] Close Blocker ID: ${showDetails.id} - ${showDetails.name}`);
+      
+      const body = `Dear Team,
+
+Please review the following Close Blocker issue identified on the closing dashboard.
+
+- Blocker ID: ${showDetails.id}
+- Domain: ${showDetails.domain}
+- Process: ${showDetails.process}
+- Financial Impact: $${showDetails.impact.toLocaleString()}
+
+AI Smart Recommendation Checklist:
+${showDetails.suggestedAction.map((act, i) => `- ${act}`).join("\n")}
+
+Please assign resolution immediately.
+
+Regards,
+Close Control Monitor`;
+      setMailBody(body);
+    }
+  }, [showDetails]);
+
+  // Calculations
+  const counts = {
+    "No Issue": issues.filter(i => i.type === "No Issue").length,
+    "Moderate Issue": issues.filter(i => i.type === "Moderate Issue").length,
+    "Close Blocker": issues.filter(i => i.type === "Close Blocker").length,
+    "Total": 0
+  };
+  counts.Total = counts["No Issue"] + counts["Moderate Issue"] + counts["Close Blocker"];
+
+  const getDomainCount = (domain: string, type: FSCPIssueType | null): number => {
+    if (!type) return 0;
+    return issues.filter(i => i.domain === domain && i.type === type).length;
+  };
+
+  const getProcessCount = (process: string, type: FSCPIssueType | null): number => {
+    if (!type) return 0;
+    return issues.filter(i => i.process === process && i.type === type).length;
+  };
+
   const renderIssueBadge = (count: number) => {
-    let badgeBg = "#6b7280"; // default grey
+    let badgeBg = "#6b7280"; // neutral grey
     if (count > 0) {
       if (selectedKPI === "Close Blocker") {
-        badgeBg = "#ef4444"; // Red
+        badgeBg = "#ef4444";
       } else if (selectedKPI === "Moderate Issue") {
-        badgeBg = "#f59e0b"; // Orange/Amber
+        badgeBg = "#f59e0b";
       } else if (selectedKPI === "No Issue") {
-        badgeBg = "#10b981"; // Green
+        badgeBg = "#10b981";
       }
     }
     return (
@@ -469,77 +422,19 @@ export function FSCPPage() {
     );
   };
 
-  const [issues, setIssues] = useState<FSCPIssue[]>(INITIAL_ISSUES);
-  const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
-  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const [activeProcess, setActiveProcess] = useState<string | null>(null);
-  
-  // Modals state
-  const [showIssueList, setShowIssueList] = useState(false);
-  const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
-  const [showComposer, setShowComposer] = useState<FSCPIssue | null>(null);
-  const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
-  
-  // Email template state
-  const [emailTo, setEmailTo] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
-  
-  // Success banner / toast state
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4500);
+  // Helper to render beautiful timeline icons dynamically
+  const getTimelineIcon = (desc: string) => {
+    const lower = desc.toLowerCase();
+    if (lower.includes("assigned")) return <User size={10} className="text-blue-500" />;
+    if (lower.includes("communication") || lower.includes("sent") || lower.includes("dispatched")) return <Send size={10} className="text-emerald-500" />;
+    if (lower.includes("detected") || lower.includes("blocker")) return <AlertTriangle size={10} className="text-red-500" />;
+    if (lower.includes("ai") || lower.includes("recommendation")) return <Sparkles size={10} className="text-purple-500" />;
+    return <Activity size={10} className="text-slate-400" />;
   };
 
-  // KPI Calculations
-  const counts = {
-    "No Issue": issues.filter(i => i.type === "No Issue").length + 45, // Add offset to simulate realistic counts
-    "Moderate Issue": issues.filter(i => i.type === "Moderate Issue").length,
-    "Close Blocker": issues.filter(i => i.type === "Close Blocker").length,
-    "Total": 0
-  };
-  counts.Total = counts["No Issue"] + counts["Moderate Issue"] + counts["Close Blocker"];
-
-  // Domain Calculations
-  const getDomainCount = (domain: string, type: FSCPIssueType | null): number => {
-    if (!type) return 0;
-    if (type === "No Issue") {
-      const distributions: Record<string, number> = {
-        "Core Finance": 10,
-        "Transaction Finance": 8,
-        "Intercompany Finance": 7,
-        "General Accounting": 5,
-        "Reporting & Compliance": 6,
-        "Financial Planning": 4,
-        "Tax & Compliance": 3,
-        "Planning & Control": 1,
-        "Intelligence & Risk": 1
-      };
-      return distributions[domain] || 0;
-    }
-    return issues.filter(i => i.domain === domain && i.type === type).length;
-  };
-
-  // Process Calculations
-  const getProcessCount = (process: string, type: FSCPIssueType | null): number => {
-    if (!type) return 0;
-    if (type === "No Issue") {
-      return process === "Bank & Cash" ? 2 : 1;
-    }
-    return issues.filter(i => i.process === process && i.type === type).length;
-  };
-
-  // Handlers
   const handleSelectKPI = (kpi: FSCPIssueType) => {
     setSelectedKPI(kpi);
-    setSelectedDomain(null); // Clear active domain upon KPI type switch to avoid mismatch
+    setSelectedDomain(null);
     setActiveProcess(null);
   };
 
@@ -550,7 +445,6 @@ export function FSCPPage() {
 
   const handleDrillAction = (issue: FSCPIssue) => {
     setShowDetails(issue);
-    setShowIssueList(false);
   };
 
   const handleDownloadReport = (issue: FSCPIssue) => {
@@ -599,47 +493,80 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
     triggerToast(`Report report_${issue.id}.txt downloaded successfully!`);
   };
 
-  const handleOpenComposer = (issue: FSCPIssue) => {
-    setEmailTo("finance-close-control@datatwin.ai");
-    setEmailSubject(`[FSCP Action Required] Issue ${issue.id} - ${issue.name}`);
-    setEmailBody(`Hello Team,
+  const handleAssignAction = () => {
+    if (!showDetails) return;
 
-Please find the details of the close issue identified for the current financial cycle.
-
-- Issue ID: ${issue.id}
-- Summary: ${issue.name}
-- Financial Impact: $${issue.impact.toLocaleString()}
-- Assigned Owner: ${issue.ownerRole}
-
-Suggested Remediation Action:
-${issue.suggestedAction.map((act) => `- ${act}`).join("\n")}
-
-Please review and confirm remediation steps as soon as possible to prevent close delays.
-
-Regards,
-Finance Close Command Center`);
-    setShowComposer(issue);
-  };
-
-  const handleSendEmail = () => {
-    if (!showComposer) return;
-    
     setIssues(prev => prev.map(issue => {
-      if (issue.id === showComposer.id) {
+      if (issue.id === showDetails.id) {
         return {
           ...issue,
-          status: "In Progress" as const
+          status: "In Progress" as const,
+          timeline: [
+            ...issue.timeline,
+            {
+              dateLabel: "Today",
+              description: `Resolution assigned to ${assignOwner}`
+            }
+          ]
         };
       }
       return issue;
     }));
 
-    if (showDetails && showDetails.id === showComposer.id) {
-      setShowDetails(prev => prev ? { ...prev, status: "In Progress" } : null);
-    }
+    setShowDetails(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        status: "In Progress" as const,
+        timeline: [
+          ...prev.timeline,
+          {
+            dateLabel: "Today",
+            description: `Resolution assigned to ${assignOwner}`
+          }
+        ]
+      };
+    });
 
-    setShowComposer(null);
-    triggerToast(`Notification email successfully dispatched. Status updated to 'In Progress'.`);
+    triggerToast(`Resolution corrective actions successfully assigned to ${assignOwner}.`);
+  };
+
+  const handleSendMailCommunication = () => {
+    if (!showDetails) return;
+
+    setIssues(prev => prev.map(issue => {
+      if (issue.id === showDetails.id) {
+        return {
+          ...issue,
+          status: "In Progress" as const,
+          timeline: [
+            ...issue.timeline,
+            {
+              dateLabel: "Today",
+              description: `Communication sent to Asset Owner`
+            }
+          ]
+        };
+      }
+      return issue;
+    }));
+
+    setShowDetails(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        status: "In Progress" as const,
+        timeline: [
+          ...prev.timeline,
+          {
+            dateLabel: "Today",
+            description: `Communication sent to Asset Owner`
+          }
+        ]
+      };
+    });
+
+    triggerToast(`Remediation notification email successfully dispatched to ${mailTo}.`);
   };
 
   const filteredIssues = issues.filter(
@@ -651,10 +578,10 @@ Finance Close Command Center`);
   return (
     <main className="flex-1 overflow-y-auto px-8 py-6 relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
       
-      {/* Dynamic Action Toast Alert */}
+      {/* Toast Alert */}
       {toastMessage && (
         <div 
-          className="fixed top-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl transition-all duration-300 transform translate-y-0"
+          className="fixed top-6 right-6 z-[200] flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl transition-all duration-300 transform translate-y-0"
           style={{ 
             background: "rgba(10, 15, 30, 0.95)", 
             backdropFilter: "blur(12px)",
@@ -671,7 +598,7 @@ Finance Close Command Center`);
         </div>
       )}
 
-      {/* Header Close Command Info */}
+      {/* Header Info */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
@@ -843,7 +770,7 @@ Finance Close Command Center`);
                     if (!isActive) e.currentTarget.style.borderColor = "var(--border)";
                   }}
                 >
-                  {/* Overlapping badge: 50% in, 50% out */}
+                  {/* Overlapping badge */}
                   {renderIssueBadge(count)}
 
                   {/* Centered icon */}
@@ -933,7 +860,7 @@ Finance Close Command Center`);
                         e.currentTarget.style.boxShadow = isEmphasized ? `0 2px 8px ${themeColor}15` : "none";
                       }}
                     >
-                      {/* Overlapping badge at top right: 50% in, 50% out */}
+                      {/* Overlapping badge */}
                       {renderIssueBadge(count)}
 
                       {/* Business Process Name */}
@@ -953,14 +880,14 @@ Finance Close Command Center`);
         </div>
       )}
 
-      {/* ─── 4. Issue List Modal ─── */}
+      {/* ─── 3. Issue List Popup ─── */}
       {showIssueList && activeProcess && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
           <div 
             className="w-full max-w-3xl rounded-xl border flex flex-col max-h-[85vh] shadow-2xl"
             style={{ background: "var(--card)", borderColor: "var(--border)" }}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
               <div>
                 <h3 className="text-base font-bold">{activeProcess} Close Issues</h3>
                 <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{selectedDomain} • Level: {selectedKPI}</p>
@@ -974,7 +901,6 @@ Finance Close Command Center`);
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              
               {filteredIssues.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3">
@@ -1006,7 +932,7 @@ Finance Close Command Center`);
                             <div className="font-semibold text-foreground">{issue.name}</div>
                             <div className="text-[10px] text-muted-foreground mt-0.5">{issue.id} • Status: <span style={{ color: issue.status === "In Progress" ? "#3b82f6" : "#f59e0b", fontWeight: 600 }}>{issue.status}</span></div>
                           </td>
-                          <td className="py-3 text-right font-semibold">
+                          <td className="py-3 text-right font-semibold text-foreground">
                             ${issue.impact.toLocaleString()}
                           </td>
                           <td className="py-3 text-center">
@@ -1014,7 +940,7 @@ Finance Close Command Center`);
                               onClick={() => handleDrillAction(issue)}
                               className="px-2.5 py-1 rounded bg-blue-500 text-white text-[11px] font-bold border-none cursor-pointer hover:bg-blue-600 transition-colors"
                             >
-                              Drill Action
+                              View Details
                             </button>
                           </td>
                         </tr>
@@ -1031,37 +957,22 @@ Finance Close Command Center`);
               )}
             </div>
 
-            <div className="flex items-center justify-between px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <div className="flex gap-2">
-                <button
-                  disabled={filteredIssues.length === 0}
-                  onClick={() => triggerToast("Direct download is only available for individual issue reports.")}
-                  className="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                  style={{ 
-                    background: "var(--secondary)", 
-                    borderColor: "var(--border)", 
-                    color: filteredIssues.length === 0 ? "var(--muted-foreground)" : "var(--foreground)",
-                    cursor: filteredIssues.length === 0 ? "not-allowed" : "pointer" 
-                  }}
-                >
-                  <Download size={13} />
-                  Download
-                </button>
-                <button
-                  disabled={filteredIssues.length === 0}
-                  onClick={() => triggerToast("View reported file is available inside individual issue details.")}
-                  className="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                  style={{ 
-                    background: "var(--secondary)", 
-                    borderColor: "var(--border)", 
-                    color: filteredIssues.length === 0 ? "var(--muted-foreground)" : "var(--foreground)",
-                    cursor: filteredIssues.length === 0 ? "not-allowed" : "pointer" 
-                  }}
-                >
-                  <FileText size={13} />
-                  View Reported File
-                </button>
-              </div>
+            {/* Footer with actions limited to Download & Close per requirements */}
+            <div className="flex items-center justify-between px-6 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+              <button
+                disabled={filteredIssues.length === 0}
+                onClick={() => triggerToast("Direct download is only available for individual issue reports.")}
+                className="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
+                style={{ 
+                  background: "var(--secondary)", 
+                  borderColor: "var(--border)", 
+                  color: filteredIssues.length === 0 ? "var(--muted-foreground)" : "var(--foreground)",
+                  cursor: filteredIssues.length === 0 ? "not-allowed" : "pointer" 
+                }}
+              >
+                <Download size={13} />
+                Download
+              </button>
               <button
                 onClick={() => { setShowIssueList(false); setActiveProcess(null); }}
                 className="px-4 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
@@ -1074,18 +985,19 @@ Finance Close Command Center`);
         </div>
       )}
 
-      {/* ─── 5. Issue Details & AI Smart Suggestions ─── */}
+      {/* ─── 4. Issue Resolution Workspace Modal ─── */}
       {showDetails && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fadeIn">
           <div 
-            className="w-full max-w-4xl rounded-xl border flex flex-col max-h-[90vh] shadow-2xl overflow-hidden"
+            className="w-full max-w-5xl rounded-xl border flex flex-col h-[90vh] shadow-2xl overflow-hidden"
             style={{ background: "var(--card)", borderColor: "var(--border)" }}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
               <div>
                 <h3 className="text-base font-bold flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ background: showDetails.type === "Close Blocker" ? "#ef4444" : "#f59e0b" }} />
-                  Issue Details — {showDetails.id}
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: showDetails.type === "Close Blocker" ? "#ef4444" : showDetails.type === "Moderate Issue" ? "#f59e0b" : "#10b981" }} />
+                  Issue Resolution Workspace — {showDetails.id}
                 </h3>
                 <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{showDetails.domain} • {showDetails.process}</p>
               </div>
@@ -1097,127 +1009,314 @@ Finance Close Command Center`);
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-3 gap-6">
+            {/* Split Columns Grid Container */}
+            <div className="flex-1 overflow-hidden flex">
               
-              <div className="col-span-2 flex flex-col gap-5">
+              {/* Left Column (2/3 width) - Scrollable working area */}
+              <div className="w-2/3 overflow-y-auto p-6 flex flex-col gap-6 border-r" style={{ borderColor: "var(--border)" }}>
                 
-                <div className="grid grid-cols-3 gap-4 p-4 rounded-xl border" style={{ background: "var(--secondary)", borderColor: "var(--border)" }}>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Company Code</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.companyCode}</p>
+                {/* 1. Issue Information */}
+                <div className="rounded-xl border p-4" style={{ background: "var(--secondary)", borderColor: "var(--border)" }}>
+                  <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 12 }}>Issue Information</h4>
+                  <div className="grid grid-cols-3 gap-y-4 gap-x-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Blocker ID</span>
+                      <strong className="font-semibold text-foreground">{showDetails.id}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Company Code</span>
+                      <strong className="font-semibold text-foreground">{showDetails.companyCode}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Fiscal Year / Period</span>
+                      <strong className="font-semibold text-foreground">{showDetails.fiscalYear} / {showDetails.period}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Asset / Document Number</span>
+                      <strong className="font-semibold text-foreground font-mono">{showDetails.assetNumber}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Business Process</span>
+                      <strong className="font-semibold text-foreground">{showDetails.process}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Blocker Type</span>
+                      <strong className="font-semibold text-foreground">{showDetails.blockerType}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Severity</span>
+                      <strong className="font-semibold" style={{ color: showDetails.severity === "Critical" ? "#ef4444" : showDetails.severity === "High" ? "#f59e0b" : "var(--foreground)" }}>{showDetails.severity}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Status</span>
+                      <strong className="font-semibold" style={{ color: showDetails.status === "In Progress" ? "#3b82f6" : "#f59e0b" }}>{showDetails.status}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Financial Impact</span>
+                      <strong className="font-semibold text-red-500">${showDetails.impact.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Source File</span>
+                      <strong className="font-semibold text-foreground font-mono text-[11px] truncate block">{showDetails.sourceFile}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Owner Role</span>
+                      <strong className="font-semibold text-foreground">{showDetails.ownerRole}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px]">Ageing Days</span>
+                      <strong className="font-semibold text-foreground">{showDetails.ageingDays} Days</strong>
+                    </div>
                   </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Fiscal Year</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.fiscalYear}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Period</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.period}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Asset Number</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1, fontFamily: "var(--font-mono)" }}>{showDetails.assetNumber}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Sub Asset</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.subAssetNumber}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Blocker Type</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.blockerType}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Severity</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1, color: showDetails.severity === "Critical" ? "#ef4444" : "#f59e0b" }}>{showDetails.severity}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Status</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1, color: showDetails.status === "In Progress" ? "#3b82f6" : "#f59e0b" }}>{showDetails.status}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Ageing Days</span>
-                    <p style={{ fontSize: 12, fontWeight: 700, marginTop: 1 }}>{showDetails.ageingDays} Days</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Asset Description</h4>
-                  <p style={{ fontSize: 13, color: "var(--foreground)" }}>{showDetails.assetDescription}</p>
-                </div>
-
-                <div>
-                  <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Reason for blocker</h4>
-                  <p style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.5 }}>{showDetails.reason}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Financial Impact</h4>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "#ef4444" }}>${showDetails.impact.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Source File</h4>
-                    <p style={{ fontSize: 12, color: "var(--foreground)", fontFamily: "var(--font-mono)" }} className="flex items-center gap-1.5">
-                      <FileText size={13} style={{ color: "#3b82f6" }} />
-                      {showDetails.sourceFile}
-                    </p>
+                  <div className="border-t pt-3 mt-3 text-xs" style={{ borderColor: "var(--border)" }}>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Reason for outstanding issue</span>
+                    <p style={{ color: "var(--foreground)", lineHeight: 1.5 }}>{showDetails.reason}</p>
                   </div>
                 </div>
 
-                <div>
-                  <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Owner Role</h4>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{showDetails.ownerRole}</p>
+                {/* 2. Resolution Assignment */}
+                <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                  <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 12 }}>
+                    <Layers size={14} style={{ color: "#3b82f6" }} />
+                    Resolution Assignment
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Action Type</label>
+                      <select 
+                        value={assignActionType}
+                        onChange={(e) => setAssignActionType(e.target.value)}
+                        className="w-full rounded p-2 border outline-none bg-secondary"
+                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                      >
+                        {getActionTypes(showDetails.process).map(action => (
+                          <option key={action} value={action}>{action}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Responsible Person</label>
+                      <input 
+                        type="text"
+                        value={assignOwner}
+                        onChange={(e) => setAssignOwner(e.target.value)}
+                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                        placeholder="Assign Owner"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Department</label>
+                      <input 
+                        type="text"
+                        value={assignDept}
+                        onChange={(e) => setAssignDept(e.target.value)}
+                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Priority</label>
+                        <select 
+                          value={assignPriority}
+                          onChange={(e) => setAssignPriority(e.target.value)}
+                          className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                          style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                        >
+                          <option value="High">High</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Low">Low</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Due Date</label>
+                        <input 
+                          type="date"
+                          value={assignDueDate}
+                          onChange={(e) => setAssignDueDate(e.target.value)}
+                          className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                          style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-xs">
+                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Resolution Notes</label>
+                    <textarea 
+                      rows={2}
+                      value={assignNotes}
+                      onChange={(e) => setAssignNotes(e.target.value)}
+                      placeholder="Add corrective instructions, adjustment keys, or override details..."
+                      className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleAssignAction}
+                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1.5 transition-colors"
+                    style={{ background: "#3b82f6", color: "#fff" }}
+                  >
+                    Assign Resolution
+                  </button>
+                </div>
+
+                {/* 3. Communication */}
+                <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                  <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 12 }}>
+                    <Mail size={14} style={{ color: "#3b82f6" }} />
+                    Communication
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs mb-3">
+                    <div>
+                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">To</label>
+                      <input 
+                        type="text"
+                        value={mailTo}
+                        onChange={(e) => setMailTo(e.target.value)}
+                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">CC</label>
+                      <input 
+                        type="text"
+                        value={mailCc}
+                        onChange={(e) => setMailCc(e.target.value)}
+                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
+                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-xs mb-3">
+                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Subject</label>
+                    <input 
+                      type="text"
+                      value={mailSubject}
+                      onChange={(e) => setMailSubject(e.target.value)}
+                      className="w-full rounded p-2 border outline-none bg-secondary text-xs font-semibold"
+                      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                    />
+                  </div>
+
+                  <div className="text-xs">
+                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Message Body</label>
+                    <textarea 
+                      rows={5}
+                      value={mailBody}
+                      onChange={(e) => setMailBody(e.target.value)}
+                      className="w-full rounded p-2 border outline-none bg-secondary text-xs font-mono"
+                      style={{ borderColor: "var(--border)", color: "var(--foreground)", lineHeight: 1.4 }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleSendMailCommunication}
+                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1.5 transition-colors"
+                    style={{ background: "var(--foreground)", color: "var(--background)" }}
+                  >
+                    <Send size={12} />
+                    Send Communication
+                  </button>
                 </div>
 
               </div>
 
-              <div 
-                className="rounded-xl p-5 border flex flex-col gap-4 self-start"
-                style={{ 
-                  background: "rgba(59, 130, 246, 0.04)", 
-                  borderColor: "rgba(59, 130, 246, 0.2)",
-                  boxShadow: "inset 0 0 20px rgba(59, 130, 246, 0.02)"
-                }}
-              >
-                <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: "rgba(59, 130, 246, 0.15)" }}>
-                  <Sparkles size={16} style={{ color: "#3b82f6" }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Smart Suggestion</span>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {showDetails.suggestedAction.map((action, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="text-blue-500 font-bold" style={{ fontSize: 12 }}>{i + 1}.</span>
-                      <p style={{ fontSize: 12, color: "var(--foreground)", lineHeight: 1.4 }}>{action}</p>
+              {/* Right Column (1/3 width) - Sticky container for AI Suggestions & Activity Timeline */}
+              <div className="w-1/3 overflow-y-auto p-6 flex flex-col gap-6 bg-secondary/20">
+                <div className="flex flex-col gap-6">
+                  
+                  {/* AI Smart Suggestion */}
+                  <div 
+                    className="rounded-xl p-5 border flex flex-col gap-4"
+                    style={{ 
+                      background: "rgba(59, 130, 246, 0.04)", 
+                      borderColor: "rgba(59, 130, 246, 0.25)",
+                      boxShadow: "inset 0 0 24px rgba(59, 130, 246, 0.03), 0 4px 20px rgba(59, 130, 246, 0.05)"
+                    }}
+                  >
+                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: "rgba(59, 130, 246, 0.15)" }}>
+                      <Sparkles size={16} style={{ color: "#3b82f6" }} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Smart Suggestion</span>
                     </div>
-                  ))}
+
+                    <div className="flex flex-col gap-3">
+                      {showDetails.suggestedAction.map((action, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-blue-500 font-bold" style={{ fontSize: 12 }}>{i + 1}.</span>
+                          <p style={{ fontSize: 12, color: "var(--foreground)", lineHeight: 1.4 }}>{action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Issue Activity Timeline */}
+                  <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                    <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 16 }}>
+                      <Calendar size={14} style={{ color: "#3b82f6" }} />
+                      Issue Activity Timeline
+                    </h4>
+
+                    {/* Timeline items rendered in REVERSE chronological order */}
+                    <div className="flex flex-col gap-5 pl-4 relative border-l" style={{ borderColor: "var(--border)" }}>
+                      {[...showDetails.timeline].reverse().map((event, idx) => (
+                        <div key={idx} className="relative text-xs animate-fadeIn pb-1">
+                          {/* Dot Circle wrapper containing matching context icon */}
+                          <span 
+                            className="absolute rounded-full flex items-center justify-center" 
+                            style={{ 
+                              width: 20, 
+                              height: 20, 
+                              left: "-25px", 
+                              top: "-2px", 
+                              background: "var(--card)",
+                              border: "1px solid var(--border)",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                            }} 
+                          >
+                            {getTimelineIcon(event.description)}
+                          </span>
+                          
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", display: "block", textTransform: "uppercase" }}>
+                            {event.dateLabel}
+                          </span>
+                          
+                          <p className="mt-0.5 text-foreground font-medium text-[11px] leading-relaxed">
+                            {event.description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
             </div>
 
-            <div className="flex items-center justify-between px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleDownloadReport(showDetails)}
-                  className="px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                  style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
-                >
-                  <Download size={13} />
-                  Download Report
-                </button>
-                <button
-                  onClick={() => handleOpenComposer(showDetails)}
-                  className="px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                  style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
-                >
-                  <Mail size={13} />
-                  Report Issue
-                </button>
-              </div>
+            {/* Footer */}
+            <div className="flex items-shrink-0 items-center justify-between px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
+              <button
+                onClick={() => handleDownloadReport(showDetails)}
+                className="px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
+                style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
+              >
+                <Download size={13} />
+                Download Report
+              </button>
+              
               <button
                 onClick={() => setShowDetails(null)}
-                className="px-4 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
+                className="px-5 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
                 style={{ background: "var(--foreground)", color: "var(--background)" }}
               >
                 Close
@@ -1228,91 +1327,9 @@ Finance Close Command Center`);
         </div>
       )}
 
-      {/* ─── 6. Prefilled Email Composer Modal ─── */}
-      {showComposer && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div 
-            className="w-full max-w-xl rounded-xl border flex flex-col shadow-2xl"
-            style={{ background: "var(--card)", borderColor: "var(--border)" }}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
-              <h3 className="text-sm font-bold flex items-center gap-2">
-                <Mail size={15} style={{ color: "#3b82f6" }} />
-                Send Close Notification
-              </h3>
-              <button 
-                onClick={() => setShowComposer(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6 flex flex-col gap-4">
-              <div className="flex items-center border-b pb-2" style={{ borderColor: "var(--border)" }}>
-                <span className="w-16 text-xs text-muted-foreground" style={{ fontWeight: 600 }}>To:</span>
-                <input 
-                  type="text" 
-                  value={emailTo}
-                  onChange={(e) => setEmailTo(e.target.value)}
-                  className="flex-1 bg-transparent border-none outline-none text-xs" 
-                  style={{ color: "var(--foreground)" }}
-                />
-              </div>
-
-              <div className="flex items-center border-b pb-2" style={{ borderColor: "var(--border)" }}>
-                <span className="w-16 text-xs text-muted-foreground" style={{ fontWeight: 600 }}>Subject:</span>
-                <input 
-                  type="text" 
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  className="flex-1 bg-transparent border-none outline-none text-xs" 
-                  style={{ color: "var(--foreground)", fontWeight: 600 }}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5 mt-2">
-                <span className="text-[10px] text-muted-foreground" style={{ fontWeight: 600, textTransform: "uppercase" }}>Email Body</span>
-                <textarea 
-                  rows={14} 
-                  value={emailBody}
-                  onChange={(e) => setEmailBody(e.target.value)}
-                  className="w-full rounded-lg p-3 text-xs outline-none" 
-                  style={{ 
-                    background: "var(--secondary)", 
-                    border: "1px solid var(--border)", 
-                    color: "var(--foreground)",
-                    fontFamily: "var(--font-family)",
-                    lineHeight: 1.5
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <button
-                onClick={() => setShowComposer(null)}
-                className="px-4 py-1.5 rounded text-xs font-semibold border cursor-pointer"
-                style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendEmail}
-                className="px-4 py-1.5 rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1.5"
-                style={{ background: "var(--foreground)", color: "var(--background)" }}
-              >
-                <Send size={12} />
-                Send Email
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-      {/* ─── 7. No Active Issues Dialog Overlay ─── */}
+      {/* ─── 5. No Active Issues Dialog Overlay ─── */}
       {noActiveIssuesContext && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
           <div 
             className="w-full max-w-md rounded-xl border p-6 flex flex-col items-center justify-center text-center shadow-2xl animate-fadeIn"
             style={{ background: "var(--card)", borderColor: "var(--border)" }}
