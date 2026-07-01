@@ -20,7 +20,8 @@ import {
   AlertCircle,
   HelpCircle,
   Building,
-  BotMessageSquare
+  BotMessageSquare,
+  Info
 } from "lucide-react";
 import { DateRangeFilter } from "../DateRangeFilter";
 import { StatusCard } from "../StatusCard";
@@ -373,6 +374,17 @@ export function OverviewPage({
 
   // Date range checking helper
   function isDateInRange(dateStr: string) {
+    const now = new Date();
+    const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultTo = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const isDefaultRange = 
+      dateRange.from.getFullYear() === defaultFrom.getFullYear() &&
+      dateRange.from.getMonth() === defaultFrom.getMonth() &&
+      dateRange.to.getFullYear() === defaultTo.getFullYear() &&
+      dateRange.to.getMonth() === defaultTo.getMonth();
+
+    if (isDefaultRange || contractFilter || poFilter) return true;
+
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return true;
     return date >= dateRange.from && date <= dateRange.to;
@@ -391,6 +403,7 @@ export function OverviewPage({
               inv.id.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus =
               !statusFilter ||
+              !["Validated", "Paid", "Unpaid"].includes(statusFilter) ||
               inv.status === statusFilter ||
               inv.paymentStatus === statusFilter;
             const matchesDate = isDateInRange(inv.date);
@@ -399,21 +412,29 @@ export function OverviewPage({
           });
 
           const hasMatchedInvoices = matchedInvoices.length > 0;
+          const matchesContractFilter = !contractFilter || c.id === contractFilter;
+          const matchesVendorFilter = !vendorFilter || c.vendorName === vendorFilter;
           const matchesPoFilter = !poFilter || p.id === poFilter;
-          const matchesStatusFilter = !statusFilter || p.status === statusFilter;
+
+          const matchesStatusFilter =
+            !statusFilter ||
+            !["Approved", "Draft", "Sent", "Received", "In Progress"].includes(statusFilter) ||
+            p.status === statusFilter;
           const matchesDate = isDateInRange(p.date);
 
           const matchesQuery =
             !searchQuery ||
             p.id.toLowerCase().includes(searchQuery.toLowerCase());
 
-          // A PO is included if it directly matches constraints, OR has matched child invoices
+          // A PO is included if it satisfies contract/vendor/PO filters
+          // AND (it satisfies query/status/date directly OR has matched child invoices)
           const shouldIncludePO =
-            (matchesPoFilter &&
-              matchesStatusFilter &&
-              matchesDate &&
-              (matchesQuery || searchQuery === "")) ||
-            hasMatchedInvoices;
+            matchesContractFilter &&
+            matchesVendorFilter &&
+            matchesPoFilter &&
+            matchesDate &&
+            ((matchesStatusFilter && (matchesQuery || searchQuery === "")) ||
+              hasMatchedInvoices);
 
           if (shouldIncludePO) {
             return {
@@ -428,20 +449,27 @@ export function OverviewPage({
       const hasMatchedPOs = matchedPOs.length > 0;
       const matchesContractFilter = !contractFilter || c.id === contractFilter;
       const matchesVendorFilter = !vendorFilter || c.vendorName === vendorFilter;
-      const matchesStatusFilter = !statusFilter || c.status === statusFilter;
+
+      const matchesStatusFilter =
+        !statusFilter ||
+        !["Active", "Expiring Soon", "Closed"].includes(statusFilter) ||
+        c.status === statusFilter;
 
       const matchesQuery =
         !searchQuery ||
         c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.vendorName.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // A Contract is included if it directly matches constraints, OR has matching POs
+      const matchesPoCondition = !poFilter || hasMatchedPOs;
+
+      // A Contract is included if it satisfies contract, vendor, and PO filters
+      // AND (satisfies query/status directly OR has matching POs)
       const shouldIncludeContract =
-        (matchesContractFilter &&
-          matchesVendorFilter &&
-          matchesStatusFilter &&
-          (matchesQuery || searchQuery === "")) ||
-        hasMatchedPOs;
+        matchesContractFilter &&
+        matchesVendorFilter &&
+        matchesPoCondition &&
+        ((matchesStatusFilter && (matchesQuery || searchQuery === "")) ||
+          hasMatchedPOs);
 
       if (shouldIncludeContract) {
         return {
@@ -1258,6 +1286,9 @@ export function OverviewPage({
                 const totalAllocated = c.pos.reduce((acc, curr) => acc + curr.value, 0);
                 const utilizationPct = Math.min(100, Math.round((totalAllocated / c.value) * 100));
 
+                const originalContract = INITIAL_CONTRACTS.find(o => o.id === c.id);
+                const genuinelyHasNoPOs = originalContract ? originalContract.pos.length === 0 : true;
+
                 return (
                   <div key={c.id} className="flex flex-col gap-3">
                     
@@ -1361,14 +1392,6 @@ export function OverviewPage({
                             <BotMessageSquare size={13} />
                           </button>
                           <button
-                            onClick={() => setSelectedNodeDetails({ type: "contract", data: c })}
-                            className="rounded px-2.5 py-1 text-xs transition-colors hover:bg-accent"
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 11, fontWeight: 600 }}
-                            title="View Details"
-                          >
-                            Details
-                          </button>
-                          <button
                             onClick={() => triggerDownload(`${c.id}_Agreement.pdf`)}
                             className="flex items-center gap-1 rounded-md px-2 py-1 text-xs border transition-colors hover:bg-accent"
                             style={{ background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
@@ -1387,21 +1410,41 @@ export function OverviewPage({
                     </div>
 
                     {/* ──── Nesting Container for POs (Level 2) ──── */}
-                    {isContractExpanded && c.pos.length > 0 && (
-                      <div className="flex flex-col gap-3 pl-8 relative">
-                        {/* Tree Line Connector */}
-                        <div className="absolute left-3.5 top-0 bottom-6 w-0.5" style={{ background: "var(--border)" }} />
-
-                        {c.pos.map(p => {
+                    <div 
+                      className="transition-all duration-300 ease-in-out overflow-hidden flex flex-col gap-4 pl-[36px] relative"
+                      style={{
+                        maxHeight: isContractExpanded ? "8000px" : "0px",
+                        opacity: isContractExpanded ? 1 : 0,
+                        marginTop: isContractExpanded ? 12 : 0,
+                        pointerEvents: isContractExpanded ? "auto" : "none"
+                      }}
+                    >
+                      {c.pos.length > 0 ? (
+                        c.pos.map((p, idx) => {
+                          const isLast = idx === c.pos.length - 1;
                           const isPoExpanded = expandedNodes[p.id];
                           const poRemaining = Math.max(0, p.value - p.consumedAmount);
                           const poConsumedPct = Math.min(100, Math.round((p.consumedAmount / p.value) * 100));
 
+                          // Look up original PO to verify if it genuinely has invoices
+                          const originalPO = INITIAL_CONTRACTS.flatMap(o => o.pos).find(o => o.id === p.id);
+                          const genuinelyHasNoInvoices = originalPO ? originalPO.invoices.length === 0 : true;
+
                           return (
-                            <div key={p.id} className="flex flex-col gap-2 relative">
+                            <div key={p.id} className="relative flex flex-col gap-2">
+                              {/* Vertical line segment */}
+                              <div 
+                                className="absolute left-[-18px] w-0.5 bg-border" 
+                                style={{
+                                  top: 0,
+                                  bottom: isLast ? "calc(100% - 24px)" : 0
+                                }} 
+                              />
                               {/* Horizontal connector line */}
-                              <div className="absolute -left-4 top-5 w-4 h-0.5" style={{ background: "var(--border)" }} />
-                              
+                              <div 
+                                className="absolute left-[-18px] top-[24px] w-[18px] h-0.5 bg-border"
+                              />
+
                               {/* PO Card */}
                               <div
                                 className="rounded-lg overflow-hidden border hover:border-foreground/45 transition-colors"
@@ -1484,19 +1527,6 @@ export function OverviewPage({
                                       <BotMessageSquare size={12} />
                                     </button>
                                     <button
-                                      onClick={() => {
-                                        if (navigateToRecord) {
-                                          navigateToRecord("Purchase Order", p.id);
-                                        } else {
-                                          onNavigate("Purchase Order", p.id, "from_tree");
-                                        }
-                                      }}
-                                      className="rounded px-2 py-1 text-xs transition-colors hover:bg-accent"
-                                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}
-                                    >
-                                      Details
-                                    </button>
-                                    <button
                                       onClick={() => setApprovalHistoryPo(p)}
                                       className="flex items-center gap-1 rounded px-2 py-1 text-xs border transition-colors hover:bg-accent"
                                       style={{ background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 10 }}
@@ -1520,101 +1550,105 @@ export function OverviewPage({
                               </div>
 
                               {/* ──── Nesting Container for Invoices (Level 3) ──── */}
-                              {isPoExpanded && p.invoices.length > 0 && (
-                                <div className="flex flex-col gap-2 pl-8 relative">
-                                  {/* Secondary connector line */}
-                                  <div className="absolute left-3.5 top-0 bottom-4 w-0.5" style={{ background: "var(--border)", borderStyle: "dashed" }} />
+                              <div 
+                                className="transition-all duration-300 ease-in-out overflow-hidden flex flex-col gap-2 pl-[36px] relative"
+                                style={{
+                                  maxHeight: isPoExpanded ? "3000px" : "0px",
+                                  opacity: isPoExpanded ? 1 : 0,
+                                  marginTop: isPoExpanded ? 8 : 0,
+                                  pointerEvents: isPoExpanded ? "auto" : "none"
+                                }}
+                              >
+                                {p.invoices.length > 0 ? (
+                                  p.invoices.map((inv, invIdx) => {
+                                    const isLastInv = invIdx === p.invoices.length - 1;
+                                    return (
+                                      <div key={inv.id} className="relative flex flex-col gap-2">
+                                        {/* Dashed vertical line segment */}
+                                        <div 
+                                          className="absolute left-[-18px] w-0.5 border-l-2 border-dashed border-border" 
+                                          style={{
+                                            top: 0,
+                                            bottom: isLastInv ? "calc(100% - 20px)" : 0
+                                          }} 
+                                        />
+                                        {/* Dashed horizontal connector line */}
+                                        <div 
+                                          className="absolute left-[-18px] top-[20px] w-[18px] h-0.5 border-t border-dashed border-border"
+                                        />
 
-                                  {p.invoices.map(inv => (
-                                    <div key={inv.id} className="relative flex items-center animate-fade-in">
-                                      {/* Horizontal connector link */}
-                                      <div className="absolute -left-4 top-4.5 w-4 h-0.5" style={{ background: "var(--border)", borderStyle: "dashed" }} />
-                                      
-                                      {/* Invoice Card */}
-                                      <div
-                                        className="rounded-lg w-full border hover:border-foreground/35 transition-colors"
-                                        style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
-                                      >
-                                        <div className="flex items-center justify-between pl-4 pr-4 py-2.5 text-left">
-                                          <div className="flex items-center gap-2.5 flex-grow min-w-0 flex-1">
-                                            <div className="rounded p-1 flex-shrink-0" style={{ background: "rgba(192,132,252,0.1)", color: "#c084fc" }}>
-                                              <Receipt size={13} />
-                                            </div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.id}</span>
-                                              <span style={{ fontSize: 9, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Invoiced: {inv.date}</span>
-                                            </div>
-                                          </div>
-
-                                          {/* Middle Invoice stats */}
-                                          <div className="flex items-center gap-5 ml-auto flex-shrink-0">
-                                            {/* Col 1: Progress Spacer */}
-                                            <div style={{ width: 100, flexShrink: 0 }} />
-
-                                            {/* Col 2: Amount */}
-                                            <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                              <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>AMOUNT</span>
-                                              <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(inv.amount)}</span>
-                                            </div>
-
-                                            {/* Col 3: Due */}
-                                            <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                              <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>DUE</span>
-                                              <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.dueDate}</span>
-                                            </div>
-
-                                            {/* Col 4: Date Invoiced */}
-                                            <div style={{ width: 140, flexShrink: 0 }} className="flex flex-col items-end">
-                                              <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>INVOICED</span>
-                                              <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.date}</span>
+                                        {/* Invoice Card */}
+                                        <div
+                                          className="rounded-lg w-full border hover:border-foreground/35 transition-colors"
+                                          style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
+                                        >
+                                          <div className="flex items-center justify-between pl-4 pr-4 py-2.5 text-left">
+                                            <div className="flex items-center gap-2.5 flex-grow min-w-0 flex-1">
+                                              <div className="rounded p-1 flex-shrink-0" style={{ background: "rgba(192,132,252,0.1)", color: "#c084fc" }}>
+                                                <Receipt size={13} />
+                                              </div>
+                                              <div className="flex flex-col min-w-0 flex-1">
+                                                <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.id}</span>
+                                                <span style={{ fontSize: 9, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Invoiced: {inv.date}</span>
+                                              </div>
                                             </div>
 
-                                            {/* Col 5: Badges */}
-                                            <div style={{ width: 120, flexShrink: 0 }} className="flex justify-end items-center gap-1">
-                                              <span
-                                                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
-                                                style={{ fontSize: 10, background: `${statusColorMap[inv.status]}10`, color: statusColorMap[inv.status], whiteSpace: "nowrap" }}
+                                            {/* Middle Invoice stats */}
+                                            <div className="flex items-center gap-5 ml-auto flex-shrink-0">
+                                              {/* Col 1: Progress Spacer */}
+                                              <div style={{ width: 100, flexShrink: 0 }} />
+
+                                              {/* Col 2: Amount */}
+                                              <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
+                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>AMOUNT</span>
+                                                <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(inv.amount)}</span>
+                                              </div>
+
+                                              {/* Col 3: Due */}
+                                              <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
+                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>DUE</span>
+                                                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.dueDate}</span>
+                                              </div>
+
+                                              {/* Col 4: Date Invoiced */}
+                                              <div style={{ width: 140, flexShrink: 0 }} className="flex flex-col items-end">
+                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>INVOICED</span>
+                                                <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.date}</span>
+                                              </div>
+
+                                              {/* Col 5: Badges */}
+                                              <div style={{ width: 120, flexShrink: 0 }} className="flex justify-end items-center gap-1">
+                                                <span
+                                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
+                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.status]}10`, color: statusColorMap[inv.status], whiteSpace: "nowrap" }}
+                                                >
+                                                  {inv.status}
+                                                </span>
+                                                <span
+                                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold"
+                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.paymentStatus]}10`, color: statusColorMap[inv.paymentStatus], whiteSpace: "nowrap" }}
+                                                >
+                                                  {inv.paymentStatus}
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {/* Invoice action buttons */}
+                                            <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                              <button
+                                                onClick={() => openActivity({
+                                                  type: "Bill",
+                                                  id: inv.id,
+                                                  status: inv.status,
+                                                  createdBy: "Alex Johnson",
+                                                  createdDate: inv.date
+                                                })}
+                                                className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
+                                                style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                                                title="Activity"
                                               >
-                                                {inv.status}
-                                              </span>
-                                              <span
-                                                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold"
-                                                style={{ fontSize: 10, background: `${statusColorMap[inv.paymentStatus]}10`, color: statusColorMap[inv.paymentStatus], whiteSpace: "nowrap" }}
-                                              >
-                                                {inv.paymentStatus}
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {/* Invoice action buttons */}
-                                          <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
-                                            <button
-                                              onClick={() => openActivity({
-                                                type: "Bill",
-                                                id: inv.id,
-                                                status: inv.status,
-                                                createdBy: "Alex Johnson",
-                                                createdDate: inv.date
-                                              })}
-                                              className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
-                                              style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
-                                              title="Activity"
-                                            >
-                                              <BotMessageSquare size={11} />
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                if (navigateToRecord) {
-                                                  navigateToRecord("Bill", inv.id);
-                                                } else {
-                                                  onNavigate("Bill", inv.id, "from_tree");
-                                                }
-                                              }}
-                                              className="rounded px-1 py-0.5 text-xs transition-colors hover:bg-accent"
-                                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 9, fontWeight: 600 }}
-                                            >
-                                              Details
-                                            </button>
+                                                <BotMessageSquare size={11} />
+                                              </button>
                                               <button
                                                 onClick={() => triggerDownload(`${inv.id}.pdf`)}
                                                 className="flex items-center gap-1 rounded px-1 py-0.5 text-xs border transition-colors hover:bg-accent"
@@ -1631,19 +1665,46 @@ export function OverviewPage({
                                                 Track
                                               </button>
                                             </div>
-
                                           </div>
                                         </div>
                                       </div>
-                                  ))}
-                                </div>
-                              )}
-
+                                    );
+                                  })
+                                ) : genuinelyHasNoInvoices ? (
+                                  <div className="relative flex items-center">
+                                    {/* Dashed horizontal connector line */}
+                                    <div className="absolute left-[-18px] top-[18px] w-[18px] h-0.5 border-t border-dashed border-border" />
+                                    {/* Dashed vertical line segment */}
+                                    <div className="absolute left-[-18px] top-0 h-[18px] w-0.5 border-l-2 border-dashed border-border" />
+                                    <div 
+                                      className="w-full rounded-lg border border-dashed py-2 px-3 text-[11px] text-muted-foreground flex items-center gap-1.5"
+                                      style={{ background: "var(--secondary)", borderColor: "var(--border)" }}
+                                    >
+                                      <Info size={11} style={{ color: "var(--muted-foreground)" }} />
+                                      No invoices linked to this Purchase Order
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
                           );
-                        })}
-                      </div>
-                    )}
+                        })
+                      ) : genuinelyHasNoPOs ? (
+                        <div className="relative flex items-center">
+                          {/* Horizontal connector line */}
+                          <div className="absolute left-[-18px] top-[22px] w-[18px] h-0.5 bg-border" />
+                          {/* Vertical line segment */}
+                          <div className="absolute left-[-18px] top-0 h-[22px] w-0.5 bg-border" />
+                          <div 
+                            className="w-full rounded-lg border border-dashed py-3 px-4 text-xs text-muted-foreground flex items-center gap-2"
+                            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+                          >
+                            <Info size={13} style={{ color: "var(--muted-foreground)" }} />
+                            No Purchase Orders linked to this contract
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
 
                   </div>
                 );
