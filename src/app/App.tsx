@@ -351,7 +351,7 @@ export default function App() {
     }
   }
   const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
-  const hasOwnHeader = false;
+  const hasOwnHeader = active === "Accounts Receivable";
 
   return (
     <PanelContext.Provider value={{ 

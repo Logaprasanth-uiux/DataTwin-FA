@@ -59,16 +59,19 @@ export function ReconciliationCanvas({ children, topLeftControls }: Reconciliati
     syncGrid();
   }, [syncGrid]);
 
-  // Sync canvas size on mount / child updates
+  // Sync canvas size on child updates
   useEffect(() => {
     updateLayout();
+  }, [children, updateLayout]);
+
+  // Initially scroll to center content context slightly on mount
+  useEffect(() => {
     const vp = viewportRef.current;
     if (vp) {
-      // Initially scroll to center content context slightly
       vp.scrollLeft = 120;
       vp.scrollTop = 120;
     }
-  }, [children, updateLayout]);
+  }, []);
 
   const handleScroll = () => {
     syncGrid();

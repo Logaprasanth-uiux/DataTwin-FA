@@ -26,8 +26,13 @@ import {
   User,
   ShieldCheck,
   Calendar,
-  CheckSquare
+  CheckSquare,
+  Upload,
+  Download,
+  Plus
 } from "lucide-react";
+import { CompanySwitch } from "../CompanySwitch";
+import { UserProfile } from "../UserProfile";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -667,6 +672,300 @@ Refunds Dept`,
   }
 ];
 
+// Extra generated emails helper
+const generateExtraEmails = (): EmailQueueItem[] => {
+  const list: EmailQueueItem[] = [];
+  const subjects = [
+    "Wire Settlement Advice - Munich Region",
+    "Customer Remittance: June Inbound Cleared",
+    "Payment Confirmation for Invoice MI-980",
+    "Dispute resolved: Credit note applied",
+    "Consolidated Payment Receipt from WPP Group",
+    "Chase Auto-credit notification",
+    "TechSupply Account Balance Statement",
+    "RTGS Transfer confirmation: €12,500",
+    "Remittance receipt: INV-2026-092",
+    "Client Payment Slip: Acme Systems",
+    "Lockbox Inbound Transaction log",
+    "Payment matching alert: Invoice mismatch",
+    "Accounts Receivables Reconciliation report"
+  ];
+  const senders = [
+    "ar-finance@munich.de",
+    "receivables@wppmedia.com",
+    "billing-support@jpmchase.com",
+    "disputes@techsupply.com",
+    "cash-operations@wpp.com",
+    "alerts@chaseonline.com",
+    "treasury@techsupply.com",
+    "banking@euroclearing.eu",
+    "billing@clientcorp.com",
+    "acme-payables@acme.com",
+    "lockbox-ops@chase.com",
+    "alerts@datatwin.ai",
+    "receivables-monitor@financeplus.com"
+  ];
+
+  for (let i = 0; i < 13; i++) {
+    const id = `TXN-EMAIL-EXT-${String(i + 1).padStart(3, '0')}`;
+    list.push({
+      id,
+      sender: senders[i % senders.length],
+      subject: subjects[i % subjects.length],
+      amount: 45000 + (i * 12500),
+      processingStatus: i % 3 === 0 ? "Resolved" : i % 3 === 1 ? "Requires Review" : "Exceptions Detected",
+      aiConfidence: 90 + (i % 10),
+      exceptionCount: i % 3 === 2 ? 1 : 0,
+      date: `May ${28 - i}, 2026, 09:00 AM`,
+      recipients: "PaymentAdviceIndia@financeplusindia.com",
+      body: `Dear Cash Ops,\n\nReconciliation statement for payment reference ${id} has been processed.\nTotal cleared amount: ₹${(45000 + (i * 12500)).toLocaleString()}.\nValue date: 2026-05-${28-i}.\n\nBest regards,\nOperations Desk`,
+      attachments: [{ name: `advice_run_${id.toLowerCase()}.pdf`, size: "45 KB", type: "application/pdf" }],
+      longEmailThread: [],
+      threadSummary: `Reconciliation sheet for ${subjects[i % subjects.length]}`,
+      activityTimeline: [
+        { id: `ACT-EXT-${i}-1`, type: "Communication", title: "Email Received", actor: "System", timestamp: "1 day ago" }
+      ],
+      transactions: [
+        { id: `TXN-EXT-${i}-PAY`, type: "NEFT Payment", ref: `UTR-EXT-${i}`, docNum: `RCPT-EXT-${i}`, amount: 45000 + (i * 12500), appliedAmount: i % 3 === 0 ? 45000 + (i * 12500) : 0, remainingBalance: i % 3 === 0 ? 0 : 45000 + (i * 12500), status: i % 3 === 0 ? "Resolved" : "Pending Review", postingDate: "15-06-2026" },
+        { id: `TXN-EXT-${i}-INV`, type: "Invoice / Bill", ref: `Ref: INV-EXT-${i}`, docNum: `BILL-EXT-${i}`, amount: 45000 + (i * 12500), appliedAmount: i % 3 === 0 ? 45000 + (i * 12500) : 0, remainingBalance: i % 3 === 0 ? 0 : 45000 + (i * 12500), status: i % 3 === 0 ? "Resolved" : "Outstanding", postingDate: "10-06-2026", parentId: i % 3 === 0 ? `TXN-EXT-${i}-PAY` : undefined }
+      ],
+      outstandingItems: i % 3 === 2 ? [
+        {
+          id: `EXP-EXT-${i}-1`,
+          type: "Invoice not found",
+          refNum: `BILL-EXT-${i}`,
+          amount: 45000 + (i * 12500),
+          priority: "Medium",
+          status: "Unresolved",
+          confidence: 92,
+          explanation: "System subledger is missing matching invoice record for the payment received.",
+          suggestedActions: ["act_raise_inv_rcpt1"],
+          relatedTxnIds: [`TXN-EXT-${i}-PAY`]
+        }
+      ] : []
+    });
+  }
+  return list;
+};
+
+// 7 Manual Upload items definition
+const MANUAL_UPLOAD_MOCKS: EmailQueueItem[] = [
+  {
+    id: "MAN-AR-001",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Bank Statement (June Statement)",
+    amount: 450000,
+    processingStatus: "Exceptions Detected",
+    aiConfidence: 95,
+    exceptionCount: 1,
+    date: "Jun 28, 2026, 10:15 AM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Bank Statement\nReference Name: June Statement\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "June_Bank_Statement.pdf", size: "124 KB", type: "application/pdf" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Bank Statement for period Jun 01, 2026 to Jun 25, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-001-1", type: "User Action", title: "Document Manually Uploaded", details: "File June_Bank_Statement.pdf uploaded by Loga.", actor: "Loga", timestamp: "Jun 28, 10:15 AM" },
+      { id: "ACT-MAN-001-2", type: "AI Processing", title: "AI Parsing Completed", details: "Extracted statement values and identified discrepancies.", actor: "AI Agent", timestamp: "Jun 28, 10:16 AM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-001-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60628001", docNum: "RCPT-M001", amount: 450000, appliedAmount: 0, remainingBalance: 450000, status: "Pending Review", postingDate: "28-06-2026", remitter: "Acme Systems India Pvt Ltd" },
+      { id: "TXN-MAN-001-INV1", type: "Invoice / Bill", ref: "Ref: INV-2026-901", docNum: "BILL-M001", amount: 400000, appliedAmount: 0, remainingBalance: 400000, status: "Outstanding", postingDate: "15-06-2026" },
+      { id: "TXN-MAN-001-INV2", type: "Invoice / Bill", ref: "Ref: INV-2026-902", docNum: "BILL-M002", amount: 50000, appliedAmount: 0, remainingBalance: 50000, status: "Outstanding", postingDate: "16-06-2026" }
+    ],
+    outstandingItems: [
+      {
+        id: "EXP-MAN-001-1",
+        type: "Execute Clearing",
+        refNum: "BILL-M001",
+        amount: 450000,
+        priority: "High",
+        status: "Unresolved",
+        confidence: 95,
+        explanation: "Statement matches two open invoice balances but requires manual allocation clearance.",
+        suggestedActions: ["act_clear_bill1"],
+        relatedTxnIds: ["TXN-MAN-001-PAY", "TXN-MAN-001-INV1", "TXN-MAN-001-INV2"]
+      }
+    ]
+  },
+  {
+    id: "MAN-AR-002",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Collections Report (Q2 Collections)",
+    amount: 125000,
+    processingStatus: "Requires Review",
+    aiConfidence: 92,
+    exceptionCount: 0,
+    date: "Jun 29, 2026, 09:30 AM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Collections Report\nReference Name: Q2 Collections\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "Collections_Report_Q2.xlsx", size: "85 KB", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Collections Report for period Apr 01, 2026 to Jun 30, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-002-1", type: "User Action", title: "Document Manually Uploaded", details: "File Collections_Report_Q2.xlsx uploaded by Loga.", actor: "Loga", timestamp: "Jun 29, 09:30 AM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-002-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60629002", docNum: "RCPT-M002", amount: 125000, appliedAmount: 0, remainingBalance: 125000, status: "Pending Review", postingDate: "29-06-2026" },
+      { id: "TXN-MAN-002-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-903", docNum: "BILL-M003", amount: 125000, appliedAmount: 0, remainingBalance: 125000, status: "Outstanding", postingDate: "20-06-2026" }
+    ],
+    outstandingItems: []
+  },
+  {
+    id: "MAN-AR-003",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Payment Gateway (Stripe Payout)",
+    amount: 80000,
+    processingStatus: "Requires Review",
+    aiConfidence: 94,
+    exceptionCount: 0,
+    date: "Jun 26, 2026, 04:15 PM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Payment Gateway\nReference Name: Stripe Payout\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "Stripe_Payout_May.csv", size: "42 KB", type: "text/csv" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Stripe Payout for period May 01, 2026 to May 31, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-003-1", type: "User Action", title: "Document Manually Uploaded", details: "File Stripe_Payout_May.csv uploaded by Loga.", actor: "Loga", timestamp: "Jun 26, 04:15 PM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-003-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60626003", docNum: "RCPT-M003", amount: 80000, appliedAmount: 0, remainingBalance: 80000, status: "Pending Review", postingDate: "26-06-2026" },
+      { id: "TXN-MAN-003-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-904", docNum: "BILL-M004", amount: 80000, appliedAmount: 0, remainingBalance: 80000, status: "Outstanding", postingDate: "22-06-2026" }
+    ],
+    outstandingItems: []
+  },
+  {
+    id: "MAN-AR-004",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Sales Report (Mid-June Sales)",
+    amount: 300000,
+    processingStatus: "Resolved",
+    aiConfidence: 96,
+    exceptionCount: 0,
+    date: "Jun 25, 2026, 01:20 PM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Sales Report\nReference Name: Mid-June Sales\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "Sales_Ledger_Extract.xlsx", size: "150 KB", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Sales Report for period Jun 10, 2026 to Jun 20, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-004-1", type: "User Action", title: "Document Manually Uploaded", details: "File Sales_Ledger_Extract.xlsx uploaded by Loga.", actor: "Loga", timestamp: "Jun 25, 01:20 PM" },
+      { id: "ACT-MAN-004-2", type: "AI Processing", title: "Reconciliation Succeeded", details: "Records matches and auto-cleared.", actor: "AI Agent", timestamp: "Jun 25, 01:21 PM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-004-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60625004", docNum: "RCPT-M004", amount: 300000, appliedAmount: 300000, remainingBalance: 0, status: "Resolved", postingDate: "25-06-2026" },
+      { id: "TXN-MAN-004-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-905", docNum: "BILL-M005", amount: 300000, appliedAmount: 300000, remainingBalance: 0, status: "Resolved", postingDate: "18-06-2026", parentId: "TXN-MAN-004-PAY" }
+    ],
+    outstandingItems: []
+  },
+  {
+    id: "MAN-AR-005",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: CRM Services & Revenue Operations (Salesforce closed won)",
+    amount: 500000,
+    processingStatus: "Requires Review",
+    aiConfidence: 91,
+    exceptionCount: 0,
+    date: "Jun 30, 2026, 05:00 PM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: CRM Services & Revenue Operations\nReference Name: Salesforce closed won\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "CRM_Revenue_Inbound.xlsx", size: "95 KB", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of CRM Services for period Jun 01, 2026 to Jun 30, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-005-1", type: "User Action", title: "Document Manually Uploaded", details: "File CRM_Revenue_Inbound.xlsx uploaded by Loga.", actor: "Loga", timestamp: "Jun 30, 05:00 PM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-005-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60630005", docNum: "RCPT-M005", amount: 500000, appliedAmount: 0, remainingBalance: 500000, status: "Pending Review", postingDate: "30-06-2026" },
+      { id: "TXN-MAN-005-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-906", docNum: "BILL-M006", amount: 500000, appliedAmount: 0, remainingBalance: 500000, status: "Outstanding", postingDate: "25-06-2026" }
+    ],
+    outstandingItems: []
+  },
+  {
+    id: "MAN-AR-006",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Cash Deposit (Safe Deposit)",
+    amount: 650000,
+    processingStatus: "Processed",
+    aiConfidence: 97,
+    exceptionCount: 0,
+    date: "Jun 29, 2026, 03:00 PM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Cash Deposit\nReference Name: Safe Deposit\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "Cash_Deposit_Summary_June.pdf", size: "50 KB", type: "application/pdf" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Cash Deposit for period Jun 01, 2026 to Jun 28, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-006-1", type: "User Action", title: "Document Manually Uploaded", details: "File Cash_Deposit_Summary_June.pdf uploaded by Loga.", actor: "Loga", timestamp: "Jun 29, 03:00 PM" },
+      { id: "ACT-MAN-006-2", type: "System Event", title: "Record Posting Succeeded", details: "Cash deposit matches and posted to bank ledger.", actor: "System", timestamp: "Jun 29, 03:01 PM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-006-PAY", type: "Receipt Voucher", ref: "DEP CHASNBS60629006", docNum: "RCPT-M006", amount: 650000, appliedAmount: 650000, remainingBalance: 0, status: "Resolved", postingDate: "29-06-2026" },
+      { id: "TXN-MAN-006-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-907", docNum: "BILL-M007", amount: 650000, appliedAmount: 650000, remainingBalance: 0, status: "Resolved", postingDate: "24-06-2026", parentId: "TXN-MAN-006-PAY" }
+    ],
+    outstandingItems: []
+  },
+  {
+    id: "MAN-AR-007",
+    sender: "system_upload@datatwin.ai",
+    subject: "Manual Upload: Online Transactions (Netbanking Log)",
+    amount: 220000,
+    processingStatus: "Requires Review",
+    aiConfidence: 93,
+    exceptionCount: 0,
+    date: "Jun 29, 2026, 04:30 PM",
+    recipients: "Manual Ingestion Portal",
+    body: "Source Type: Online Transactions\nReference Name: Netbanking Log\nUploaded file processed by AI reconciliation engine.",
+    attachments: [{ name: "Netbanking_Log_Q2.txt", size: "30 KB", type: "text/plain" }],
+    longEmailThread: [],
+    threadSummary: "Manual upload of Online Transactions for period Jun 15, 2026 to Jun 30, 2026.",
+    activityTimeline: [
+      { id: "ACT-MAN-007-1", type: "User Action", title: "Document Manually Uploaded", details: "File Netbanking_Log_Q2.txt uploaded by Loga.", actor: "Loga", timestamp: "Jun 29, 04:30 PM" }
+    ],
+    transactions: [
+      { id: "TXN-MAN-007-PAY", type: "NEFT Payment", ref: "UTR CHASNBS60629007", docNum: "RCPT-M007", amount: 220000, appliedAmount: 0, remainingBalance: 220000, status: "Pending Review", postingDate: "29-06-2026" },
+      { id: "TXN-MAN-007-INV", type: "Invoice / Bill", ref: "Ref: INV-2026-908", docNum: "BILL-M008", amount: 220000, appliedAmount: 0, remainingBalance: 220000, status: "Outstanding", postingDate: "27-06-2026" }
+    ],
+    outstandingItems: []
+  }
+];
+
+// Set properties
+(MANUAL_UPLOAD_MOCKS[0] as any).manualStatus = "Exception Found";
+(MANUAL_UPLOAD_MOCKS[0] as any).manualSourceType = "Bank Statement";
+(MANUAL_UPLOAD_MOCKS[0] as any).periodFrom = "2026-06-01";
+(MANUAL_UPLOAD_MOCKS[0] as any).periodTo = "2026-06-25";
+
+(MANUAL_UPLOAD_MOCKS[1] as any).manualStatus = "Processing";
+(MANUAL_UPLOAD_MOCKS[1] as any).manualSourceType = "Collections Report";
+(MANUAL_UPLOAD_MOCKS[1] as any).periodFrom = "2026-04-01";
+(MANUAL_UPLOAD_MOCKS[1] as any).periodTo = "2026-06-30";
+
+(MANUAL_UPLOAD_MOCKS[2] as any).manualStatus = "AI Parsing";
+(MANUAL_UPLOAD_MOCKS[2] as any).manualSourceType = "Payment Gateway";
+(MANUAL_UPLOAD_MOCKS[2] as any).periodFrom = "2026-05-01";
+(MANUAL_UPLOAD_MOCKS[2] as any).periodTo = "2026-05-31";
+
+(MANUAL_UPLOAD_MOCKS[3] as any).manualStatus = "Matched";
+(MANUAL_UPLOAD_MOCKS[3] as any).manualSourceType = "Sales Report";
+(MANUAL_UPLOAD_MOCKS[3] as any).periodFrom = "2026-06-10";
+(MANUAL_UPLOAD_MOCKS[3] as any).periodTo = "2026-06-20";
+
+(MANUAL_UPLOAD_MOCKS[4] as any).manualStatus = "Needs Review";
+(MANUAL_UPLOAD_MOCKS[4] as any).manualSourceType = "CRM Services & Revenue Operations";
+(MANUAL_UPLOAD_MOCKS[4] as any).periodFrom = "2026-06-01";
+(MANUAL_UPLOAD_MOCKS[4] as any).periodTo = "2026-06-30";
+
+(MANUAL_UPLOAD_MOCKS[5] as any).manualStatus = "Completed";
+(MANUAL_UPLOAD_MOCKS[5] as any).manualSourceType = "Cash Deposit";
+(MANUAL_UPLOAD_MOCKS[5] as any).periodFrom = "2026-06-01";
+(MANUAL_UPLOAD_MOCKS[5] as any).periodTo = "2026-06-28";
+
+(MANUAL_UPLOAD_MOCKS[6] as any).manualStatus = "Uploaded";
+(MANUAL_UPLOAD_MOCKS[6] as any).manualSourceType = "Online Transactions";
+(MANUAL_UPLOAD_MOCKS[6] as any).periodFrom = "2026-06-15";
+(MANUAL_UPLOAD_MOCKS[6] as any).periodTo = "2026-06-30";
+
 function parseNarration(narration: string) {
   let remitter = "--";
   let beneficiary = "--";
@@ -704,7 +1003,9 @@ function parseNarration(narration: string) {
 }
 
 export function TransactionHubPage() {
-  const [queue, setQueue] = useState<EmailQueueItem[]>(INITIAL_QUEUE_DATA);
+  const [queue, setQueue] = useState<EmailQueueItem[]>(() => {
+    return [...INITIAL_QUEUE_DATA, ...generateExtraEmails(), ...MANUAL_UPLOAD_MOCKS];
+  });
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   
@@ -734,6 +1035,139 @@ export function TransactionHubPage() {
   const [collapsedThreadIds, setCollapsedThreadIds] = useState<Record<number, boolean>>({});
   const [expandedCardThreads, setExpandedCardThreads] = useState<Record<string, boolean>>({});
   const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
+
+  // Manual Upload States
+  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
+  const [uploadSourceType, setUploadSourceType] = useState<string>("Bank Statement");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPeriodFrom, setUploadPeriodFrom] = useState<string>("");
+  const [uploadPeriodTo, setUploadPeriodTo] = useState<string>("");
+  const [uploadRefName, setUploadRefName] = useState<string>("");
+  const [uploadDescription, setUploadDescription] = useState<string>("");
+  const [queueTab, setQueueTab] = useState<"email" | "manual">("email");
+  const [dragActive, setDragActive] = useState<boolean>(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setUploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDownloadAttachment = (item: EmailQueueItem) => {
+    const file = item.attachments && item.attachments[0];
+    if (!file) return;
+
+    const fileContent = `DataTwin AI Reconciliation Engine - Exported Document
+===========================================================
+Source Reference:   ${item.id}
+Uploaded File:      ${file.name}
+File Size:          ${file.size}
+Source Type:        ${(item as any).manualSourceType || "Bank Statement"}
+For Period:         ${(item as any).periodFrom || "--"} to ${(item as any).periodTo || "--"}
+Ingestion Mode:     Manual Upload Ingestion
+AI Parsing Status:  ${(item as any).manualStatus || "Completed"}
+===========================================================
+Processed successfully.
+`;
+
+    const blob = new Blob([fileContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleAddManualUpload = () => {
+    if (!uploadSourceType || !uploadFile) {
+      alert("Please select a source type and upload a file.");
+      return;
+    }
+
+    const nextIdx = queue.filter((i) => i.id.startsWith("MAN-")).length + 1;
+    const newId = `MAN-AR-${String(nextIdx).padStart(3, "0")}`;
+    const formattedDate = new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric"
+    }) + ", " + new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const newUploadItem: EmailQueueItem = {
+      id: newId,
+      sender: "system_upload@datatwin.ai",
+      subject: `Manual Upload: ${uploadSourceType} (${uploadRefName || "No Ref"})`,
+      amount: 150000,
+      processingStatus: "Requires Review",
+      aiConfidence: 95,
+      exceptionCount: 1,
+      date: formattedDate,
+      recipients: "Manual Ingestion Portal",
+      body: `Source Type: ${uploadSourceType}\nReference Name: ${uploadRefName || "N/A"}\nDescription: ${uploadDescription || "N/A"}`,
+      attachments: [
+        { name: uploadFile.name, size: "124 KB", type: "application/pdf" }
+      ],
+      longEmailThread: [],
+      threadSummary: `Manual ingestion of ${uploadSourceType} for period ${uploadPeriodFrom || "--"} to ${uploadPeriodTo || "--"}.`,
+      activityTimeline: [
+        { id: `ACT-${Date.now()}-1`, type: "User Action", title: "Document Manually Uploaded", details: `File ${uploadFile.name} uploaded successfully.`, actor: "Loga", timestamp: "Just now" },
+        { id: `ACT-${Date.now()}-2`, type: "AI Processing", title: "AI Parsing Completed", details: "Ingested structure metadata extracted.", actor: "AI Agent", timestamp: "Just now" }
+      ],
+      transactions: [
+        { id: `TXN-${newId}-1`, type: "Receipt Voucher", ref: `REF-${uploadRefName || "MANUAL"}`, docNum: "RCPT-M1", amount: 150000, appliedAmount: 0, remainingBalance: 150000, status: "Available Credit", postingDate: new Date().toLocaleDateString("en-GB") },
+        { id: `TXN-${newId}-2`, type: "Invoice / Bill", ref: "Ref: INV-2026-901", docNum: "BILL-M1", amount: 150000, appliedAmount: 0, remainingBalance: 150000, status: "Outstanding", postingDate: new Date().toLocaleDateString("en-GB") }
+      ],
+      outstandingItems: [
+        {
+          id: `EXP-${newId}-1`,
+          type: "Manual Entries",
+          refNum: "BILL-M1",
+          amount: 150000,
+          priority: "Medium",
+          status: "Unresolved",
+          confidence: 95,
+          explanation: `Manually uploaded statement contains an open payment of ₹150,000 mapping to invoice BILL-M1.`,
+          suggestedActions: ["act_clear_bill1"],
+          relatedTxnIds: [`TXN-${newId}-1`, `TXN-${newId}-2`]
+        }
+      ]
+    };
+
+    // Store custom manual properties on the object
+    (newUploadItem as any).manualStatus = "Uploaded";
+    (newUploadItem as any).manualSourceType = uploadSourceType;
+    (newUploadItem as any).periodFrom = uploadPeriodFrom || "2026-06-01";
+    (newUploadItem as any).periodTo = uploadPeriodTo || "2026-06-30";
+    (newUploadItem as any).attachmentName = uploadFile.name;
+
+    setQueue(prev => [newUploadItem, ...prev]);
+    setShowUploadModal(false);
+    
+    // Reset form
+    setUploadFile(null);
+    setUploadPeriodFrom("");
+    setUploadPeriodTo("");
+    setUploadRefName("");
+    setUploadDescription("");
+  };
 
   const toggleThreadCollapse = (idx: number) => {
     setCollapsedThreadIds((prev) => ({
@@ -949,6 +1383,10 @@ export function TransactionHubPage() {
   const filteredQueue = useMemo(() => {
     return queue
       .filter((item) => {
+        const isManual = item.id.startsWith("MAN-");
+        if (queueTab === "email" && isManual) return false;
+        if (queueTab === "manual" && !isManual) return false;
+
         const matchesSearch =
           item.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -977,7 +1415,7 @@ export function TransactionHubPage() {
         if (valA > valB) return sortOrder === "asc" ? 1 : -1;
         return 0;
       });
-  }, [queue, searchQuery, statusFilter, sortBy, sortOrder]);
+  }, [queue, searchQuery, statusFilter, sortBy, sortOrder, queueTab]);
 
   // Handle transaction card selection click (sets single active entity and highlights)
   const handleTxnCardClick = (id: string, type: "receipt" | "invoice") => {
@@ -1893,7 +2331,6 @@ export function TransactionHubPage() {
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-
         <div className="flex justify-between items-center text-[9.5px] mt-0.5">
           <div className="flex flex-col">
             <span className="text-muted-foreground text-[8px]">Receipt Value</span>
@@ -1909,263 +2346,461 @@ export function TransactionHubPage() {
   };
 
   return (
-    <main
-      className="flex-1 flex flex-row h-full overflow-hidden w-full"
-      style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
-    >
-      {/* ─── COLUMN 1: WORK QUEUE (EMAIL LIST) ─── */}
+    <div className="flex flex-col h-full w-full">
+      {/* 1. Page Header (styled consistently with ListPage, customized for Accounts Receivable) */}
       <div
-        className="flex flex-col h-full flex-shrink-0"
-        style={{
-          width: 320,
-          minWidth: 320,
-          borderRight: "1px solid var(--border)",
-          background: "var(--card)"
-        }}
+        className="flex items-center justify-between px-8"
+        style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0, background: "var(--card)" }}
       >
-        {/* Search & Header */}
-        <div className="px-4 py-3 border-b border-border flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-              Remediation Queue
-            </span>
-            <span
-              className="rounded-full px-2 py-0.5 flex items-center justify-center font-mono"
-              style={{ fontSize: 10, fontWeight: 700, background: "var(--secondary)", color: "var(--muted-foreground)" }}
-            >
-              {queue.filter((e) => e.processingStatus !== "Resolved").length} open
-            </span>
-          </div>
-
-          {/* Search box */}
-          <div
-            className="flex items-center gap-2 rounded-lg px-2.5"
+        <div className="flex items-center gap-3">
+          <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
+            Accounts Receivable
+          </h1>
+          <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
+          <CompanySwitch />
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors"
             style={{
-              height: 32,
-              background: "var(--secondary)",
-              border: "1px solid var(--border)"
+              fontSize: 12,
+              fontWeight: 500,
+              background: "var(--foreground)",
+              color: "var(--background)",
+              border: "none",
+              cursor: "pointer",
             }}
           >
-            <Search size={13} style={{ color: "var(--muted-foreground)" }} />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search communications…"
-              style={{
-                background: "none",
-                border: "none",
-                outline: "none",
-                fontSize: 12,
-                color: "var(--foreground)",
-                width: "100%"
-              }}
-            />
-          </div>
+            <Upload size={13} />
+            Upload Manually
+          </button>
+          <UserProfile size="md" />
+        </div>
+      </div>
 
-          {/* Filters & Sorting */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <SlidersHorizontal size={11} style={{ color: "var(--muted-foreground)" }} />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+      <main
+        className="flex-1 flex flex-row h-full overflow-hidden w-full"
+        style={{ background: "var(--background)", fontFamily: "var(--font-family)" }}
+      >
+        {/* ─── COLUMN 1: WORK QUEUE (EMAIL LIST / MANUAL UPLOADS) ─── */}
+        <div
+          className="flex flex-col h-full flex-shrink-0"
+          style={{
+            width: 320,
+            minWidth: 320,
+            borderRight: "1px solid var(--border)",
+            background: "var(--card)"
+          }}
+        >
+          {/* Search & Header */}
+          <div className="px-4 py-3 border-b border-border flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
+                Remediation Queue
+              </span>
+              <span
+                className="rounded-full px-2 py-0.5 flex items-center justify-center font-mono"
+                style={{ fontSize: 10, fontWeight: 700, background: "var(--secondary)", color: "var(--muted-foreground)" }}
+              >
+                {queue.filter((e) => {
+                  const isManual = e.id.startsWith("MAN-");
+                  const matchesTab = queueTab === "email" ? !isManual : isManual;
+                  return matchesTab && e.processingStatus !== "Resolved" && e.processingStatus !== "Processed";
+                }).length} open
+              </span>
+            </div>
+
+            {/* Remediation Queue Tabs */}
+            <div 
+              className="flex items-center p-0.5 rounded-lg border"
+              style={{ background: "var(--secondary)", borderColor: "var(--border)" }}
+            >
+              <button
+                onClick={() => setQueueTab("email")}
+                className="flex-1 py-1 rounded-md text-[11px] font-semibold border-none cursor-pointer transition-all"
+                style={{
+                  background: queueTab === "email" ? "var(--card)" : "transparent",
+                  color: queueTab === "email" ? "var(--foreground)" : "var(--muted-foreground)",
+                  boxShadow: queueTab === "email" ? "0 1px 3px rgba(0,0,0,0.05)" : "none"
+                }}
+              >
+                Email Inbox ({queue.filter(i => !i.id.startsWith("MAN-")).length})
+              </button>
+              <button
+                onClick={() => setQueueTab("manual")}
+                className="flex-1 py-1 rounded-md text-[11px] font-semibold border-none cursor-pointer transition-all"
+                style={{
+                  background: queueTab === "manual" ? "var(--card)" : "transparent",
+                  color: queueTab === "manual" ? "var(--foreground)" : "var(--muted-foreground)",
+                  boxShadow: queueTab === "manual" ? "0 1px 3px rgba(0,0,0,0.05)" : "none"
+                }}
+              >
+                Manual Uploads ({queue.filter(i => i.id.startsWith("MAN-")).length})
+              </button>
+            </div>
+
+            {/* Search box */}
+            <div
+              className="flex items-center gap-2 rounded-lg px-2.5"
+              style={{
+                height: 32,
+                background: "var(--secondary)",
+                border: "1px solid var(--border)"
+              }}
+            >
+              <Search size={13} style={{ color: "var(--muted-foreground)" }} />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={queueTab === "email" ? "Search communications…" : "Search uploads…"}
                 style={{
                   background: "none",
                   border: "none",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "var(--muted-foreground)",
-                  cursor: "pointer",
-                  outline: "none"
+                  outline: "none",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  width: "100%"
                 }}
-              >
-                <option value="All">All Statuses</option>
-                <option value="Exceptions Detected">Exceptions</option>
-                <option value="Requires Review">Needs Review</option>
-                <option value="Resolved">Resolved / Processed</option>
-              </select>
+              />
             </div>
 
-            <button
-              onClick={() => {
-                if (sortBy === "date") setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
-                else setSortBy("date");
-              }}
-              className="flex items-center gap-1 p-1 hover:bg-secondary rounded transition-colors border-none"
-              style={{ background: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
-              title="Sort items"
-            >
-              <ArrowUpDown size={11} />
-              <span>{sortBy === "date" ? "Date" : sortBy === "amount" ? "Amount" : "Confidence"}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Scrollable Work List */}
-        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5 animate-in fade-in duration-200">
-          {filteredQueue.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-2 text-center px-4">
-              <Mail size={24} style={{ color: "var(--muted-foreground)" }} />
-              <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No transaction items in queue.</p>
-            </div>
-          ) : (
-            filteredQueue.map((item) => {
-              const isSelected = selectedEmailId === item.id;
-              const hasExceptions = item.exceptionCount > 0;
-              const isResolved = item.processingStatus === "Resolved" || item.processingStatus === "Processed";
-              const openExps = item.outstandingItems.filter(e => e.status !== "Resolved");
-              const sourcePaymentsCount = item.transactions.filter(t => t.type === "NEFT Payment" || t.type === "Receipt Voucher").length;
-              const linkedInvoicesCount = item.transactions.filter(t => t.type === "Invoice / Bill" || t.type === "Debit Note").length;
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => handleEmailSelect(item.id)}
-                  className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
-                    isSelected
-                      ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
-                      : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
-                  }`}
-                  style={{}}
+            {/* Filters & Sorting */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <SlidersHorizontal size={11} style={{ color: "var(--muted-foreground)" }} />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--muted-foreground)",
+                    cursor: "pointer",
+                    outline: "none"
+                  }}
                 >
-                  {/* Status & Confidence Header */}
-                  <div className="flex items-center justify-between w-full">
-                    <span
-                      className="rounded-full px-2 py-0.5 font-bold text-[9px]"
-                      style={{
-                        background: isResolved
-                          ? "rgba(34,197,94,0.08)"
-                          : hasExceptions
-                          ? "rgba(239,68,68,0.08)"
-                          : "rgba(245,158,11,0.08)",
-                        color: isResolved ? "#22c55e" : hasExceptions ? "#ef4444" : "#f59e0b"
-                      }}
-                    >
-                      {item.processingStatus}
-                    </span>
-                  </div>
+                  <option value="All">All Statuses</option>
+                  <option value="Exceptions Detected">Exceptions</option>
+                  <option value="Requires Review">Needs Review</option>
+                  <option value="Resolved">Resolved / Processed</option>
+                </select>
+              </div>
 
-                  {/* Subject & Summary */}
-                  <div className="flex flex-col gap-1">
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "var(--foreground)",
-                        lineHeight: 1.3
-                      }}
-                    >
-                      {item.subject}
-                    </span>
-                    <p
-                      className="m-0 text-muted-foreground"
-                      style={{
-                        fontSize: 10.5,
-                        lineHeight: 1.4,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden"
-                      }}
-                    >
-                      {item.threadSummary}
-                    </p>
-                  </div>
+              <button
+                onClick={() => {
+                  if (sortBy === "date") setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+                  else setSortBy("date");
+                }}
+                className="flex items-center gap-1 p-1 hover:bg-secondary rounded transition-colors border-none"
+                style={{ background: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 11, fontWeight: 500 }}
+                title="Sort items"
+              >
+                <ArrowUpDown size={11} />
+                <span>{sortBy === "date" ? "Date" : sortBy === "amount" ? "Amount" : "Confidence"}</span>
+              </button>
+            </div>
+          </div>
 
-                  {/* Metrics Grid */}
-                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] border-t border-border/40 pt-2.5">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Amt:</span>
-                      <strong style={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
-                        ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </strong>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <span className="text-muted-foreground">Payments:</span>
-                      <strong style={{ color: "var(--foreground)" }}>{sourcePaymentsCount}</strong>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">Invoices:</span>
-                      <strong style={{ color: "var(--foreground)" }}>{linkedInvoicesCount}</strong>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <span className="text-muted-foreground">Exceptions:</span>
-                      <strong style={{ color: openExps.length > 0 ? "#ef4444" : "var(--foreground)" }}>
-                        {openExps.length}
-                      </strong>
-                    </div>
-                  </div>
+          {/* Scrollable Work List */}
+          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5 animate-in fade-in duration-200">
+            {queueTab === "email" ? (
+              filteredQueue.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2 text-center px-4">
+                  <Mail size={24} style={{ color: "var(--muted-foreground)" }} />
+                  <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No transaction items in queue.</p>
+                </div>
+              ) : (
+                filteredQueue.map((item) => {
+                  const isSelected = selectedEmailId === item.id;
+                  const hasExceptions = item.exceptionCount > 0;
+                  const isResolved = item.processingStatus === "Resolved" || item.processingStatus === "Processed";
+                  const openExps = item.outstandingItems.filter(e => e.status !== "Resolved");
+                  const sourcePaymentsCount = item.transactions.filter(t => t.type === "NEFT Payment" || t.type === "Receipt Voucher").length;
+                  const linkedInvoicesCount = item.transactions.filter(t => t.type === "Invoice / Bill" || t.type === "Debit Note").length;
 
-                  {/* Action Buttons Row */}
-                  <div className="flex items-center gap-2 mt-1.5 pt-2 border-t border-border/40">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEmailSelect(item.id);
-                        setShowEmailModal(true);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 hover:bg-secondary/60 hover:text-foreground border border-transparent transition-colors cursor-pointer text-[10px] font-medium text-muted-foreground bg-transparent"
-                    >
-                      <Mail size={11} />
-                      <span>View Email</span>
-                    </button>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedCardThreads((prev) => ({
-                          ...prev,
-                          [item.id]: !prev[item.id]
-                        }));
-                      }}
-                      className="flex items-center justify-center p-1 rounded hover:bg-secondary border cursor-pointer text-muted-foreground bg-card border-border"
-                      title="Toggle Thread History"
-                    >
-                      <History size={11} />
-                      <span className="text-[9px] ml-0.5 font-bold">({item.longEmailThread.length + 1})</span>
-                    </button>
-                  </div>
-
-                  {/* Compact Collapsible Email Thread History */}
-                  {expandedCardThreads[item.id] && (
+                  return (
                     <div
-                      className="flex flex-col gap-1.5 mt-2 p-2 rounded-xl bg-secondary/30 border border-border/40 text-[9.5px]"
-                      onClick={(e) => e.stopPropagation()}
+                      key={item.id}
+                      onClick={() => handleEmailSelect(item.id)}
+                      className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
+                        isSelected
+                          ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                          : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
+                      }`}
+                      style={{}}
                     >
-                      <div className="font-bold text-[8.5px] text-muted-foreground tracking-wider uppercase border-b border-border/30 pb-0.5">
-                        Email Thread History
+                      {/* Status & Confidence Header */}
+                      <div className="flex items-center justify-between w-full">
+                        <span
+                          className="rounded-full px-2 py-0.5 font-bold text-[9px]"
+                          style={{
+                            background: isResolved
+                              ? "rgba(34,197,94,0.08)"
+                              : hasExceptions
+                              ? "rgba(239,68,68,0.08)"
+                              : "rgba(245,158,11,0.08)",
+                            color: isResolved ? "#22c55e" : hasExceptions ? "#ef4444" : "#f59e0b"
+                          }}
+                        >
+                          {item.processingStatus}
+                        </span>
                       </div>
-                      
-                      <div className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
-                        <div className="flex justify-between items-center text-[8.5px]">
-                          <strong className="text-foreground">{item.sender.split("@")[0]}</strong>
-                          <span className="text-muted-foreground">{item.date.split(",")[0]}</span>
-                        </div>
-                        <p className="m-0 text-muted-foreground truncate leading-normal">
-                          {item.body}
+
+                      {/* Subject & Summary */}
+                      <div className="flex flex-col gap-1">
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "var(--foreground)",
+                            lineHeight: 1.3
+                          }}
+                        >
+                          {item.subject}
+                        </span>
+                        <p
+                          className="m-0 text-muted-foreground"
+                          style={{
+                            fontSize: 10.5,
+                            lineHeight: 1.4,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden"
+                          }}
+                        >
+                          {item.threadSummary}
                         </p>
                       </div>
 
-                      {item.longEmailThread.map((thread, thIdx) => (
-                        <div key={thIdx} className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
-                          <div className="flex justify-between items-center text-[8.5px]">
-                            <strong className="text-foreground">{thread.sender.split("@")[0]}</strong>
-                            <span className="text-muted-foreground">{thread.date.split(",")[0]}</span>
-                          </div>
-                          <p className="m-0 text-muted-foreground truncate leading-normal">
-                            {thread.body}
-                          </p>
+                      {/* Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] border-t border-border/40 pt-2.5">
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Amt:</span>
+                          <strong style={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                            ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </strong>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-muted-foreground">Payments:</span>
+                          <strong style={{ color: "var(--foreground)" }}>{sourcePaymentsCount}</strong>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Invoices:</span>
+                          <strong style={{ color: "var(--foreground)" }}>{linkedInvoicesCount}</strong>
+                        </div>
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-muted-foreground">Exceptions:</span>
+                          <strong style={{ color: openExps.length > 0 ? "#ef4444" : "var(--foreground)" }}>
+                            {openExps.length}
+                          </strong>
+                        </div>
+                      </div>
 
+                      {/* Action Buttons Row */}
+                      <div className="flex items-center gap-2 mt-1.5 pt-2 border-t border-border/40">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEmailSelect(item.id);
+                            setShowEmailModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 hover:bg-secondary/60 hover:text-foreground border border-transparent transition-colors cursor-pointer text-[10px] font-medium text-muted-foreground bg-transparent"
+                        >
+                          <Mail size={11} />
+                          <span>View Email</span>
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedCardThreads((prev) => ({
+                              ...prev,
+                              [item.id]: !prev[item.id]
+                            }));
+                          }}
+                          className="flex items-center justify-center p-1 rounded hover:bg-secondary border cursor-pointer text-muted-foreground bg-card border-border"
+                          title="Toggle Thread History"
+                        >
+                          <History size={11} />
+                          <span className="text-[9px] ml-0.5 font-bold">({item.longEmailThread.length + 1})</span>
+                        </button>
+                      </div>
+
+                      {/* Compact Collapsible Email Thread History */}
+                      {expandedCardThreads[item.id] && (
+                        <div
+                          className="flex flex-col gap-1.5 mt-2 p-2 rounded-xl bg-secondary/30 border border-border/40 text-[9.5px]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="font-bold text-[8.5px] text-muted-foreground tracking-wider uppercase border-b border-border/30 pb-0.5">
+                            Email Thread History
+                          </div>
+                          
+                          <div className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
+                            <div className="flex justify-between items-center text-[8.5px]">
+                              <strong className="text-foreground">{item.sender.split("@")[0]}</strong>
+                              <span className="text-muted-foreground">{item.date.split(",")[0]}</span>
+                            </div>
+                            <p className="m-0 text-muted-foreground truncate leading-normal">
+                              {item.body}
+                            </p>
+                          </div>
+
+                          {item.longEmailThread.map((thread, thIdx) => (
+                            <div key={thIdx} className="flex flex-col gap-0.5 pb-1 border-b border-border/20 last:border-none last:pb-0">
+                              <div className="flex justify-between items-center text-[8.5px]">
+                                <strong className="text-foreground">{thread.sender.split("@")[0]}</strong>
+                                <span className="text-muted-foreground">{thread.date.split(",")[0]}</span>
+                              </div>
+                              <p className="m-0 text-muted-foreground truncate leading-normal">
+                                {thread.body}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )
+            ) : (
+              // Reusing Remediation Queue Card component for Manual Upload Ingestion mode
+              filteredQueue.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-2 text-center px-4">
+                  <FileText size={24} style={{ color: "var(--muted-foreground)" }} />
+                  <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No manual upload records found.</p>
                 </div>
-              );
-            })
-          )}
+              ) : (
+                filteredQueue.map((item) => {
+                  const isSelected = selectedEmailId === item.id;
+                  const manualStatus = (item as any).manualStatus || "Uploaded";
+                  const manualSource = (item as any).manualSourceType || "Bank Statement";
+                  const isResolved = manualStatus === "Completed" || manualStatus === "Matched" || manualStatus === "Processed";
+                  const hasExceptions = manualStatus === "Exception Found";
+                  const openExps = item.outstandingItems.filter(e => e.status !== "Resolved");
+                  const sourcePaymentsCount = item.transactions.filter(t => t.type === "NEFT Payment" || t.type === "Receipt Voucher").length;
+                  const linkedInvoicesCount = item.transactions.filter(t => t.type === "Invoice / Bill" || t.type === "Debit Note").length;
+
+                  let badgeBg = "rgba(245,158,11,0.08)";
+                  let badgeColor = "#f59e0b";
+
+                  if (isResolved) {
+                    badgeBg = "rgba(34,197,94,0.08)";
+                    badgeColor = "#22c55e";
+                  } else if (hasExceptions) {
+                    badgeBg = "rgba(239,68,68,0.08)";
+                    badgeColor = "#ef4444";
+                  }
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleEmailSelect(item.id)}
+                      className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
+                        isSelected
+                          ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                          : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
+                      }`}
+                      style={{}}
+                    >
+                      {/* Status & Confidence Header */}
+                      <div className="flex items-center justify-between w-full">
+                        <span
+                          className="rounded-full px-2 py-0.5 font-bold text-[9px]"
+                          style={{
+                            background: badgeBg,
+                            color: badgeColor
+                          }}
+                        >
+                          {manualStatus}
+                        </span>
+                      </div>
+
+                      {/* Source Title & Summary */}
+                      <div className="flex flex-col gap-1">
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "var(--foreground)",
+                            lineHeight: 1.3
+                          }}
+                        >
+                          {manualSource}
+                        </span>
+                        <p
+                          className="m-0 text-muted-foreground"
+                          style={{
+                            fontSize: 10.5,
+                            lineHeight: 1.4,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden"
+                          }}
+                        >
+                          {item.threadSummary}
+                        </p>
+                      </div>
+
+                      {/* Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] border-t border-border/40 pt-2.5">
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Amt:</span>
+                          <strong style={{ color: "var(--foreground)", fontFamily: "var(--font-mono)" }}>
+                            ₹{item.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </strong>
+                        </div>
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-muted-foreground">Payments:</span>
+                          <strong style={{ color: "var(--foreground)" }}>{sourcePaymentsCount}</strong>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground">Invoices:</span>
+                          <strong style={{ color: "var(--foreground)" }}>{linkedInvoicesCount}</strong>
+                        </div>
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-muted-foreground">Exceptions:</span>
+                          <strong style={{ color: openExps.length > 0 ? "#ef4444" : "var(--foreground)" }}>
+                            {openExps.length}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons Row */}
+                      <div className="flex items-center gap-2 mt-1.5 pt-2 border-t border-border/40">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadAttachment(item);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded px-2 py-1 hover:bg-secondary/60 hover:text-foreground border border-transparent transition-colors cursor-pointer text-[10px] font-medium text-muted-foreground bg-transparent"
+                        >
+                          <Download size={11} />
+                          <span>Download Attachment</span>
+                        </button>
+
+                        <div 
+                          className="flex items-center justify-center p-1 rounded border text-muted-foreground bg-secondary/40 border-border"
+                          style={{ fontSize: 9, fontWeight: 700 }}
+                          title="Uploaded Attachments"
+                        >
+                          <Paperclip size={11} />
+                          <span className="ml-0.5">({item.attachments ? item.attachments.length : 1})</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            )}
+          </div>
         </div>
-      </div>
 
       {/* ─── COLUMN 2: WORKSPACE PANEL (INTERACTIVE CANVAS) ─── */}
       <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 relative" style={{ background: "var(--secondary)" }}>
@@ -2207,6 +2842,7 @@ export function TransactionHubPage() {
 
         {/* Payment Allocation Interactive Canvas */}
         <ReconciliationCanvas
+          key={activeEmail.id}
           topLeftControls={
             <div className="flex items-center gap-2 px-2 py-1 text-[11px] font-medium text-foreground text-left">
               <span className="text-muted-foreground font-semibold">Flow View:</span>
@@ -3376,6 +4012,211 @@ export function TransactionHubPage() {
           </div>
         </div>
       )}
+      {/* ─── UPLOAD MANUALLY MODAL ─── */}
+      {showUploadModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => {
+            setShowUploadModal(false);
+            setUploadFile(null);
+          }}
+        >
+          <div 
+            className="w-full max-w-3xl rounded-xl border flex flex-col max-h-[85vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+              <div>
+                <h3 className="text-base font-bold">Upload Reconciliation Data</h3>
+                <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
+                  Add manual statements or operational logs
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 text-left" style={{ background: "var(--card)" }}>
+              {/* Subtitle */}
+              <p style={{ fontSize: 12, lineHeight: 1.5, color: "var(--muted-foreground)", margin: 0 }}>
+                Upload statements or operational reports that were not received through email. Uploaded records will be processed by the AI reconciliation engine and added to the Manual Uploads queue.
+              </p>
+
+              <hr className="border-t border-border my-1" />
+
+              {/* Source Type Dropdown */}
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Source Type *
+                </label>
+                <select
+                  value={uploadSourceType}
+                  onChange={(e) => setUploadSourceType(e.target.value)}
+                  className="w-full rounded-lg p-2 border outline-none bg-secondary text-xs font-semibold"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)", height: 36 }}
+                >
+                  <option value="Bank Statement">Bank Statement</option>
+                  <option value="CRM Services & Revenue Operations">CRM Services & Revenue Operations</option>
+                  <option value="Cash Deposit">Cash Deposit</option>
+                  <option value="Cheque Deposit">Cheque Deposit</option>
+                  <option value="Collections Report">Collections Report</option>
+                  <option value="Online Transactions">Online Transactions</option>
+                  <option value="Payment Gateway">Payment Gateway</option>
+                  <option value="Payment Proof">Payment Proof</option>
+                  <option value="Sales Report">Sales Report</option>
+                </select>
+              </div>
+
+              {/* Upload File Dropzone */}
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Upload File *
+                </label>
+                <div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById("file-upload-input-modal")?.click()}
+                  className="flex flex-col items-center justify-center p-6 rounded-xl border border-dashed text-center transition-all cursor-pointer"
+                  style={{
+                    background: dragActive ? "rgba(107,140,255,0.06)" : "var(--secondary)",
+                    borderColor: dragActive ? "#6b8cff" : "var(--border)",
+                    minHeight: 100
+                  }}
+                >
+                  <input 
+                    id="file-upload-input-modal"
+                    type="file"
+                    accept=".pdf,.csv,.xlsx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setUploadFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <Paperclip size={18} className="text-indigo-500 mb-2" />
+                  {uploadFile ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xs font-semibold text-foreground truncate max-w-[280px]">
+                        {uploadFile.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {(uploadFile.size / 1024).toFixed(1)} KB • Click to replace
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)", margin: 0 }}>
+                        Drag & Drop file here, or <span className="text-indigo-500">Browse</span>
+                      </p>
+                      <p style={{ fontSize: 9, color: "var(--muted-foreground)", marginTop: 4 }}>
+                        Accepted formats: PDF, CSV, Excel (.xlsx), TXT
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Period inputs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    value={uploadPeriodFrom}
+                    onChange={(e) => setUploadPeriodFrom(e.target.value)}
+                    className="w-full rounded-lg p-2 border outline-none bg-secondary text-xs font-semibold"
+                    style={{ borderColor: "var(--border)", color: "var(--foreground)", height: 36 }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    value={uploadPeriodTo}
+                    onChange={(e) => setUploadPeriodTo(e.target.value)}
+                    className="w-full rounded-lg p-2 border outline-none bg-secondary text-xs font-semibold"
+                    style={{ borderColor: "var(--border)", color: "var(--foreground)", height: 36 }}
+                  />
+                </div>
+              </div>
+
+              {/* Reference Name */}
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Reference Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={uploadRefName}
+                  onChange={(e) => setUploadRefName(e.target.value)}
+                  placeholder="e.g. June Collections"
+                  className="w-full rounded-lg p-2 border outline-none bg-secondary text-xs font-semibold"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)", height: 36 }}
+                />
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={uploadDescription}
+                  onChange={(e) => setUploadDescription(e.target.value)}
+                  placeholder="Add details regarding this upload statement..."
+                  className="w-full rounded-lg p-2 border outline-none bg-secondary text-xs font-semibold"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end px-6 py-4 border-t gap-2.5 flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setUploadFile(null);
+                }}
+                className="rounded-lg px-4 py-2 hover:bg-accent border cursor-pointer font-semibold transition-colors text-xs"
+                style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddManualUpload}
+                disabled={!uploadFile}
+                className="rounded-lg px-4 py-2 cursor-pointer font-semibold transition-colors border-none text-xs"
+                style={{
+                  background: uploadFile ? "var(--foreground)" : "var(--muted)",
+                  color: uploadFile ? "var(--background)" : "var(--muted-foreground)",
+                  cursor: uploadFile ? "pointer" : "not-allowed"
+                }}
+              >
+                Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
+  </div>
   );
 }
