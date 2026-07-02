@@ -1089,10 +1089,16 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                     <div 
                       className="rounded-xl border p-6 mt-6 transition-all duration-300 ease-in-out animate-fadeIn animate-duration-300"
                       style={{
-                        background: "var(--secondary)",
+                        background: "#ffffff",
                         borderColor: "var(--border)",
-                        borderLeft: "4px solid #3b82f6",
-                        boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)"
+                        borderLeft: `4px solid ${
+                          selectedKPI === "Close Blocker" 
+                            ? "#ef4444" 
+                            : selectedKPI === "Moderate Issue" 
+                              ? "#f59e0b" 
+                              : "#10b981"
+                        }`,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
                       }}
                     >
                       {/* Breadcrumb */}
