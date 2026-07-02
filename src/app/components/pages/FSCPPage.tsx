@@ -426,6 +426,637 @@ const generateMockIssues = (): FSCPIssue[] => {
 
 const INITIAL_ISSUES: FSCPIssue[] = generateMockIssues();
 
+export interface InvestigationStageConfig {
+  id: string;
+  stageTitle: string;
+  description: string;
+  icon: any;
+  columns: { key: string; label: string; type?: 'text' | 'currency' | 'number' | 'status'; align?: 'left' | 'right' | 'center' }[];
+  searchFields: string[];
+  filters: { label: string; key: string; options: string[] }[];
+  defaultSort: { key: string; direction: 'asc' | 'desc' };
+  exportFilename: string;
+  emptyStateMessage: string;
+  totalRecords: number;
+}
+
+const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] => {
+  const lower = issue.process.toLowerCase();
+
+  if (lower.includes("asset")) {
+    return [
+      {
+        id: "companies",
+        stageTitle: "Affected Companies",
+        description: "Review legal entities impacted by capitalization delays or retirement variances.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Company", type: "text" },
+          { key: "Location", label: "Headquarters", type: "text" },
+          { key: "Issue Count", label: "Issues", type: "number" },
+          { key: "Financial Impact", label: "Financial Impact", type: "currency", align: "right" },
+          { key: "Status", label: "Status", type: "status" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "In Progress", "Resolved"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_FixedAssets_Companies",
+        emptyStateMessage: "No affected companies matched your filters.",
+        totalRecords: 5000
+      },
+      {
+        id: "warehouses",
+        stageTitle: "Warehouses",
+        description: "Drill down to physical locations housing capital assets and equipment inventory.",
+        icon: Sliders,
+        columns: [
+          { key: "Warehouse", label: "Warehouse", type: "text" },
+          { key: "Location", label: "Zone/Area", type: "text" },
+          { key: "Issue Count", label: "Active Disputes", type: "number" },
+          { key: "Financial Impact", label: "Book Value Impact", type: "currency", align: "right" },
+          { key: "Status", label: "Status", type: "status" }
+        ],
+        searchFields: ["Warehouse", "Location"],
+        filters: [
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "Resolved"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_FixedAssets_Warehouses",
+        emptyStateMessage: "No warehouses found matching search criteria.",
+        totalRecords: 2000
+      },
+      {
+        id: "categories",
+        stageTitle: "Asset Categories",
+        description: "Select asset classification tags to isolate capitalization or useful life errors.",
+        icon: Layers,
+        columns: [
+          { key: "Category", label: "Asset Category", type: "text" },
+          { key: "Issue Count", label: "Anomalies", type: "number" },
+          { key: "Financial Impact", label: "Depreciation Impact", type: "currency", align: "right" }
+        ],
+        searchFields: ["Category"],
+        filters: [],
+        defaultSort: { key: "Issue Count", direction: "desc" },
+        exportFilename: "FSCP_FixedAssets_Categories",
+        emptyStateMessage: "No asset categories match your filter criteria.",
+        totalRecords: 10000
+      },
+      {
+        id: "assets",
+        stageTitle: "Assets",
+        description: "Analyze individual blocked capital assets and depreciation schedule lines.",
+        icon: FileText,
+        columns: [
+          { key: "Asset", label: "Asset Name", type: "text" },
+          { key: "ID", label: "Asset ID", type: "text" },
+          { key: "Ageing", label: "Ageing", type: "text" },
+          { key: "Financial Impact", label: "Net Value", type: "currency", align: "right" },
+          { key: "Date", label: "Acquisition Date", type: "text" }
+        ],
+        searchFields: ["Asset", "ID"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_FixedAssets_Assets",
+        emptyStateMessage: "No individual assets match the search query.",
+        totalRecords: 50000
+      }
+    ];
+  }
+
+  if (lower.includes("payable") || lower.includes("ap") || lower.includes("procure")) {
+    return [
+      {
+        id: "companies",
+        stageTitle: "Companies",
+        description: "Select companies experiencing vendor liability matching disputes.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Company Entity", type: "text" },
+          { key: "Location", label: "Region", type: "text" },
+          { key: "Issue Count", label: "Open Issues", type: "number" },
+          { key: "Financial Impact", label: "Outstanding Liability", type: "currency", align: "right" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AP_Companies",
+        emptyStateMessage: "No companies found.",
+        totalRecords: 5000
+      },
+      {
+        id: "vendors",
+        stageTitle: "Vendors",
+        description: "Analyze supplier records with pending invoice or bank profile hold discrepancies.",
+        icon: User,
+        columns: [
+          { key: "Vendor", label: "Supplier / Vendor", type: "text" },
+          { key: "Business Unit", label: "Purchasing BU", type: "text" },
+          { key: "Issue Count", label: "Pending Vouchers", type: "number" },
+          { key: "Financial Impact", label: "Disputed Amount", type: "currency", align: "right" }
+        ],
+        searchFields: ["Vendor", "Business Unit"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AP_Vendors",
+        emptyStateMessage: "No vendors match the search query.",
+        totalRecords: 4500
+      },
+      {
+        id: "invoices",
+        stageTitle: "Invoices",
+        description: "Review individual disputed invoices held due to price or quantity matching limits.",
+        icon: FileSpreadsheet,
+        columns: [
+          { key: "Invoice", label: "Invoice Number", type: "text" },
+          { key: "Date", label: "Invoice Date", type: "text" },
+          { key: "Ageing", label: "Hold Duration", type: "text" },
+          { key: "Financial Impact", label: "Invoice Value", type: "currency", align: "right" }
+        ],
+        searchFields: ["Invoice"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AP_Invoices",
+        emptyStateMessage: "No invoices match the filters.",
+        totalRecords: 12000
+      },
+      {
+        id: "invoice_lines",
+        stageTitle: "Invoice Lines",
+        description: "Review detailed lines of the selected supplier invoice to locate price variances.",
+        icon: Calculator,
+        columns: [
+          { key: "Line Item", label: "Line Item", type: "text" },
+          { key: "Description", label: "Description", type: "text" },
+          { key: "Quantity", label: "Qty", type: "number" },
+          { key: "Rate", label: "Unit Rate", type: "currency", align: "right" },
+          { key: "Financial Impact", label: "Extended Amount", type: "currency", align: "right" }
+        ],
+        searchFields: ["Line Item", "Description"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AP_InvoiceLines",
+        emptyStateMessage: "No invoice lines found.",
+        totalRecords: 4
+      }
+    ];
+  }
+
+  if (lower.includes("receivable") || lower.includes("ar") || lower.includes("order")) {
+    return [
+      {
+        id: "companies",
+        stageTitle: "Companies",
+        description: "Identify trading entities experiencing unallocated cash or customer disputes.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Company Entity", type: "text" },
+          { key: "Location", label: "Region", type: "text" },
+          { key: "Issue Count", label: "Disputes", type: "number" },
+          { key: "Financial Impact", label: "Aging Receivable", type: "currency", align: "right" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AR_Companies",
+        emptyStateMessage: "No companies found.",
+        totalRecords: 5000
+      },
+      {
+        id: "customers",
+        stageTitle: "Customers",
+        description: "Analyze customer accounts with pending collection allocations.",
+        icon: User,
+        columns: [
+          { key: "Customer", label: "Customer Name", type: "text" },
+          { key: "Region", label: "Sales Region", type: "text" },
+          { key: "Issue Count", label: "Unapplied Receipts", type: "number" },
+          { key: "Financial Impact", label: "Unallocated Balance", type: "currency", align: "right" }
+        ],
+        searchFields: ["Customer", "Region"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AR_Customers",
+        emptyStateMessage: "No customers match the query.",
+        totalRecords: 6000
+      },
+      {
+        id: "invoices",
+        stageTitle: "Invoices",
+        description: "View customer invoice registers awaiting remittance advice matches.",
+        icon: FileSpreadsheet,
+        columns: [
+          { key: "Invoice", label: "Invoice ID", type: "text" },
+          { key: "Date", label: "Due Date", type: "text" },
+          { key: "Ageing", label: "Overdue Ageing", type: "text" },
+          { key: "Financial Impact", label: "Amount Due", type: "currency", align: "right" }
+        ],
+        searchFields: ["Invoice"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AR_Invoices",
+        emptyStateMessage: "No matching invoices found.",
+        totalRecords: 12000
+      },
+      {
+        id: "invoice_items",
+        stageTitle: "Invoice Items",
+        description: "Inspect customer invoice line items to check active pricing disputes.",
+        icon: Calculator,
+        columns: [
+          { key: "Item", label: "Item / Service", type: "text" },
+          { key: "Description", label: "Detail Description", type: "text" },
+          { key: "Quantity", label: "Qty Sold", type: "number" },
+          { key: "Rate", label: "Selling Price", type: "currency", align: "right" },
+          { key: "Financial Impact", label: "Net Amount", type: "currency", align: "right" }
+        ],
+        searchFields: ["Item", "Description"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_AR_InvoiceItems",
+        emptyStateMessage: "No items found.",
+        totalRecords: 5
+      }
+    ];
+  }
+
+  if (lower.includes("bank") || lower.includes("cash")) {
+    return [
+      {
+        id: "companies",
+        stageTitle: "Entities / Companies",
+        description: "Select companies experiencing currency translation or bank ledger discrepancies.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Company", type: "text" },
+          { key: "Location", label: "HQ", type: "text" },
+          { key: "Issue Count", label: "Variance Alerts", type: "number" },
+          { key: "Financial Impact", label: "Translation Impact", type: "currency", align: "right" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_BankCash_Companies",
+        emptyStateMessage: "No companies found.",
+        totalRecords: 1200
+      },
+      {
+        id: "bank_accounts",
+        stageTitle: "Bank Accounts",
+        description: "Reconcile individual general ledger cash balance statements to bank feeds.",
+        icon: Wallet,
+        columns: [
+          { key: "ID", label: "Account Number", type: "text" },
+          { key: "Location", label: "Clearing Institution", type: "text" },
+          { key: "Ageing", label: "Unmatched Ageing", type: "text" },
+          { key: "Financial Impact", label: "Statement Variance", type: "currency", align: "right" }
+        ],
+        searchFields: ["ID", "Location"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_BankCash_Accounts",
+        emptyStateMessage: "No bank accounts found matching criteria.",
+        totalRecords: 80
+      }
+    ];
+  }
+
+  if (lower.includes("general ledger") || lower.includes("ledger") || lower.includes("allocations") || lower.includes("prepar")) {
+    return [
+      {
+        id: "companies",
+        stageTitle: "Companies",
+        description: "Identify companies with manual allocation entry or rate translation issues.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Legal Entity", type: "text" },
+          { key: "Location", label: "Region", type: "text" },
+          { key: "Issue Count", label: "Ledger Alerts", type: "number" },
+          { key: "Financial Impact", label: "Total Exposure", type: "currency", align: "right" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_GL_Companies",
+        emptyStateMessage: "No entities found.",
+        totalRecords: 3000
+      },
+      {
+        id: "business_units",
+        stageTitle: "Business Units",
+        description: "Drill into regional cost segments and corporate reporting entities.",
+        icon: Sliders,
+        columns: [
+          { key: "Business Unit", label: "Business Unit", type: "text" },
+          { key: "Issue Count", label: "Unposted Entries", type: "number" },
+          { key: "Financial Impact", label: "Allocation Variance", type: "currency", align: "right" }
+        ],
+        searchFields: ["Business Unit"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_GL_BusinessUnits",
+        emptyStateMessage: "No business units match criteria.",
+        totalRecords: 400
+      },
+      {
+        id: "cost_centers",
+        stageTitle: "Cost Centers",
+        description: "Select cost centers containing misaligned manual accrual journals.",
+        icon: Activity,
+        columns: [
+          { key: "Cost Center", label: "Cost Center", type: "text" },
+          { key: "Issue Count", label: "Blocked Items", type: "number" },
+          { key: "Financial Impact", label: "Reclass Amount", type: "currency", align: "right" }
+        ],
+        searchFields: ["Cost Center"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_GL_CostCenters",
+        emptyStateMessage: "No cost centers found.",
+        totalRecords: 1500
+      },
+      {
+        id: "accounts",
+        stageTitle: "GL Accounts",
+        description: "Review standard trial balance accounts for consolidation mismatches.",
+        icon: Scale,
+        columns: [
+          { key: "GL Account", label: "General Ledger Account", type: "text" },
+          { key: "Financial Impact", label: "Ledger Value", type: "currency", align: "right" },
+          { key: "Status", label: "Status", type: "status" }
+        ],
+        searchFields: ["GL Account"],
+        filters: [
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "In Progress", "Resolved"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_GL_Accounts",
+        emptyStateMessage: "No general ledger accounts match your filters.",
+        totalRecords: 8000
+      },
+      {
+        id: "journal_entries",
+        stageTitle: "Journal Entries",
+        description: "Inspect blocked journals and manual adjustments pending close reconciliation.",
+        icon: FileText,
+        columns: [
+          { key: "Journal Entry", label: "Entry Number", type: "text" },
+          { key: "Description", label: "Reconciliation Description", type: "text" },
+          { key: "Financial Impact", label: "Amount", type: "currency", align: "right" },
+          { key: "Status", label: "Status", type: "status" }
+        ],
+        searchFields: ["Journal Entry", "Description"],
+        filters: [],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_GL_JournalEntries",
+        emptyStateMessage: "No journal entries found.",
+        totalRecords: 25000
+      }
+    ];
+  }
+
+  // Default / Inventory Flow
+  return [
+    {
+      id: "companies",
+      stageTitle: "Companies",
+      description: "Select companies experiencing balance variance discrepancy blocks.",
+      icon: Layers,
+      columns: [
+        { key: "Company", label: "Company", type: "text" },
+        { key: "Location", label: "HQ Location", type: "text" },
+        { key: "Issue Count", label: "Active Issues", type: "number" },
+        { key: "Financial Impact", label: "Exposure Amount", type: "currency", align: "right" }
+      ],
+      searchFields: ["Company", "Location"],
+      filters: [],
+      defaultSort: { key: "Financial Impact", direction: "desc" },
+      exportFilename: "FSCP_Inventory_Companies",
+      emptyStateMessage: "No companies match the filters.",
+      totalRecords: 5000
+    },
+    {
+      id: "warehouses",
+      stageTitle: "Warehouses",
+      description: "Drill into distribution centers with WMS to ledger balance variances.",
+      icon: Sliders,
+      columns: [
+        { key: "Warehouse", label: "Warehouse", type: "text" },
+        { key: "Location", label: "Zone/Area", type: "text" },
+        { key: "Issue Count", label: "Discrepancy Count", type: "number" },
+        { key: "Financial Impact", label: "Write-down Value", type: "currency", align: "right" },
+        { key: "Status", label: "Status", type: "status" }
+      ],
+      searchFields: ["Warehouse", "Location"],
+      filters: [
+        { label: "Status", key: "Status", options: ["All Statuses", "Open", "Resolved"] }
+      ],
+      defaultSort: { key: "Financial Impact", direction: "desc" },
+      exportFilename: "FSCP_Inventory_Warehouses",
+      emptyStateMessage: "No warehouses match search criteria.",
+      totalRecords: 2000
+    },
+    {
+      id: "material_groups",
+      stageTitle: "Material Groups",
+      description: "Isolate valuation exception items by product material categories.",
+      icon: Layers,
+      columns: [
+        { key: "Material Group", label: "Material Group", type: "text" },
+        { key: "Issue Count", label: "Issues", type: "number" },
+        { key: "Financial Impact", label: "Impacted Value", type: "currency", align: "right" }
+      ],
+      searchFields: ["Material Group"],
+      filters: [],
+      defaultSort: { key: "Financial Impact", direction: "desc" },
+      exportFilename: "FSCP_Inventory_MaterialGroups",
+      emptyStateMessage: "No material groups found.",
+      totalRecords: 1500
+    },
+    {
+      id: "materials",
+      stageTitle: "Materials",
+      description: "Analyze individual inventory items, standard costings, or quantity count holds.",
+      icon: FileSpreadsheet,
+      columns: [
+        { key: "Material", label: "Item Name", type: "text" },
+        { key: "ID", label: "Material SKU ID", type: "text" },
+        { key: "Quantity", label: "Stock Quantity", type: "number" },
+        { key: "UOM", label: "UOM", type: "text" },
+        { key: "Financial Impact", label: "Valuation Difference", type: "currency", align: "right" }
+      ],
+      searchFields: ["Material", "ID"],
+      filters: [],
+      defaultSort: { key: "Financial Impact", direction: "desc" },
+      exportFilename: "FSCP_Inventory_Materials",
+      emptyStateMessage: "No SKUs match the current criteria.",
+      totalRecords: 35000
+    }
+  ];
+};
+
+const generateMockRowsForStage = (
+  stage: InvestigationStageConfig,
+  issue: FSCPIssue,
+  prevSelections: any[],
+  searchQuery: string,
+  filterValue: string,
+  page: number,
+  pageSize: number,
+  sortKey: string,
+  sortDirection: 'asc' | 'desc'
+): { rows: any[]; totalCount: number; filteredCount: number } => {
+  const totalCount = stage.totalRecords;
+  const recordsToGenerate = Math.min(totalCount, 1500);
+  const items: any[] = [];
+
+  for (let i = 0; i < recordsToGenerate; i++) {
+    const seed = i + 1;
+    const row: Record<string, any> = {};
+
+    stage.columns.forEach((col) => {
+      if (col.key === "Company" || col.key === "Affected Company" || col.key === "Entities / Companies") {
+        const companyNames = ["Acme Corp", "Global Logistics", "Bharat Solutions", "Pacific Trade", "Royal Industries", "EuroTech Group", "AmeriSource", "Apex Enterprises", "Standard Finance", "United Services", "Pan-Atlantic Inc", "Hindustan Enterprises", "Nippon Corp", "SinoTech Co", "Munich Re", "Nordic Ventures", "Alpine Logistics", "Sydney Shipping", "Vanguard Industries", "Delta Services"];
+        const code = `CO-${String(seed).padStart(4, '0')}`;
+        row[col.key] = `${companyNames[i % companyNames.length]} (${code})`;
+      } else if (col.key === "Warehouse") {
+        const whNames = ["Cargo Center", "Main Hub-2", "Express Depot", "Central WH", "Terminal 3", "Metro Facility", "North Logistics Park", "East Coast Gate", "Inland Port Alpha", "South distribution Center"];
+        row[col.key] = `${whNames[i % whNames.length]} #${seed}`;
+      } else if (col.key === "Category" || col.key === "Asset Category") {
+        const cats = ["Heavy Machinery", "IT Hardware", "Office Furniture", "Facility Infrastructure", "Industrial Tools", "Lab Equipment", "Fleet Vehicles", "Network Infrastructure", "Communication Systems"];
+        row[col.key] = cats[i % cats.length] + ` (CAT-${seed})`;
+      } else if (col.key === "Asset") {
+        const assetTypes = ["Generator", "Server Blade", "Forklift", "Conveyor Belt", "HVAC System", "Workstation", "Hydraulic Press", "Packaging Line", "Pumping Unit", "Cargo Truck"];
+        row[col.key] = `${assetTypes[i % assetTypes.length]} #${seed}`;
+      } else if (col.key === "Vendor") {
+        const vnames = ["Intel Corp", "Logitech Inc", "Apex Supplier Ltd", "Global Cargo Express", "Microsoft Corporation", "Oracle Corp", "Dell Technologies", "Sysco Foodservices", "Sumitomo Metals", "BASF Chemical", "Schneider Electric", "Siemens AG", "Maersk Shipping", "FedEx Supply Chain", "DHL Global Forwarding"];
+        row[col.key] = `${vnames[i % vnames.length]} (VND-${seed})`;
+      } else if (col.key === "Customer") {
+        const cnames = ["Enterprise Corp", "SME Partners", "Acme Retail", "Interstate Wholesale", "Global Traders", "Local Distributors", "Allied Trading", "Beacon Enterprises", "Core Holdings", "Direct Supply Co"];
+        row[col.key] = `${cnames[i % cnames.length]} (CST-${seed})`;
+      } else if (col.key === "Invoice") {
+        row[col.key] = `INV-2026-${String(seed).padStart(5, '0')}`;
+      } else if (col.key === "Line Item" || col.key === "Invoice Line") {
+        const itemsList = ["Item Inspection Charges", "Maintenance Fee", "Freight Overcharge", "Service Line Item #1", "Software Subscriptions", "Hardware Delivery Charge", "Consulting Fee Hours", "Licensing Surcharge", "Expedited Handling"];
+        row[col.key] = itemsList[i % itemsList.length] + ` (LN-${seed})`;
+      } else if (col.key === "Item" || col.key === "Invoice Item") {
+        const itemsList = ["Product Licensing Fee", "Late Delivery Fee Charge", "Reconciled Tax Differential", "Freight Carrier Tariff", "Handling Charges", "Standard Product Unit A", "Service Charge Hours", "Custom Duty Clearance", "Export Administration Fee"];
+        row[col.key] = itemsList[i % itemsList.length] + ` (ITM-${seed})`;
+      } else if (col.key === "Business Unit") {
+        const bus = ["Hardware Division", "Logistics", "Services", "Cloud Systems", "Office Supplies", "Enterprise Sales", "Regional Ops", "Global Transport"];
+        row[col.key] = bus[i % bus.length];
+      } else if (col.key === "GL Account") {
+        const accounts = ["11000 - Cash Ledger", "12000 - Trade Receivables", "13000 - Inventory Raw Materials", "21000 - Trade Payables", "22000 - Accrued Liabilities", "41000 - Sales Revenue", "51000 - Cost of Goods Sold", "61000 - Operating Expenses"];
+        row[col.key] = accounts[i % accounts.length];
+      } else if (col.key === "Cost Center") {
+        const cc = ["CC-100 - Admin", "CC-200 - Finance", "CC-300 - IT Support", "CC-400 - Operations", "CC-500 - Marketing", "CC-600 - Sales West", "CC-700 - Supply Chain", "CC-800 - R&D"];
+        row[col.key] = cc[i % cc.length];
+      } else if (col.key === "Journal Entry") {
+        row[col.key] = `JE-2026-${String(seed).padStart(5, '0')}`;
+      } else if (col.key === "Material Group") {
+        const groups = ["Raw Metals", "Packaging Film", "Electronics Assembly", "Plastic Resins", "Chemical Additives", "Machined Components", "Safety Gear", "Office Stationary", "Fabricated Parts"];
+        row[col.key] = groups[i % groups.length] + ` (GRP-${seed})`;
+      } else if (col.key === "Material") {
+        const parts = ["Aluminum Ingot 6061", "Polyethylene Roll", "PCB Controller Board", "Copper Wire Reel", "Silicon Sealant", "M8 Hex Screw", "Steel Sheet Grade B", "Fiberglass Core", "Lead Solder Alloy", "Nylon Fiber Thread"];
+        row[col.key] = `${parts[i % parts.length]} #${seed}`;
+      } else if (col.key === "ID") {
+        row[col.key] = `${stage.id.substring(0, 3).toUpperCase()}-${String(seed).padStart(5, '0')}`;
+      } else if (col.key === "Status") {
+        const statuses = ["Open", "In Progress", "Resolved"];
+        row[col.key] = statuses[i % 3];
+      } else if (col.key === "Location" || col.key === "Region") {
+        const locs = ["New York, USA", "Frankfurt, Germany", "Mumbai, India", "Singapore", "London, UK", "Tokyo, Japan", "Sydney, Australia", "Paris, France", "São Paulo, Brazil", "Toronto, Canada"];
+        row[col.key] = locs[i % locs.length];
+      } else if (col.key === "Date") {
+        row[col.key] = `2026-06-${String((i % 28) + 1).padStart(2, '0')}`;
+      } else if (col.key === "Ageing" || col.key === "Ageing Days") {
+        row[col.key] = `${(i % 45) + 1} Days`;
+      } else if (col.key === "Issue Count") {
+        row[col.key] = (i % 15) + 1;
+      } else if (col.key === "Financial Impact") {
+        row[col.key] = 3000 + (i % 30) * 1250;
+      } else if (col.key === "Quantity") {
+        row[col.key] = (i % 250) + 15;
+      } else if (col.key === "UOM") {
+        row[col.key] = ["units", "kg", "meters", "drums"][i % 4];
+      } else if (col.key === "Rate") {
+        row[col.key] = 150 + (i % 15) * 25;
+      } else if (col.key === "Description") {
+        row[col.key] = `Mock description for line entry detail #${seed}`;
+      } else {
+        row[col.key] = `Value #${seed}`;
+      }
+    });
+
+    items.push(row);
+  }
+
+  let filtered = items.filter((row) => {
+    let matchesSearch = true;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      matchesSearch = stage.searchFields.some((field) => {
+        const val = row[field];
+        return val !== undefined && String(val).toLowerCase().includes(query);
+      });
+    }
+
+    let matchesFilters = true;
+    if (filterValue && filterValue !== "All Statuses") {
+      if (row.Status && row.Status.toLowerCase() !== filterValue.toLowerCase()) {
+        matchesFilters = false;
+      }
+      if (row.Region && row.Region.toLowerCase() !== filterValue.toLowerCase()) {
+        matchesFilters = false;
+      }
+      if (row.Location && row.Location.toLowerCase() !== filterValue.toLowerCase()) {
+        matchesFilters = false;
+      }
+    }
+
+    return matchesSearch && matchesFilters;
+  });
+
+  if (sortKey) {
+    filtered.sort((a, b) => {
+      let valA = a[sortKey];
+      let valB = b[sortKey];
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        return sortDirection === "asc" ? valA - valB : valB - valA;
+      }
+
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const filteredCount = filtered.length;
+  let simulatedFilteredCount = filteredCount;
+  if (!searchQuery && (!filterValue || filterValue === "All Statuses")) {
+    simulatedFilteredCount = totalCount;
+  } else {
+    const ratio = filteredCount / recordsToGenerate;
+    simulatedFilteredCount = Math.floor(totalCount * ratio);
+  }
+
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filtered.length);
+  const pageSlice = filtered.slice(startIndex, endIndex);
+
+  return {
+    rows: pageSlice,
+    totalCount: totalCount,
+    filteredCount: simulatedFilteredCount
+  };
+};
+
 export function FSCPPage() {
   const [issues, setIssues] = useState<FSCPIssue[]>(INITIAL_ISSUES);
   const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
@@ -435,6 +1066,101 @@ export function FSCPPage() {
   
   // Modals state
   const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
+  const [activeIssueForInvestigation, setActiveIssueForInvestigation] = useState<FSCPIssue | null>(null);
+  const [investigationPath, setInvestigationPath] = useState<Array<{ stageId: string; label: string; record: any }>>([]);
+  const [isStageLoading, setIsStageLoading] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalSearch, setModalSearch] = useState("");
+  const [modalFilter, setModalFilter] = useState("All Statuses");
+  const [modalSortKey, setModalSortKey] = useState("");
+  const [modalSortDirection, setModalSortDirection] = useState<"asc" | "desc">("desc");
+
+  const handleStartInvestigation = (issue: FSCPIssue) => {
+    setActiveIssueForInvestigation(issue);
+    setInvestigationPath([]); 
+    setModalPage(1);
+    setModalSearch("");
+    setModalFilter("All Statuses");
+    
+    const stages = getStagesConfigForIssue(issue);
+    if (stages.length > 0) {
+      setModalSortKey(stages[0].defaultSort.key);
+      setModalSortDirection(stages[0].defaultSort.direction);
+    }
+  };
+
+  const handleSelectStageRecord = (record: any, stage: InvestigationStageConfig) => {
+    const labelKey = Object.keys(record)[0];
+    const label = String(record[labelKey]);
+    
+    const newPath = [...investigationPath, { stageId: stage.id, label, record }];
+    const stages = activeIssueForInvestigation ? getStagesConfigForIssue(activeIssueForInvestigation) : [];
+    
+    setIsStageLoading(true);
+    setTimeout(() => {
+      setIsStageLoading(false);
+      setInvestigationPath(newPath);
+      setModalPage(1);
+      setModalSearch("");
+      setModalFilter("All Statuses");
+      
+      const nextStageIndex = newPath.length;
+      if (nextStageIndex < stages.length) {
+        setModalSortKey(stages[nextStageIndex].defaultSort.key);
+        setModalSortDirection(stages[nextStageIndex].defaultSort.direction);
+      } else {
+        setShowDetails(activeIssueForInvestigation);
+      }
+    }, 400);
+  };
+
+  const handleNavigateBreadcrumb = (index: number) => {
+    setIsStageLoading(true);
+    setTimeout(() => {
+      setIsStageLoading(false);
+      const newPath = investigationPath.slice(0, index);
+      setInvestigationPath(newPath);
+      setModalPage(1);
+      setModalSearch("");
+      setModalFilter("All Statuses");
+      
+      if (activeIssueForInvestigation) {
+        const stages = getStagesConfigForIssue(activeIssueForInvestigation);
+        if (index < stages.length) {
+          setModalSortKey(stages[index].defaultSort.key);
+          setModalSortDirection(stages[index].defaultSort.direction);
+        }
+      }
+    }, 400);
+  };
+
+  const handleCloseInvestigationExplorer = () => {
+    setActiveIssueForInvestigation(null);
+    setInvestigationPath([]);
+  };
+
+  const handleCloseWorkspace = () => {
+    setShowDetails(null);
+    if (activeIssueForInvestigation) {
+      const stages = getStagesConfigForIssue(activeIssueForInvestigation);
+      setInvestigationPath(investigationPath.slice(0, stages.length - 1));
+    }
+  };
+
+  const handleExportCurrentView = (stage: InvestigationStageConfig) => {
+    const timestamp = new Date().toLocaleString();
+    const alertMsg = `Export Successful!\n\n` +
+      `File: ${stage.exportFilename}_export.xlsx\n` +
+      `Stage: ${stage.stageTitle}\n` +
+      `Search Query: "${modalSearch || 'None'}"\n` +
+      `Applied Filters: "${modalFilter || 'All'}"\n` +
+      `Sorting: ${modalSortKey || 'Default'} (${modalSortDirection.toUpperCase()})\n` +
+      `Page: ${modalPage}\n` +
+      `Timestamp: ${timestamp}\n\n` +
+      `Simulated export of matching mock records.`;
+    triggerToast(alertMsg);
+  };
+
   const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
     title: string;
     message: string;
@@ -1125,21 +1851,22 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                       {/* Issue Table */}
                       <div className="overflow-x-auto">
                         <table className="w-full text-left font-sans" style={{ borderCollapse: "collapse" }}>
-                          <thead>
+                           <thead>
                             <tr className="border-b" style={{ borderColor: "var(--border)", fontSize: 11, color: "var(--muted-foreground)" }}>
                               <th className="py-2 font-bold">Issue Details</th>
                               <th className="py-2 font-bold">Status</th>
                               <th className="py-2 font-bold">Severity</th>
                               <th className="py-2 font-bold">Ageing</th>
                               <th className="py-2 font-bold text-right">Financial Impact</th>
-                              <th className="py-2 font-bold text-center w-28">Action</th>
+                              <th className="py-2 font-bold text-center w-12"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredIssues.map((issue) => (
                               <tr 
                                 key={issue.id} 
-                                className="border-b hover:bg-card/40 transition-colors" 
+                                onClick={() => handleStartInvestigation(issue)}
+                                className="border-b hover:bg-muted/10 cursor-pointer transition-colors" 
                                 style={{ borderColor: "var(--border)", fontSize: 12 }}
                               >
                                 <td className="py-2.5 pr-4">
@@ -1165,13 +1892,10 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                 <td className="py-2.5 text-right font-semibold text-foreground">
                                   ${issue.impact.toLocaleString()}
                                 </td>
-                                <td className="py-2.5 text-center">
-                                  <button
-                                    onClick={() => handleDrillAction(issue)}
-                                    className="px-2.5 py-1 rounded bg-blue-500 text-white text-[11px] font-bold border-none cursor-pointer hover:bg-blue-600 transition-colors"
-                                  >
-                                    View Details
-                                  </button>
+                                <td className="py-2.5 text-center text-slate-400">
+                                  <div className="flex items-center justify-center h-full">
+                                    <ChevronRight size={16} />
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -1226,7 +1950,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                 <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{showDetails.domain} • {showDetails.process}</p>
               </div>
               <button 
-                onClick={() => setShowDetails(null)}
+                onClick={handleCloseWorkspace}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
               >
                 <X size={18} />
@@ -1539,7 +2263,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
               </button>
               
               <button
-                onClick={() => setShowDetails(null)}
+                onClick={handleCloseWorkspace}
                 className="px-5 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
                 style={{ background: "var(--foreground)", color: "var(--background)" }}
               >
@@ -1547,6 +2271,299 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {activeIssueForInvestigation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
+          <div 
+            className="w-full max-w-5xl rounded-xl border flex flex-col h-[80vh] shadow-2xl overflow-hidden"
+            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+          >
+            {(() => {
+              const stages = getStagesConfigForIssue(activeIssueForInvestigation);
+              const currentStageIndex = investigationPath.length;
+              const safeStageIndex = Math.min(currentStageIndex, stages.length - 1);
+              const stage = stages[safeStageIndex];
+              const IconComp = stage?.icon || FileText;
+
+              const breadcrumbs = [
+                activeIssueForInvestigation.domain,
+                activeIssueForInvestigation.process,
+                activeIssueForInvestigation.type === "Close Blocker" ? "Close Blockers" : activeIssueForInvestigation.type === "Moderate Issue" ? "Moderate Issues" : "No Issues",
+                ...investigationPath.map(p => p.label)
+              ];
+
+              const pageSize = 10;
+              const { rows, totalCount, filteredCount } = generateMockRowsForStage(
+                stage,
+                activeIssueForInvestigation,
+                investigationPath,
+                modalSearch,
+                modalFilter,
+                modalPage,
+                pageSize,
+                modalSortKey,
+                modalSortDirection
+              );
+
+              return (
+                <>
+                  {/* Top Bar / Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex-1 min-w-0 pr-4">
+                      {/* Breadcrumbs */}
+                      <div className="flex items-center flex-wrap gap-1 text-[11px] text-muted-foreground font-medium mb-1.5 select-none">
+                        {breadcrumbs.map((bc, idx) => {
+                          const isSelection = idx >= 3;
+                          const isLast = idx === breadcrumbs.length - 1;
+                          return (
+                            <span key={idx} className="flex items-center gap-1">
+                              {idx > 0 && <span className="text-slate-400 font-normal">/</span>}
+                              <span 
+                                onClick={() => {
+                                  if (isLast) return;
+                                  if (isSelection) {
+                                    handleNavigateBreadcrumb(idx - 3);
+                                  } else {
+                                    handleCloseInvestigationExplorer();
+                                  }
+                                }}
+                                className={`transition-colors ${isLast ? "text-foreground font-semibold" : "cursor-pointer hover:text-blue-500"}`}
+                              >
+                                {bc}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      {/* Dynamic Title (Stage Title) */}
+                      <h3 className="text-base font-bold flex items-center gap-2 text-foreground">
+                        <IconComp size={18} className="text-blue-500" />
+                        {stage?.stageTitle}
+                      </h3>
+                      <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 1 }}>
+                        {stage?.description}
+                      </p>
+                    </div>
+
+                    <button 
+                      onClick={handleCloseInvestigationExplorer}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+                      className="p-1 rounded-full hover:bg-muted/50 transition-colors flex-shrink-0"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  {/* Toolbar & Filter Actions row */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-6 py-3 border-b flex-shrink-0 bg-muted/20" style={{ borderColor: "var(--border)" }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "var(--muted-foreground)" }}>
+                      {isStageLoading ? (
+                        <span>Simulating data retrieval...</span>
+                      ) : (
+                        <span>
+                          Showing <strong className="text-foreground">{Math.min(pageSize, rows.length)}</strong> of{" "}
+                          <strong className="text-foreground">{filteredCount.toLocaleString()}</strong> records
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder={`Search ${stage?.stageTitle.toLowerCase()}...`}
+                          value={modalSearch}
+                          onChange={(e) => {
+                            setModalSearch(e.target.value);
+                            setModalPage(1);
+                          }}
+                          className="pl-2.5 pr-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          style={{
+                            background: "var(--card)",
+                            borderColor: "var(--border)",
+                            color: "var(--foreground)",
+                            width: "180px"
+                          }}
+                        />
+                      </div>
+
+                      {stage?.filters.map((filt) => (
+                        <select
+                          key={filt.key}
+                          value={modalFilter}
+                          onChange={(e) => {
+                            setModalFilter(e.target.value);
+                            setModalPage(1);
+                          }}
+                          className="px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                          style={{
+                            background: "var(--card)",
+                            borderColor: "var(--border)",
+                            color: "var(--foreground)"
+                          }}
+                        >
+                          {filt.options.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      ))}
+
+                      <button
+                        onClick={() => handleExportCurrentView(stage)}
+                        className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
+                        style={{
+                          background: "var(--card)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)",
+                          cursor: "pointer"
+                        }}
+                      >
+                        <Download size={13} />
+                        Export Current View
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Main Scrollable Working Table Area */}
+                  <div className="flex-1 overflow-y-auto p-6 relative">
+                    {isStageLoading ? (
+                      <div className="absolute inset-0 bg-card/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3 animate-fadeIn">
+                        <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
+                        <span className="text-xs font-semibold text-muted-foreground">Retrieving enterprise records...</span>
+                      </div>
+                    ) : null}
+
+                    {rows.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-xl" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                          <Activity size={20} className="opacity-60" />
+                        </div>
+                        <h4 className="text-sm font-bold text-foreground mb-1">No Records Found</h4>
+                        <p style={{ fontSize: 11, color: "var(--muted-foreground)", maxWidth: "280px" }}>
+                          {stage?.emptyStateMessage || "No records matched your search query or applied filters."}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto border rounded-xl" style={{ borderColor: "var(--border)" }}>
+                        <table className="w-full text-left font-sans" style={{ borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr className="border-b bg-muted/10" style={{ borderColor: "var(--border)", fontSize: 11, color: "var(--muted-foreground)" }}>
+                              {stage?.columns.map((col) => (
+                                <th 
+                                  key={col.key} 
+                                  onClick={() => {
+                                    if (modalSortKey === col.key) {
+                                      setModalSortDirection(prev => prev === "asc" ? "desc" : "asc");
+                                    } else {
+                                      setModalSortKey(col.key);
+                                      setModalSortDirection("desc");
+                                    }
+                                  }}
+                                  className={`py-3 px-4 font-bold select-none cursor-pointer hover:text-foreground transition-colors ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}`}
+                                >
+                                  <div className={`flex items-center gap-1 ${col.align === "right" ? "justify-end" : col.align === "center" ? "justify-center" : "justify-start"}`}>
+                                    {col.label}
+                                    {modalSortKey === col.key && (
+                                      <span className="text-[10px] text-blue-500 font-mono">
+                                        {modalSortDirection === "asc" ? "▲" : "▼"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </th>
+                              ))}
+                              <th className="w-10"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, rIdx) => {
+                              return (
+                                <tr
+                                  key={rIdx}
+                                  onClick={() => handleSelectStageRecord(row, stage)}
+                                  className="border-b hover:bg-muted/20 cursor-pointer transition-colors"
+                                  style={{ borderColor: "var(--border)", fontSize: 12 }}
+                                >
+                                  {stage?.columns.map((col) => {
+                                    const value = row[col.key];
+                                    return (
+                                      <td 
+                                        key={col.key} 
+                                        className={`py-3 px-4 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"}`}
+                                      >
+                                        {col.type === "currency" ? (
+                                          <span className="font-semibold text-foreground">
+                                            ${typeof value === "number" ? value.toLocaleString() : value}
+                                          </span>
+                                        ) : col.type === "status" ? (
+                                          <span style={{
+                                            color: value === "Resolved" || value === "Closed" ? "#10b981" : value === "In Progress" ? "#3b82f6" : "#f59e0b",
+                                            fontWeight: 600
+                                          }}>
+                                            {value}
+                                          </span>
+                                        ) : col.type === "number" ? (
+                                          <span className="text-foreground">{value}</span>
+                                        ) : (
+                                          <span className="text-foreground">{value}</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-3 px-4 text-center text-slate-400">
+                                    <ChevronRight size={14} />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Table Footer with Pagination controls */}
+                  {!isStageLoading && rows.length > 0 && (
+                    <div className="flex justify-between items-center px-6 py-4 border-t flex-shrink-0 bg-muted/5" style={{ borderColor: "var(--border)" }}>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                        Showing Page {modalPage} of {Math.ceil(filteredCount / pageSize)}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          disabled={modalPage === 1}
+                          onClick={() => setModalPage(p => Math.max(1, p - 1))}
+                          className="px-3 py-1.5 rounded-lg border text-xs font-semibold hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          style={{
+                            background: "var(--card)",
+                            borderColor: "var(--border)",
+                            color: "var(--foreground)"
+                          }}
+                        >
+                          Previous
+                        </button>
+                        <button
+                          disabled={modalPage >= Math.ceil(filteredCount / pageSize)}
+                          onClick={() => setModalPage(p => p + 1)}
+                          className="px-3 py-1.5 rounded-lg border text-xs font-semibold hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          style={{
+                            background: "var(--card)",
+                            borderColor: "var(--border)",
+                            color: "var(--foreground)"
+                          }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
