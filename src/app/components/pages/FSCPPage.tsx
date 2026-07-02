@@ -438,6 +438,7 @@ export interface InvestigationStageConfig {
   exportFilename: string;
   emptyStateMessage: string;
   totalRecords: number;
+  breadcrumbField: string;
 }
 
 const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] => {
@@ -465,7 +466,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Companies",
         emptyStateMessage: "No affected companies matched your filters.",
-        totalRecords: 5000
+        totalRecords: 5000,
+        breadcrumbField: "Company"
       },
       {
         id: "warehouses",
@@ -487,7 +489,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Warehouses",
         emptyStateMessage: "No warehouses found matching search criteria.",
-        totalRecords: 2000
+        totalRecords: 2000,
+        breadcrumbField: "Warehouse"
       },
       {
         id: "categories",
@@ -507,7 +510,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Issue Count", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Categories",
         emptyStateMessage: "No asset categories match your filter criteria.",
-        totalRecords: 10000
+        totalRecords: 10000,
+        breadcrumbField: "Category"
       },
       {
         id: "assets",
@@ -529,7 +533,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Assets",
         emptyStateMessage: "No individual assets match the search query.",
-        totalRecords: 50000
+        totalRecords: 50000,
+        breadcrumbField: "Asset"
       }
     ];
   }
@@ -555,7 +560,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Companies",
         emptyStateMessage: "No companies found.",
-        totalRecords: 5000
+        totalRecords: 5000,
+        breadcrumbField: "Company"
       },
       {
         id: "vendors",
@@ -576,7 +582,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Vendors",
         emptyStateMessage: "No vendors match the search query.",
-        totalRecords: 4500
+        totalRecords: 4500,
+        breadcrumbField: "Vendor"
       },
       {
         id: "invoices",
@@ -597,7 +604,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Invoices",
         emptyStateMessage: "No invoices match the filters.",
-        totalRecords: 12000
+        totalRecords: 12000,
+        breadcrumbField: "Invoice"
       },
       {
         id: "invoice_lines",
@@ -619,7 +627,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_InvoiceLines",
         emptyStateMessage: "No invoice lines found.",
-        totalRecords: 4
+        totalRecords: 4,
+        breadcrumbField: "Line Item"
       }
     ];
   }
@@ -645,7 +654,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Companies",
         emptyStateMessage: "No companies found.",
-        totalRecords: 5000
+        totalRecords: 5000,
+        breadcrumbField: "Company"
       },
       {
         id: "customers",
@@ -666,7 +676,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Customers",
         emptyStateMessage: "No customers match the query.",
-        totalRecords: 6000
+        totalRecords: 6000,
+        breadcrumbField: "Customer"
       },
       {
         id: "invoices",
@@ -687,7 +698,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Invoices",
         emptyStateMessage: "No matching invoices found.",
-        totalRecords: 12000
+        totalRecords: 12000,
+        breadcrumbField: "Invoice"
       },
       {
         id: "invoice_items",
@@ -709,7 +721,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_InvoiceItems",
         emptyStateMessage: "No items found.",
-        totalRecords: 5
+        totalRecords: 5,
+        breadcrumbField: "Item"
       }
     ];
   }
@@ -735,7 +748,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_BankCash_Companies",
         emptyStateMessage: "No companies found.",
-        totalRecords: 1200
+        totalRecords: 1200,
+        breadcrumbField: "Company"
       },
       {
         id: "bank_accounts",
@@ -756,7 +770,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_BankCash_Accounts",
         emptyStateMessage: "No bank accounts found matching criteria.",
-        totalRecords: 80
+        totalRecords: 80,
+        breadcrumbField: "ID"
       }
     ];
   }
@@ -782,7 +797,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_Companies",
         emptyStateMessage: "No entities found.",
-        totalRecords: 3000
+        totalRecords: 3000,
+        breadcrumbField: "Company"
       },
       {
         id: "business_units",
@@ -802,7 +818,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_BusinessUnits",
         emptyStateMessage: "No business units match criteria.",
-        totalRecords: 400
+        totalRecords: 400,
+        breadcrumbField: "Business Unit"
       },
       {
         id: "cost_centers",
@@ -822,7 +839,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_CostCenters",
         emptyStateMessage: "No cost centers found.",
-        totalRecords: 1500
+        totalRecords: 1500,
+        breadcrumbField: "Cost Center"
       },
       {
         id: "accounts",
@@ -842,7 +860,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_Accounts",
         emptyStateMessage: "No general ledger accounts match your filters.",
-        totalRecords: 8000
+        totalRecords: 8000,
+        breadcrumbField: "GL Account"
       },
       {
         id: "journal_entries",
@@ -863,7 +882,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_JournalEntries",
         emptyStateMessage: "No journal entries found.",
-        totalRecords: 25000
+        totalRecords: 25000,
+        breadcrumbField: "Journal Entry"
       }
     ];
   }
@@ -889,7 +909,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Companies",
       emptyStateMessage: "No companies match the filters.",
-      totalRecords: 5000
+      totalRecords: 5000,
+      breadcrumbField: "Company"
     },
     {
       id: "warehouses",
@@ -911,7 +932,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Warehouses",
       emptyStateMessage: "No warehouses match search criteria.",
-      totalRecords: 2000
+      totalRecords: 2000,
+      breadcrumbField: "Warehouse"
     },
     {
       id: "material_groups",
@@ -931,7 +953,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_MaterialGroups",
       emptyStateMessage: "No material groups found.",
-      totalRecords: 1500
+      totalRecords: 1500,
+      breadcrumbField: "Material Group"
     },
     {
       id: "materials",
@@ -953,7 +976,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Materials",
       emptyStateMessage: "No SKUs match the current criteria.",
-      totalRecords: 35000
+      totalRecords: 35000,
+      breadcrumbField: "Material"
     }
   ];
 };
@@ -1215,8 +1239,7 @@ export function FSCPPage() {
   };
 
   const handleSelectStageRecord = (record: any, stage: InvestigationStageConfig) => {
-    const labelKey = Object.keys(record)[0];
-    const label = String(record[labelKey]);
+    const label = String(record[stage.breadcrumbField] ?? "");
     
     const newPath = [...investigationPath, { stageId: stage.id, label, record }];
     const stages = activeIssueForInvestigation ? getStagesConfigForIssue(activeIssueForInvestigation) : [];
@@ -1303,6 +1326,25 @@ export function FSCPPage() {
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
 
+  const [formBaseline, setFormBaseline] = useState<{
+    actionType: string;
+    owner: string;
+    dept: string;
+    priority: string;
+    dueDate: string;
+    notes: string;
+  } | null>(null);
+
+  const isFormModified = !!(
+    formBaseline &&
+    (assignActionType !== formBaseline.actionType ||
+     assignOwner !== formBaseline.owner ||
+     assignDept !== formBaseline.dept ||
+     assignPriority !== formBaseline.priority ||
+     assignDueDate !== formBaseline.dueDate ||
+     assignNotes !== formBaseline.notes)
+  );
+
   // Communication fields
   const [mailTo, setMailTo] = useState("");
   const [mailCc, setMailCc] = useState("");
@@ -1323,15 +1365,31 @@ export function FSCPPage() {
   useEffect(() => {
     if (showDetails) {
       const actions = getActionTypes(showDetails.process);
-      setAssignActionType(actions[0] || "Master Data Correction");
-      setAssignOwner(showDetails.ownerRole);
-      setAssignDept(showDetails.domain);
-      setAssignPriority(showDetails.severity === "Critical" || showDetails.severity === "High" ? "High" : "Medium");
+      const initialActionType = actions[0] || "Master Data Correction";
+      const initialOwner = showDetails.ownerRole;
+      const initialDept = showDetails.domain;
+      const initialPriority = showDetails.severity === "Critical" || showDetails.severity === "High" ? "High" : "Medium";
       
       const defaultDate = new Date();
       defaultDate.setDate(defaultDate.getDate() + 3);
-      setAssignDueDate(defaultDate.toISOString().substring(0, 10));
-      setAssignNotes("");
+      const initialDueDate = defaultDate.toISOString().substring(0, 10);
+      const initialNotes = "";
+
+      setAssignActionType(initialActionType);
+      setAssignOwner(initialOwner);
+      setAssignDept(initialDept);
+      setAssignPriority(initialPriority);
+      setAssignDueDate(initialDueDate);
+      setAssignNotes(initialNotes);
+
+      setFormBaseline({
+        actionType: initialActionType,
+        owner: initialOwner,
+        dept: initialDept,
+        priority: initialPriority,
+        dueDate: initialDueDate,
+        notes: initialNotes
+      });
 
       setMailTo(showDetails.ownerRole.toLowerCase().replace(/[^a-z]/g, "") + "@datatwin.ai");
       setMailCc("finance-close-control@datatwin.ai");
@@ -1517,6 +1575,15 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
     });
 
     triggerToast(`Resolution corrective actions successfully assigned to ${assignOwner}.`);
+
+    setFormBaseline({
+      actionType: assignActionType,
+      owner: assignOwner,
+      dept: assignDept,
+      priority: assignPriority,
+      dueDate: assignDueDate,
+      notes: assignNotes
+    });
   };
 
   const handleSendMailCommunication = () => {
@@ -1975,6 +2042,20 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                             Showing {filteredIssues.length} {selectedKPI === "Close Blocker" ? "Close Blocker" : selectedKPI === "Moderate Issue" ? "Moderate Issue" : "No Issue"}{filteredIssues.length !== 1 ? "s" : ""} for {activeProcess}
                           </p>
                         </div>
+                        <button
+                          disabled={filteredIssues.length === 0}
+                          onClick={() => triggerToast("Direct download is only available for individual issue reports.")}
+                          className="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
+                          style={{ 
+                            background: "var(--secondary)", 
+                            borderColor: "var(--border)", 
+                            color: filteredIssues.length === 0 ? "var(--muted-foreground)" : "var(--foreground)",
+                            cursor: filteredIssues.length === 0 ? "not-allowed" : "pointer" 
+                          }}
+                        >
+                          <Download size={13} />
+                          Download Summary
+                        </button>
                       </div>
 
                       {/* Issue Table */}
@@ -2030,26 +2111,10 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                         </table>
                       </div>
 
-                      {/* Footer Info (Total Impact and Download) */}
+                      {/* Footer Info (Total Impact only) */}
                       <div className="flex justify-between items-center mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>
                           Total Impact: <span style={{ color: "#ef4444" }}>${totalImpact.toLocaleString()}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            disabled={filteredIssues.length === 0}
-                            onClick={() => triggerToast("Direct download is only available for individual issue reports.")}
-                            className="px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                            style={{ 
-                              background: "var(--secondary)", 
-                              borderColor: "var(--border)", 
-                              color: filteredIssues.length === 0 ? "var(--muted-foreground)" : "var(--foreground)",
-                              cursor: filteredIssues.length === 0 ? "not-allowed" : "pointer" 
-                            }}
-                          >
-                            <Download size={13} />
-                            Download Summary
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -2246,9 +2311,15 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   </div>
 
                   <button
+                    disabled={!isFormModified}
                     onClick={handleAssignAction}
-                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1.5 transition-colors"
-                    style={{ background: "#3b82f6", color: "#fff" }}
+                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none transition-colors"
+                    style={{
+                      background: isFormModified ? "#3b82f6" : "var(--muted)",
+                      color: isFormModified ? "#fff" : "var(--muted-foreground)",
+                      cursor: isFormModified ? "pointer" : "not-allowed",
+                      opacity: isFormModified ? 1 : 0.6
+                    }}
                   >
                     Assign Resolution
                   </button>
@@ -2393,11 +2464,17 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
             {/* Footer */}
             <div className="flex items-shrink-0 items-center justify-end px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
               <button
-                onClick={handleCloseWorkspace}
-                className="px-5 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
-                style={{ background: "var(--foreground)", color: "var(--background)" }}
+                disabled={!isFormModified}
+                onClick={handleAssignAction}
+                className="px-5 py-1.5 rounded text-xs font-bold border-none transition-colors"
+                style={{
+                  background: isFormModified ? "var(--foreground)" : "var(--muted)",
+                  color: isFormModified ? "var(--background)" : "var(--muted-foreground)",
+                  cursor: isFormModified ? "pointer" : "not-allowed",
+                  opacity: isFormModified ? 1 : 0.5
+                }}
               >
-                Close
+                Save Action
               </button>
             </div>
 
