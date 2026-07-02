@@ -459,7 +459,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         ],
         searchFields: ["Company", "Location"],
         filters: [
-          { label: "Status", key: "Status", options: ["All Statuses", "Open", "In Progress", "Resolved"] }
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific", "South America"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture", "Branch"] }
         ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Companies",
@@ -480,7 +481,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         ],
         searchFields: ["Warehouse", "Location"],
         filters: [
-          { label: "Status", key: "Status", options: ["All Statuses", "Open", "Resolved"] }
+          { label: "Location", key: "Location", options: ["All Locations", "US East", "EU Central", "APAC South", "UK West"] },
+          { label: "Warehouse Type", key: "Warehouse Type", options: ["All Types", "Distribution Center", "Cold Storage", "Fulfillment", "Cross-Dock"] }
         ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Warehouses",
@@ -498,7 +500,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Depreciation Impact", type: "currency", align: "right" }
         ],
         searchFields: ["Category"],
-        filters: [],
+        filters: [
+          { label: "Asset Class", key: "Asset Class", options: ["All Classes", "Machinery", "Equipment", "Vehicles", "Buildings"] },
+          { label: "Depreciation Method", key: "Depreciation Method", options: ["All Methods", "Straight Line", "Double Declining", "MACRS"] }
+        ],
         defaultSort: { key: "Issue Count", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Categories",
         emptyStateMessage: "No asset categories match your filter criteria.",
@@ -517,7 +522,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Date", label: "Acquisition Date", type: "text" }
         ],
         searchFields: ["Asset", "ID"],
-        filters: [],
+        filters: [
+          { label: "Ageing", key: "Ageing", options: ["All Ageing", "New (< 1 yr)", "Medium (1-3 yrs)", "Old (> 3 yrs)"] },
+          { label: "Acquisition Date", key: "Acquisition Date", options: ["All Dates", "Q1 2026", "Q2 2026", "2025", "2024"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_FixedAssets_Assets",
         emptyStateMessage: "No individual assets match the search query.",
@@ -540,7 +548,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Outstanding Liability", type: "currency", align: "right" }
         ],
         searchFields: ["Company", "Location"],
-        filters: [],
+        filters: [
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Companies",
         emptyStateMessage: "No companies found.",
@@ -558,7 +569,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Disputed Amount", type: "currency", align: "right" }
         ],
         searchFields: ["Vendor", "Business Unit"],
-        filters: [],
+        filters: [
+          { label: "Vendor Status", key: "Vendor Status", options: ["All Statuses", "Active", "On Hold", "Preferred"] },
+          { label: "Payment Terms", key: "Payment Terms", options: ["All Terms", "Net 30", "Net 60", "Due on Receipt"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Vendors",
         emptyStateMessage: "No vendors match the search query.",
@@ -576,7 +590,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Invoice Value", type: "currency", align: "right" }
         ],
         searchFields: ["Invoice"],
-        filters: [],
+        filters: [
+          { label: "Invoice Date", key: "Invoice Date", options: ["All Dates", "June 2026", "May 2026", "Q2 2026"] },
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "On Hold", "Approved"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_Invoices",
         emptyStateMessage: "No invoices match the filters.",
@@ -595,7 +612,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Extended Amount", type: "currency", align: "right" }
         ],
         searchFields: ["Line Item", "Description"],
-        filters: [],
+        filters: [
+          { label: "Line Type", key: "Line Type", options: ["All Types", "Item", "Charge", "Tax", "Freight"] },
+          { label: "Variance Status", key: "Variance Status", options: ["All Statuses", "Price Variance", "Qty Variance", "No Variance"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AP_InvoiceLines",
         emptyStateMessage: "No invoice lines found.",
@@ -618,7 +638,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Aging Receivable", type: "currency", align: "right" }
         ],
         searchFields: ["Company", "Location"],
-        filters: [],
+        filters: [
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Companies",
         emptyStateMessage: "No companies found.",
@@ -636,7 +659,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Unallocated Balance", type: "currency", align: "right" }
         ],
         searchFields: ["Customer", "Region"],
-        filters: [],
+        filters: [
+          { label: "Risk Level", key: "Risk Level", options: ["All Risks", "High", "Medium", "Low"] },
+          { label: "Industry", key: "Industry", options: ["All Industries", "Technology", "Retail", "Manufacturing", "Healthcare"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Customers",
         emptyStateMessage: "No customers match the query.",
@@ -654,7 +680,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Amount Due", type: "currency", align: "right" }
         ],
         searchFields: ["Invoice"],
-        filters: [],
+        filters: [
+          { label: "Invoice Date", key: "Invoice Date", options: ["All Dates", "June 2026", "May 2026", "Q2 2026"] },
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "Overdue", "Paid"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_Invoices",
         emptyStateMessage: "No matching invoices found.",
@@ -673,7 +702,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Net Amount", type: "currency", align: "right" }
         ],
         searchFields: ["Item", "Description"],
-        filters: [],
+        filters: [
+          { label: "Product Category", key: "Product Category", options: ["All Categories", "Software", "Hardware", "Services"] },
+          { label: "Dispute Code", key: "Dispute Code", options: ["All Codes", "Price Match", "Tax Discrepancy", "Return Hold"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_AR_InvoiceItems",
         emptyStateMessage: "No items found.",
@@ -696,7 +728,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Translation Impact", type: "currency", align: "right" }
         ],
         searchFields: ["Company", "Location"],
-        filters: [],
+        filters: [
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_BankCash_Companies",
         emptyStateMessage: "No companies found.",
@@ -714,7 +749,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Statement Variance", type: "currency", align: "right" }
         ],
         searchFields: ["ID", "Location"],
-        filters: [],
+        filters: [
+          { label: "Account Type", key: "Account Type", options: ["All Types", "Operating", "Savings", "Clearing", "Payroll"] },
+          { label: "Currency", key: "Currency", options: ["All Currencies", "USD", "EUR", "INR", "GBP"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_BankCash_Accounts",
         emptyStateMessage: "No bank accounts found matching criteria.",
@@ -737,7 +775,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Total Exposure", type: "currency", align: "right" }
         ],
         searchFields: ["Company", "Location"],
-        filters: [],
+        filters: [
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_Companies",
         emptyStateMessage: "No entities found.",
@@ -754,7 +795,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Allocation Variance", type: "currency", align: "right" }
         ],
         searchFields: ["Business Unit"],
-        filters: [],
+        filters: [
+          { label: "Unit Type", key: "Unit Type", options: ["All Types", "Division", "Subsidiary", "Branch"] },
+          { label: "Operating Region", key: "Operating Region", options: ["All Regions", "Domestic", "International"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_BusinessUnits",
         emptyStateMessage: "No business units match criteria.",
@@ -771,7 +815,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Financial Impact", label: "Reclass Amount", type: "currency", align: "right" }
         ],
         searchFields: ["Cost Center"],
-        filters: [],
+        filters: [
+          { label: "Department", key: "Department", options: ["All Departments", "Administration", "Operations", "R&D", "Sales"] },
+          { label: "CC Status", key: "CC Status", options: ["All Statuses", "Active", "Inactive"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_CostCenters",
         emptyStateMessage: "No cost centers found.",
@@ -789,7 +836,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         ],
         searchFields: ["GL Account"],
         filters: [
-          { label: "Status", key: "Status", options: ["All Statuses", "Open", "In Progress", "Resolved"] }
+          { label: "Account Class", key: "Account Class", options: ["All Classes", "Assets", "Liabilities", "Equity", "Revenue", "Expenses"] },
+          { label: "Status", key: "Status", options: ["All Statuses", "Active", "Suspended"] }
         ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_Accounts",
@@ -808,7 +856,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
           { key: "Status", label: "Status", type: "status" }
         ],
         searchFields: ["Journal Entry", "Description"],
-        filters: [],
+        filters: [
+          { label: "Entry Type", key: "Entry Type", options: ["All Types", "Manual Accrual", "Consolidation", "Tax", "Intercompany"] },
+          { label: "Status", key: "Status", options: ["All Statuses", "Open", "Pending Review", "Posted"] }
+        ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
         exportFilename: "FSCP_GL_JournalEntries",
         emptyStateMessage: "No journal entries found.",
@@ -831,7 +882,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         { key: "Financial Impact", label: "Exposure Amount", type: "currency", align: "right" }
       ],
       searchFields: ["Company", "Location"],
-      filters: [],
+      filters: [
+        { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+        { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+      ],
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Companies",
       emptyStateMessage: "No companies match the filters.",
@@ -851,7 +905,8 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
       ],
       searchFields: ["Warehouse", "Location"],
       filters: [
-        { label: "Status", key: "Status", options: ["All Statuses", "Open", "Resolved"] }
+        { label: "Location", key: "Location", options: ["All Locations", "US East", "EU Central", "APAC South", "UK West"] },
+        { label: "Warehouse Type", key: "Warehouse Type", options: ["All Types", "Distribution Center", "Cold Storage", "Fulfillment", "Cross-Dock"] }
       ],
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Warehouses",
@@ -869,7 +924,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         { key: "Financial Impact", label: "Impacted Value", type: "currency", align: "right" }
       ],
       searchFields: ["Material Group"],
-      filters: [],
+      filters: [
+        { label: "Material Group Type", key: "Material Group Type", options: ["All Types", "Raw Material", "Packaging", "Electronics"] },
+        { label: "Storage Requirement", key: "Storage Requirement", options: ["All Requirements", "Ambient", "Chilled", "Hazardous"] }
+      ],
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_MaterialGroups",
       emptyStateMessage: "No material groups found.",
@@ -888,7 +946,10 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         { key: "Financial Impact", label: "Valuation Difference", type: "currency", align: "right" }
       ],
       searchFields: ["Material", "ID"],
-      filters: [],
+      filters: [
+        { label: "Storage Condition", key: "Storage Condition", options: ["All Conditions", "Standard", "Refrigerated", "Dry"] },
+        { label: "Stock Availability", key: "Stock Availability", options: ["All Stock", "In Stock", "Out of Stock"] }
+      ],
       defaultSort: { key: "Financial Impact", direction: "desc" },
       exportFilename: "FSCP_Inventory_Materials",
       emptyStateMessage: "No SKUs match the current criteria.",
@@ -902,7 +963,7 @@ const generateMockRowsForStage = (
   issue: FSCPIssue,
   prevSelections: any[],
   searchQuery: string,
-  filterValue: string,
+  activeFilters: Record<string, string>,
   page: number,
   pageSize: number,
   sortKey: string,
@@ -915,6 +976,72 @@ const generateMockRowsForStage = (
   for (let i = 0; i < recordsToGenerate; i++) {
     const seed = i + 1;
     const row: Record<string, any> = {};
+
+    const regions = ["North America", "Europe", "Asia-Pacific", "South America"];
+    const companyTypes = ["Subsidiary", "Parent", "Joint Venture", "Branch"];
+    const locations = ["US East", "EU Central", "APAC South", "UK West"];
+    const whTypes = ["Distribution Center", "Cold Storage", "Fulfillment", "Cross-Dock"];
+    const assetClasses = ["Machinery", "Equipment", "Vehicles", "Buildings"];
+    const depMethods = ["Straight Line", "Double Declining", "MACRS"];
+    const ageingBuckets = ["New (< 1 yr)", "Medium (1-3 yrs)", "Old (> 3 yrs)"];
+    const acqDates = ["Q1 2026", "Q2 2026", "2025", "2024"];
+    const vendorStatuses = ["Active", "On Hold", "Preferred"];
+    const payTerms = ["Net 30", "Net 60", "Due on Receipt"];
+    const invoiceDates = ["June 2026", "May 2026", "Q2 2026"];
+    const invoiceStatuses = ["Open", "On Hold", "Approved"];
+    const lineTypes = ["Item", "Charge", "Tax", "Freight"];
+    const variances = ["Price Variance", "Qty Variance", "No Variance"];
+    const risks = ["High", "Medium", "Low"];
+    const industries = ["Technology", "Retail", "Manufacturing", "Healthcare"];
+    const prodCats = ["Software", "Hardware", "Services"];
+    const disputeCodes = ["Price Match", "Tax Discrepancy", "Return Hold"];
+    const bankAcctTypes = ["Operating", "Savings", "Clearing", "Payroll"];
+    const currencies = ["USD", "EUR", "INR", "GBP"];
+    const unitTypes = ["Division", "Subsidiary", "Branch"];
+    const opRegions = ["Domestic", "International"];
+    const depts = ["Administration", "Operations", "R&D", "Sales"];
+    const ccStatuses = ["Active", "Inactive"];
+    const acctClasses = ["Assets", "Liabilities", "Equity", "Revenue", "Expenses"];
+    const glAcctStatuses = ["Active", "Suspended"];
+    const entryTypes = ["Manual Accrual", "Consolidation", "Tax", "Intercompany"];
+    const jeStatuses = ["Open", "Pending Review", "Posted"];
+    const matGroupTypes = ["Raw Material", "Packaging", "Electronics"];
+    const storageReqs = ["Ambient", "Chilled", "Hazardous"];
+    const storageConds = ["Standard", "Refrigerated", "Dry"];
+    const stockAvailabilities = ["In Stock", "Out of Stock"];
+
+    row["Region"] = regions[seed % regions.length];
+    row["Company Type"] = companyTypes[seed % companyTypes.length];
+    row["Location"] = locations[seed % locations.length];
+    row["Warehouse Type"] = whTypes[seed % whTypes.length];
+    row["Asset Class"] = assetClasses[seed % assetClasses.length];
+    row["Depreciation Method"] = depMethods[seed % depMethods.length];
+    row["Ageing"] = ageingBuckets[seed % ageingBuckets.length];
+    row["Acquisition Date"] = acqDates[seed % acqDates.length];
+    row["Vendor Status"] = vendorStatuses[seed % vendorStatuses.length];
+    row["Payment Terms"] = payTerms[seed % payTerms.length];
+    row["Invoice Date"] = invoiceDates[seed % invoiceDates.length];
+    row["Status"] = invoiceStatuses[seed % invoiceStatuses.length];
+    row["Line Type"] = lineTypes[seed % lineTypes.length];
+    row["Variance Status"] = variances[seed % variances.length];
+    row["Risk Level"] = risks[seed % risks.length];
+    row["Industry"] = industries[seed % industries.length];
+    row["Product Category"] = prodCats[seed % prodCats.length];
+    row["Dispute Code"] = disputeCodes[seed % disputeCodes.length];
+    row["Account Type"] = bankAcctTypes[seed % bankAcctTypes.length];
+    row["Currency"] = currencies[seed % currencies.length];
+    row["Unit Type"] = unitTypes[seed % unitTypes.length];
+    row["Operating Region"] = opRegions[seed % opRegions.length];
+    row["Department"] = depts[seed % depts.length];
+    row["CC Status"] = ccStatuses[seed % ccStatuses.length];
+    row["Account Class"] = acctClasses[seed % acctClasses.length];
+    row["GL Account Status"] = glAcctStatuses[seed % glAcctStatuses.length];
+    row["Entry Type"] = entryTypes[seed % entryTypes.length];
+    row["Journal Status"] = jeStatuses[seed % jeStatuses.length];
+    row["Material Group Type"] = matGroupTypes[seed % matGroupTypes.length];
+    row["Storage Requirement"] = storageReqs[seed % storageReqs.length];
+    row["Storage Condition"] = storageConds[seed % storageConds.length];
+    row["Stock Availability"] = stockAvailabilities[seed % stockAvailabilities.length];
 
     stage.columns.forEach((col) => {
       if (col.key === "Company" || col.key === "Affected Company" || col.key === "Entities / Companies") {
@@ -964,6 +1091,7 @@ const generateMockRowsForStage = (
       } else if (col.key === "ID") {
         row[col.key] = `${stage.id.substring(0, 3).toUpperCase()}-${String(seed).padStart(5, '0')}`;
       } else if (col.key === "Status") {
+        // Fallback for visual display of Status column
         const statuses = ["Open", "In Progress", "Resolved"];
         row[col.key] = statuses[i % 3];
       } else if (col.key === "Location" || col.key === "Region") {
@@ -1004,17 +1132,14 @@ const generateMockRowsForStage = (
     }
 
     let matchesFilters = true;
-    if (filterValue && filterValue !== "All Statuses") {
-      if (row.Status && row.Status.toLowerCase() !== filterValue.toLowerCase()) {
-        matchesFilters = false;
+    Object.entries(activeFilters).forEach(([key, val]) => {
+      if (val && !val.startsWith("All")) {
+        const rowVal = row[key];
+        if (rowVal !== undefined && String(rowVal).toLowerCase() !== val.toLowerCase()) {
+          matchesFilters = false;
+        }
       }
-      if (row.Region && row.Region.toLowerCase() !== filterValue.toLowerCase()) {
-        matchesFilters = false;
-      }
-      if (row.Location && row.Location.toLowerCase() !== filterValue.toLowerCase()) {
-        matchesFilters = false;
-      }
-    }
+    });
 
     return matchesSearch && matchesFilters;
   });
@@ -1039,16 +1164,16 @@ const generateMockRowsForStage = (
 
   const filteredCount = filtered.length;
   let simulatedFilteredCount = filteredCount;
-  if (!searchQuery && (!filterValue || filterValue === "All Statuses")) {
+  const hasActiveFilters = Object.values(activeFilters).some(v => v && !v.startsWith("All"));
+  if (!searchQuery && !hasActiveFilters) {
     simulatedFilteredCount = totalCount;
   } else {
     const ratio = filteredCount / recordsToGenerate;
     simulatedFilteredCount = Math.floor(totalCount * ratio);
   }
 
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filtered.length);
-  const pageSlice = filtered.slice(startIndex, endIndex);
+  const endIndex = Math.min(page * pageSize, filtered.length);
+  const pageSlice = filtered.slice(0, endIndex);
 
   return {
     rows: pageSlice,
@@ -1071,7 +1196,7 @@ export function FSCPPage() {
   const [isStageLoading, setIsStageLoading] = useState(false);
   const [modalPage, setModalPage] = useState(1);
   const [modalSearch, setModalSearch] = useState("");
-  const [modalFilter, setModalFilter] = useState("All Statuses");
+  const [modalFilters, setModalFilters] = useState<Record<string, string>>({});
   const [modalSortKey, setModalSortKey] = useState("");
   const [modalSortDirection, setModalSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -1080,7 +1205,7 @@ export function FSCPPage() {
     setInvestigationPath([]); 
     setModalPage(1);
     setModalSearch("");
-    setModalFilter("All Statuses");
+    setModalFilters({});
     
     const stages = getStagesConfigForIssue(issue);
     if (stages.length > 0) {
@@ -1102,7 +1227,7 @@ export function FSCPPage() {
       setInvestigationPath(newPath);
       setModalPage(1);
       setModalSearch("");
-      setModalFilter("All Statuses");
+      setModalFilters({});
       
       const nextStageIndex = newPath.length;
       if (nextStageIndex < stages.length) {
@@ -1122,7 +1247,7 @@ export function FSCPPage() {
       setInvestigationPath(newPath);
       setModalPage(1);
       setModalSearch("");
-      setModalFilter("All Statuses");
+      setModalFilters({});
       
       if (activeIssueForInvestigation) {
         const stages = getStagesConfigForIssue(activeIssueForInvestigation);
@@ -1147,15 +1272,19 @@ export function FSCPPage() {
     }
   };
 
-  const handleExportCurrentView = (stage: InvestigationStageConfig) => {
+  const handleDownloadSummary = (stage: InvestigationStageConfig) => {
     const timestamp = new Date().toLocaleString();
-    const alertMsg = `Export Successful!\n\n` +
-      `File: ${stage.exportFilename}_export.xlsx\n` +
+    const activeFiltersStr = Object.entries(modalFilters)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ") || "None";
+
+    const alertMsg = `Download Successful!\n\n` +
+      `File: ${stage.exportFilename}_summary.xlsx\n` +
       `Stage: ${stage.stageTitle}\n` +
       `Search Query: "${modalSearch || 'None'}"\n` +
-      `Applied Filters: "${modalFilter || 'All'}"\n` +
+      `Applied Filters: "${activeFiltersStr}"\n` +
       `Sorting: ${modalSortKey || 'Default'} (${modalSortDirection.toUpperCase()})\n` +
-      `Page: ${modalPage}\n` +
+      `Records Loaded: ${modalPage * 10}\n` +
       `Timestamp: ${timestamp}\n\n` +
       `Simulated export of matching mock records.`;
     triggerToast(alertMsg);
@@ -1858,7 +1987,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                               <th className="py-2 font-bold">Severity</th>
                               <th className="py-2 font-bold">Ageing</th>
                               <th className="py-2 font-bold text-right">Financial Impact</th>
-                              <th className="py-2 font-bold text-center w-12"></th>
+                              <th className="py-2 font-bold text-right pr-4 w-32">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1892,10 +2021,8 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                 <td className="py-2.5 text-right font-semibold text-foreground">
                                   ${issue.impact.toLocaleString()}
                                 </td>
-                                <td className="py-2.5 text-center text-slate-400">
-                                  <div className="flex items-center justify-center h-full">
-                                    <ChevronRight size={16} />
-                                  </div>
+                                <td className="py-2.5 text-right pr-4 text-blue-500 font-semibold">
+                                  <span className="hover:underline">Investigate →</span>
                                 </td>
                               </tr>
                             ))}
@@ -1949,12 +2076,24 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                 </h3>
                 <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{showDetails.domain} • {showDetails.process}</p>
               </div>
-              <button 
-                onClick={handleCloseWorkspace}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownloadReport(showDetails)}
+                  className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
+                  style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
+                >
+                  <Download size={13} />
+                  Download Report
+                </button>
+                <button 
+                  onClick={handleCloseWorkspace}
+                  className="p-1.5 rounded-full hover:bg-muted/50 transition-colors flex items-center justify-center"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+                  title="Close Workspace"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Split Columns Grid Container */}
@@ -2252,16 +2391,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
             </div>
 
             {/* Footer */}
-            <div className="flex items-shrink-0 items-center justify-between px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <button
-                onClick={() => handleDownloadReport(showDetails)}
-                className="px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border"
-                style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
-              >
-                <Download size={13} />
-                Download Report
-              </button>
-              
+            <div className="flex items-shrink-0 items-center justify-end px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
               <button
                 onClick={handleCloseWorkspace}
                 className="px-5 py-1.5 rounded text-xs font-bold border-none cursor-pointer"
@@ -2301,7 +2431,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                 activeIssueForInvestigation,
                 investigationPath,
                 modalSearch,
-                modalFilter,
+                modalFilters,
                 modalPage,
                 pageSize,
                 modalSortKey,
@@ -2365,8 +2495,8 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                         <span>Simulating data retrieval...</span>
                       ) : (
                         <span>
-                          Showing <strong className="text-foreground">{Math.min(pageSize, rows.length)}</strong> of{" "}
-                          <strong className="text-foreground">{filteredCount.toLocaleString()}</strong> records
+                          Showing <strong className="text-foreground">{rows.length}</strong> of{" "}
+                          <strong className="text-foreground">{filteredCount.toLocaleString()}</strong> {stage?.stageTitle}
                         </span>
                       )}
                     </div>
@@ -2391,31 +2521,37 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                         />
                       </div>
 
-                      {stage?.filters.map((filt) => (
-                        <select
-                          key={filt.key}
-                          value={modalFilter}
-                          onChange={(e) => {
-                            setModalFilter(e.target.value);
-                            setModalPage(1);
-                          }}
-                          className="px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                          style={{
-                            background: "var(--card)",
-                            borderColor: "var(--border)",
-                            color: "var(--foreground)"
-                          }}
-                        >
-                          {filt.options.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                      ))}
+                      {stage?.filters.map((filt) => {
+                        const currentValue = modalFilters[filt.key] || filt.options[0];
+                        return (
+                          <select
+                            key={filt.key}
+                            value={currentValue}
+                            onChange={(e) => {
+                              setModalFilters(prev => ({
+                                ...prev,
+                                [filt.key]: e.target.value
+                              }));
+                              setModalPage(1);
+                            }}
+                            className="px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                            style={{
+                              background: "var(--card)",
+                              borderColor: "var(--border)",
+                              color: "var(--foreground)"
+                            }}
+                          >
+                            {filt.options.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })}
 
                       <button
-                        onClick={() => handleExportCurrentView(stage)}
+                        onClick={() => handleDownloadSummary(stage)}
                         className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
                         style={{
                           background: "var(--card)",
@@ -2425,7 +2561,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                         }}
                       >
                         <Download size={13} />
-                        Export Current View
+                        Download Summary
                       </button>
                     </div>
                   </div>
@@ -2477,7 +2613,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                   </div>
                                 </th>
                               ))}
-                              <th className="w-10"></th>
+                              <th className="py-3 px-4 font-bold text-right pr-4 w-32">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2515,8 +2651,8 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                       </td>
                                     );
                                   })}
-                                  <td className="py-3 px-4 text-center text-slate-400">
-                                    <ChevronRight size={14} />
+                                  <td className="py-3 px-4 text-right pr-4 text-blue-500 font-semibold">
+                                    <span className="hover:underline">Investigate →</span>
                                   </td>
                                 </tr>
                               );
@@ -2527,40 +2663,23 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                     )}
                   </div>
 
-                  {/* Table Footer with Pagination controls */}
-                  {!isStageLoading && rows.length > 0 && (
-                    <div className="flex justify-between items-center px-6 py-4 border-t flex-shrink-0 bg-muted/5" style={{ borderColor: "var(--border)" }}>
-                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                        Showing Page {modalPage} of {Math.ceil(filteredCount / pageSize)}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          disabled={modalPage === 1}
-                          onClick={() => setModalPage(p => Math.max(1, p - 1))}
-                          className="px-3 py-1.5 rounded-lg border text-xs font-semibold hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          style={{
-                            background: "var(--card)",
-                            borderColor: "var(--border)",
-                            color: "var(--foreground)"
-                          }}
-                        >
-                          Previous
-                        </button>
-                        <button
-                          disabled={modalPage >= Math.ceil(filteredCount / pageSize)}
-                          onClick={() => setModalPage(p => p + 1)}
-                          className="px-3 py-1.5 rounded-lg border text-xs font-semibold hover:bg-muted/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          style={{
-                            background: "var(--card)",
-                            borderColor: "var(--border)",
-                            color: "var(--foreground)"
-                          }}
-                        >
-                          Next
-                        </button>
-                      </div>
+                  {/* Table Footer with Load More */}
+                  {!isStageLoading && rows.length > 0 && modalPage * pageSize < filteredCount && (
+                    <div className="flex justify-center items-center px-6 py-4 border-t flex-shrink-0 bg-muted/5 font-sans" style={{ borderColor: "var(--border)" }}>
+                      <button
+                        onClick={() => setModalPage(p => p + 1)}
+                        className="px-6 py-2 rounded-lg border text-xs font-bold hover:bg-muted/50 transition-colors cursor-pointer"
+                        style={{
+                          background: "var(--card)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)"
+                        }}
+                      >
+                        Load More
+                      </button>
                     </div>
                   )}
+
                 </>
               );
             })()}
