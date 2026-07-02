@@ -1273,7 +1273,7 @@ export function OverviewPage({
           </div>
 
           {/* Interactive Hierarchical Trees Panel */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             {filteredContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3 border rounded-2xl" style={{ borderStyle: "dashed", borderColor: "var(--border)" }}>
                 <SlidersHorizontal size={36} style={{ color: "var(--muted-foreground)" }} />
@@ -1290,12 +1290,16 @@ export function OverviewPage({
                 const genuinelyHasNoPOs = originalContract ? originalContract.pos.length === 0 : true;
 
                 return (
-                  <div key={c.id} className="flex flex-col gap-3">
+                  <div key={c.id} className="flex flex-col">
                     
                     {/* ──── Contract parent Card (Level 1) ──── */}
                     <div
-                      className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                      style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+                      className="rounded-xl overflow-hidden transition-shadow"
+                      style={{
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.12)"
+                      }}
                     >
                       <div className="flex items-center gap-4 pl-5 pr-4 py-4 text-left">
                         {/* Expand Collapse Chevron */}
@@ -1337,13 +1341,13 @@ export function OverviewPage({
                         <div className="flex items-center gap-5 ml-auto flex-shrink-0">
                           
                           {/* Utilization Bar */}
-                          <div style={{ width: 100, flexShrink: 0 }} className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between text-xs" style={{ fontSize: 9, color: "var(--muted-foreground)", fontWeight: 600 }}>
+                          <div style={{ width: 120, flexShrink: 0 }} className="flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between" style={{ fontSize: 9, color: "var(--muted-foreground)", fontWeight: 700, letterSpacing: "0.05em" }}>
                               <span>UTILIZATION</span>
                               <span style={{ color: "var(--foreground)" }}>{utilizationPct}%</span>
                             </div>
                             <div className="h-1.5 w-full rounded-full" style={{ background: "var(--secondary)" }}>
-                              <div className="h-full rounded-full" style={{ width: `${utilizationPct}%`, background: "var(--foreground)" }} />
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${utilizationPct}%`, background: "var(--foreground)" }} />
                             </div>
                           </div>
 
@@ -1357,18 +1361,18 @@ export function OverviewPage({
                             <span style={{ fontSize: 13, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(c.value - totalAllocated)}</span>
                           </div>
 
-                          <div style={{ width: 140, flexShrink: 0 }} className="flex flex-col items-end">
-                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>TIMELINE</span>
-                            <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{c.startDate} - {c.endDate}</span>
+                          <div style={{ width: 150, flexShrink: 0 }} className="flex flex-col items-end">
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>TIMELINE</span>
+                            <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{c.startDate} – {c.endDate}</span>
                           </div>
 
                           {/* Status Badge */}
                           <div style={{ width: 120, flexShrink: 0 }} className="flex justify-end">
                             <span
-                              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                              style={{ background: `${statusColorMap[c.status]}12`, color: statusColorMap[c.status], whiteSpace: "nowrap" }}
+                              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
+                              style={{ fontSize: 11, background: `${statusColorMap[c.status]}15`, color: statusColorMap[c.status], whiteSpace: "nowrap" }}
                             >
-                              <span className="rounded-full" style={{ width: 5, height: 5, background: statusColorMap[c.status], display: "inline-block" }} />
+                              <span className="rounded-full flex-shrink-0" style={{ width: 5, height: 5, background: statusColorMap[c.status], display: "inline-block" }} />
                               {c.status}
                             </span>
                           </div>
@@ -1376,7 +1380,7 @@ export function OverviewPage({
                         </div>
 
                         {/* Action buttons */}
-                        <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                        <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, borderLeft: "1px solid var(--border)", paddingLeft: 14 }}>
                           <button
                             onClick={() => openActivity({
                               type: "Contract",
@@ -1385,23 +1389,23 @@ export function OverviewPage({
                               createdBy: "Alex Johnson",
                               createdDate: c.startDate
                             })}
-                            className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
-                            style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
-                            title="Activity"
+                            className="flex items-center justify-center rounded-md hover:bg-accent transition-colors flex-shrink-0"
+                            style={{ width: 28, height: 28, background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                            title="AI Activity Workspace"
                           >
                             <BotMessageSquare size={13} />
                           </button>
                           <button
                             onClick={() => triggerDownload(`${c.id}_Agreement.pdf`)}
-                            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs border transition-colors hover:bg-accent"
-                            style={{ background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
+                            className="flex items-center gap-1.5 rounded-md px-2.5 border transition-colors hover:bg-accent flex-shrink-0"
+                            style={{ height: 28, background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
                           >
                             <Download size={11} /> Download
                           </button>
                           <button
                             onClick={() => setSpendAnalysisData(c)}
-                            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs bg-foreground text-background transition-opacity hover:opacity-90"
-                            style={{ border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
+                            className="flex items-center gap-1.5 rounded-md px-2.5 bg-foreground text-background transition-opacity hover:opacity-90 flex-shrink-0"
+                            style={{ height: 28, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                           >
                             <Activity size={11} /> Spend Analysis
                           </button>
@@ -1410,15 +1414,18 @@ export function OverviewPage({
                     </div>
 
                     {/* ──── Nesting Container for POs (Level 2) ──── */}
-                    <div 
-                      className="transition-all duration-300 ease-in-out overflow-hidden flex flex-col gap-4 pl-[36px] relative"
+                    <div
                       style={{
-                        maxHeight: isContractExpanded ? "8000px" : "0px",
+                        display: "grid",
+                        gridTemplateRows: isContractExpanded ? "1fr" : "0fr",
+                        transition: "grid-template-rows 240ms ease, opacity 200ms ease, margin-top 240ms ease",
                         opacity: isContractExpanded ? 1 : 0,
-                        marginTop: isContractExpanded ? 12 : 0,
+                        marginTop: isContractExpanded ? 10 : 0,
                         pointerEvents: isContractExpanded ? "auto" : "none"
                       }}
                     >
+                    <div className="overflow-hidden">
+                    <div className="flex flex-col gap-3 pl-12 relative" style={{ paddingBottom: isContractExpanded ? 4 : 0 }}>
                       {c.pos.length > 0 ? (
                         c.pos.map((p, idx) => {
                           const isLast = idx === c.pos.length - 1;
@@ -1431,78 +1438,93 @@ export function OverviewPage({
                           const genuinelyHasNoInvoices = originalPO ? originalPO.invoices.length === 0 : true;
 
                           return (
-                            <div key={p.id} className="relative flex flex-col gap-2">
-                              {/* Vertical line segment */}
-                              <div 
-                                className="absolute left-[-18px] w-0.5 bg-border" 
+                            <div key={p.id} className="relative flex flex-col">
+                              {/* Continuous vertical line — stops at horizontal branch of last child */}
+                              <div
+                                className="absolute bg-border"
                                 style={{
+                                  left: -25,
+                                  width: 1.5,
                                   top: 0,
-                                  bottom: isLast ? "calc(100% - 24px)" : 0
-                                }} 
+                                  bottom: isLast ? 22 : 0,
+                                  opacity: 0.5
+                                }}
                               />
-                              {/* Horizontal connector line */}
-                              <div 
-                                className="absolute left-[-18px] top-[24px] w-[18px] h-0.5 bg-border"
+                              {/* Horizontal branch connector */}
+                              <div
+                                className="absolute bg-border"
+                                style={{
+                                  left: -25,
+                                  top: 22,
+                                  width: 25,
+                                  height: 1.5,
+                                  opacity: 0.5
+                                }}
                               />
 
                               {/* PO Card */}
                               <div
-                                className="rounded-lg overflow-hidden border hover:border-foreground/45 transition-colors"
-                                style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+                                className="rounded-lg overflow-hidden transition-shadow"
+                                style={{
+                                  background: "var(--card)",
+                                  border: "1px solid var(--border)",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.08)"
+                                }}
                               >
-                                <div className="flex items-center gap-3 pl-4 pr-4 py-3 text-left">
+                                <div className="flex items-center gap-3 pl-4 pr-4 py-3">
                                   {/* Expand/Collapse Chevron */}
                                   <button
                                     onClick={() => toggleNode(p.id)}
-                                    className="flex items-center justify-center rounded hover:bg-accent transition-colors"
-                                    style={{ width: 22, height: 22, background: "none", border: "none", cursor: "pointer", color: "var(--foreground)" }}
+                                    className="flex items-center justify-center rounded-md hover:bg-accent transition-colors flex-shrink-0"
+                                    style={{ width: 24, height: 24, background: "none", border: "none", cursor: "pointer", color: "var(--foreground)" }}
                                   >
                                     {isPoExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                   </button>
 
-                                  <div className="flex items-center gap-2 flex-grow min-w-0 flex-1">
-                                    <div className="rounded p-1.5 flex-shrink-0" style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>
-                                      <ShoppingCart size={15} />
+                                  {/* Identity */}
+                                  <div className="flex items-center gap-2 min-w-0" style={{ flex: "0 0 260px" }}>
+                                    <div className="rounded-md p-1.5 flex-shrink-0" style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80" }}>
+                                      <ShoppingCart size={14} />
                                     </div>
-                                    <div className="flex flex-col min-w-0 flex-1">
+                                    <div className="flex flex-col min-w-0">
                                       <span style={{ fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.id}</span>
-                                      <span style={{ fontSize: 10, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Issued: {p.date}</span>
+                                      <span style={{ fontSize: 10, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.8 }}>Issued: {p.date}</span>
                                     </div>
                                   </div>
 
                                   {/* Middle PO stats */}
                                   <div className="flex items-center gap-5 ml-auto flex-shrink-0">
-                                    
+
                                     {/* PO consumed progress bar */}
-                                    <div style={{ width: 100, flexShrink: 0 }} className="flex flex-col gap-0.5">
-                                      <div className="flex items-center justify-between text-xs" style={{ fontSize: 8, color: "var(--muted-foreground)", fontWeight: 600 }}>
+                                    <div style={{ width: 120, flexShrink: 0 }} className="flex flex-col gap-1.5">
+                                      <div className="flex items-center justify-between" style={{ fontSize: 9, color: "var(--muted-foreground)", fontWeight: 700, letterSpacing: "0.05em" }}>
                                         <span>CONSUMED</span>
                                         <span style={{ color: "var(--foreground)" }}>{poConsumedPct}%</span>
                                       </div>
                                       <div className="h-1.5 w-full rounded-full" style={{ background: "var(--secondary)" }}>
-                                        <div className="h-full rounded-full" style={{ width: `${poConsumedPct}%`, background: "#4ade80" }} />
+                                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${poConsumedPct}%`, background: "#4ade80" }} />
                                       </div>
                                     </div>
 
                                     <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                      <span style={{ fontSize: 8, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>VALUE</span>
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>VALUE</span>
                                       <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(p.value)}</span>
                                     </div>
 
                                     <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                      <span style={{ fontSize: 8, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>REMAINING</span>
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>REMAINING</span>
                                       <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(poRemaining)}</span>
                                     </div>
 
-                                    <div style={{ width: 140, flexShrink: 0 }} className="flex flex-col items-end">
-                                      <span style={{ fontSize: 8, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>ISSUED</span>
-                                      <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{p.date}</span>
+                                    <div style={{ width: 150, flexShrink: 0 }} className="flex flex-col items-end">
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>ISSUED</span>
+                                      <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{p.date}</span>
                                     </div>
 
                                     <div style={{ width: 120, flexShrink: 0 }} className="flex justify-end">
                                       <span
-                                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                                        style={{ background: `${statusColorMap[p.status]}12`, color: statusColorMap[p.status], whiteSpace: "nowrap" }}
+                                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold"
+                                        style={{ fontSize: 11, background: `${statusColorMap[p.status]}15`, color: statusColorMap[p.status], whiteSpace: "nowrap" }}
                                       >
                                         {p.status}
                                       </span>
@@ -1511,7 +1533,7 @@ export function OverviewPage({
                                   </div>
 
                                   {/* PO action buttons */}
-                                  <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                  <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, borderLeft: "1px solid var(--border)", paddingLeft: 14 }}>
                                     <button
                                       onClick={() => openActivity({
                                         type: "Purchase Order",
@@ -1520,18 +1542,18 @@ export function OverviewPage({
                                         createdBy: "Alex Johnson",
                                         createdDate: p.date
                                       })}
-                                      className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
-                                      style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
-                                      title="Activity"
+                                      className="flex items-center justify-center rounded-md hover:bg-accent transition-colors flex-shrink-0"
+                                      style={{ width: 28, height: 28, background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                                      title="AI Activity Workspace"
                                     >
-                                      <BotMessageSquare size={12} />
+                                      <BotMessageSquare size={13} />
                                     </button>
                                     <button
                                       onClick={() => setApprovalHistoryPo(p)}
-                                      className="flex items-center gap-1 rounded px-2 py-1 text-xs border transition-colors hover:bg-accent"
-                                      style={{ background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 10 }}
+                                      className="flex items-center gap-1.5 rounded-md px-2.5 border transition-colors hover:bg-accent flex-shrink-0"
+                                      style={{ height: 28, background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
                                     >
-                                      <History size={10} /> History
+                                      <History size={11} /> History
                                     </button>
                                     {p.status === "Approved" && (
                                       <button
@@ -1539,10 +1561,10 @@ export function OverviewPage({
                                           setInvoiceCreatePo(p);
                                           setNewInvoiceData(d => ({ ...d, date: new Date().toISOString().split("T")[0] }));
                                         }}
-                                        className="flex items-center gap-1 rounded px-2 py-1 text-xs bg-foreground text-background transition-opacity hover:opacity-90"
-                                        style={{ border: "none", cursor: "pointer", fontSize: 10, fontWeight: 600 }}
+                                        className="flex items-center gap-1.5 rounded-md px-2.5 bg-foreground text-background transition-opacity hover:opacity-90 flex-shrink-0"
+                                        style={{ height: 28, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                                       >
-                                        <PlusCircle size={10} /> Create Invoice
+                                        <PlusCircle size={11} /> Create Invoice
                                       </button>
                                     )}
                                   </div>
@@ -1550,83 +1572,103 @@ export function OverviewPage({
                               </div>
 
                               {/* ──── Nesting Container for Invoices (Level 3) ──── */}
-                              <div 
-                                className="transition-all duration-300 ease-in-out overflow-hidden flex flex-col gap-2 pl-[36px] relative"
+                              <div
                                 style={{
-                                  maxHeight: isPoExpanded ? "3000px" : "0px",
+                                  display: "grid",
+                                  gridTemplateRows: isPoExpanded ? "1fr" : "0fr",
+                                  transition: "grid-template-rows 220ms ease, opacity 200ms ease, margin-top 220ms ease",
                                   opacity: isPoExpanded ? 1 : 0,
                                   marginTop: isPoExpanded ? 8 : 0,
                                   pointerEvents: isPoExpanded ? "auto" : "none"
                                 }}
                               >
+                              <div className="overflow-hidden">
+                              <div className="flex flex-col gap-2 pl-10 relative" style={{ paddingBottom: isPoExpanded ? 2 : 0 }}>
                                 {p.invoices.length > 0 ? (
                                   p.invoices.map((inv, invIdx) => {
                                     const isLastInv = invIdx === p.invoices.length - 1;
                                     return (
-                                      <div key={inv.id} className="relative flex flex-col gap-2">
-                                        {/* Dashed vertical line segment */}
-                                        <div 
-                                          className="absolute left-[-18px] w-0.5 border-l-2 border-dashed border-border" 
+                                      <div key={inv.id} className="relative flex flex-col">
+                                        {/* Dashed vertical line — stops at last item's branch */}
+                                        <div
                                           style={{
+                                            position: "absolute",
+                                            left: -22,
+                                            width: 1.5,
                                             top: 0,
-                                            bottom: isLastInv ? "calc(100% - 20px)" : 0
-                                          }} 
+                                            bottom: isLastInv ? 20 : 0,
+                                            borderLeft: "1.5px dashed var(--border)",
+                                            opacity: 0.5
+                                          }}
                                         />
-                                        {/* Dashed horizontal connector line */}
-                                        <div 
-                                          className="absolute left-[-18px] top-[20px] w-[18px] h-0.5 border-t border-dashed border-border"
+                                        {/* Dashed horizontal branch connector */}
+                                        <div
+                                          style={{
+                                            position: "absolute",
+                                            left: -22,
+                                            top: 20,
+                                            width: 22,
+                                            height: 1.5,
+                                            borderTop: "1.5px dashed var(--border)",
+                                            opacity: 0.5
+                                          }}
                                         />
 
                                         {/* Invoice Card */}
                                         <div
-                                          className="rounded-lg w-full border hover:border-foreground/35 transition-colors"
-                                          style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
+                                          className="rounded-lg w-full transition-shadow"
+                                          style={{
+                                            background: "var(--secondary)",
+                                            border: "1px solid var(--border)",
+                                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                                          }}
                                         >
-                                          <div className="flex items-center justify-between pl-4 pr-4 py-2.5 text-left">
-                                            <div className="flex items-center gap-2.5 flex-grow min-w-0 flex-1">
-                                              <div className="rounded p-1 flex-shrink-0" style={{ background: "rgba(192,132,252,0.1)", color: "#c084fc" }}>
-                                                <Receipt size={13} />
+                                          <div className="flex items-center pl-3 pr-4 py-2.5">
+                                            {/* Identity */}
+                                            <div className="flex items-center gap-2 min-w-0" style={{ flex: "0 0 260px" }}>
+                                              <div className="rounded-md p-1 flex-shrink-0" style={{ background: "rgba(192,132,252,0.1)", color: "#c084fc" }}>
+                                                <Receipt size={12} />
                                               </div>
-                                              <div className="flex flex-col min-w-0 flex-1">
+                                              <div className="flex flex-col min-w-0">
                                                 <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.id}</span>
-                                                <span style={{ fontSize: 9, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Invoiced: {inv.date}</span>
+                                                <span style={{ fontSize: 9, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: 0.8 }}>Invoiced: {inv.date}</span>
                                               </div>
                                             </div>
 
                                             {/* Middle Invoice stats */}
                                             <div className="flex items-center gap-5 ml-auto flex-shrink-0">
-                                              {/* Col 1: Progress Spacer */}
-                                              <div style={{ width: 100, flexShrink: 0 }} />
+                                              {/* Progress spacer — aligns with PO progress bar column */}
+                                              <div style={{ width: 120, flexShrink: 0 }} />
 
-                                              {/* Col 2: Amount */}
+                                              {/* Amount */}
                                               <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>AMOUNT</span>
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>AMOUNT</span>
                                                 <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap" }}>{formatINR(inv.amount)}</span>
                                               </div>
 
-                                              {/* Col 3: Due */}
+                                              {/* Due */}
                                               <div style={{ width: 110, flexShrink: 0 }} className="flex flex-col items-end">
-                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>DUE</span>
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>DUE</span>
                                                 <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.dueDate}</span>
                                               </div>
 
-                                              {/* Col 4: Date Invoiced */}
-                                              <div style={{ width: 140, flexShrink: 0 }} className="flex flex-col items-end">
-                                                <span style={{ fontSize: 7, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>INVOICED</span>
+                                              {/* Date Invoiced */}
+                                              <div style={{ width: 150, flexShrink: 0 }} className="flex flex-col items-end">
+                                                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>INVOICED</span>
                                                 <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{inv.date}</span>
                                               </div>
 
-                                              {/* Col 5: Badges */}
+                                              {/* Badges */}
                                               <div style={{ width: 120, flexShrink: 0 }} className="flex justify-end items-center gap-1">
                                                 <span
-                                                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold"
-                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.status]}10`, color: statusColorMap[inv.status], whiteSpace: "nowrap" }}
+                                                  className="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.status]}15`, color: statusColorMap[inv.status], whiteSpace: "nowrap" }}
                                                 >
                                                   {inv.status}
                                                 </span>
                                                 <span
-                                                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold"
-                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.paymentStatus]}10`, color: statusColorMap[inv.paymentStatus], whiteSpace: "nowrap" }}
+                                                  className="inline-flex items-center rounded px-2 py-0.5 font-semibold"
+                                                  style={{ fontSize: 10, background: `${statusColorMap[inv.paymentStatus]}15`, color: statusColorMap[inv.paymentStatus], whiteSpace: "nowrap" }}
                                                 >
                                                   {inv.paymentStatus}
                                                 </span>
@@ -1634,7 +1676,7 @@ export function OverviewPage({
                                             </div>
 
                                             {/* Invoice action buttons */}
-                                            <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, borderLeft: "1px solid var(--border)", paddingLeft: 12 }}>
+                                            <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, borderLeft: "1px solid var(--border)", paddingLeft: 14 }}>
                                               <button
                                                 onClick={() => openActivity({
                                                   type: "Bill",
@@ -1643,24 +1685,24 @@ export function OverviewPage({
                                                   createdBy: "Alex Johnson",
                                                   createdDate: inv.date
                                                 })}
-                                                className="flex items-center justify-center rounded p-1 hover:bg-accent transition-colors"
-                                                style={{ background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
-                                                title="Activity"
+                                                className="flex items-center justify-center rounded-md hover:bg-accent transition-colors flex-shrink-0"
+                                                style={{ width: 28, height: 28, background: "none", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)" }}
+                                                title="AI Activity Workspace"
                                               >
-                                                <BotMessageSquare size={11} />
+                                                <BotMessageSquare size={13} />
                                               </button>
                                               <button
                                                 onClick={() => triggerDownload(`${inv.id}.pdf`)}
-                                                className="flex items-center gap-1 rounded px-1 py-0.5 text-xs border transition-colors hover:bg-accent"
-                                                style={{ background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 9 }}
+                                                className="flex items-center gap-1.5 rounded-md px-2.5 border transition-colors hover:bg-accent flex-shrink-0"
+                                                style={{ height: 28, background: "none", borderColor: "var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 11 }}
                                                 title="Download PDF"
                                               >
-                                                <Download size={9} /> PDF
+                                                <Download size={11} /> PDF
                                               </button>
                                               <button
                                                 onClick={() => setTrackInvoice(inv)}
-                                                className="flex items-center gap-1 rounded px-1 py-0.5 text-xs bg-foreground text-background transition-opacity hover:opacity-90"
-                                                style={{ border: "none", cursor: "pointer", fontSize: 9, fontWeight: 600 }}
+                                                className="flex items-center gap-1.5 rounded-md px-2.5 bg-foreground text-background transition-opacity hover:opacity-90 flex-shrink-0"
+                                                style={{ height: 28, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600 }}
                                               >
                                                 Track
                                               </button>
@@ -1671,14 +1713,32 @@ export function OverviewPage({
                                     );
                                   })
                                 ) : genuinelyHasNoInvoices ? (
-                                  <div className="relative flex items-center">
-                                    {/* Dashed horizontal connector line */}
-                                    <div className="absolute left-[-18px] top-[18px] w-[18px] h-0.5 border-t border-dashed border-border" />
-                                    {/* Dashed vertical line segment */}
-                                    <div className="absolute left-[-18px] top-0 h-[18px] w-0.5 border-l-2 border-dashed border-border" />
-                                    <div 
-                                      className="w-full rounded-lg border border-dashed py-2 px-3 text-[11px] text-muted-foreground flex items-center gap-1.5"
-                                      style={{ background: "var(--secondary)", borderColor: "var(--border)" }}
+                                  <div className="relative flex items-center py-1">
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        left: -22,
+                                        top: 0,
+                                        bottom: 20,
+                                        width: 1.5,
+                                        borderLeft: "1.5px dashed var(--border)",
+                                        opacity: 0.4
+                                      }}
+                                    />
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        left: -22,
+                                        top: 20,
+                                        width: 22,
+                                        height: 1.5,
+                                        borderTop: "1.5px dashed var(--border)",
+                                        opacity: 0.4
+                                      }}
+                                    />
+                                    <div
+                                      className="w-full rounded-lg border border-dashed py-2 px-3 flex items-center gap-1.5"
+                                      style={{ background: "var(--secondary)", borderColor: "var(--border)", fontSize: 11, color: "var(--muted-foreground)" }}
                                     >
                                       <Info size={11} style={{ color: "var(--muted-foreground)" }} />
                                       No invoices linked to this Purchase Order
@@ -1686,24 +1746,46 @@ export function OverviewPage({
                                   </div>
                                 ) : null}
                               </div>
+                              </div>
+                              </div>
                             </div>
                           );
                         })
                       ) : genuinelyHasNoPOs ? (
-                        <div className="relative flex items-center">
-                          {/* Horizontal connector line */}
-                          <div className="absolute left-[-18px] top-[22px] w-[18px] h-0.5 bg-border" />
-                          {/* Vertical line segment */}
-                          <div className="absolute left-[-18px] top-0 h-[22px] w-0.5 bg-border" />
-                          <div 
-                            className="w-full rounded-lg border border-dashed py-3 px-4 text-xs text-muted-foreground flex items-center gap-2"
-                            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+                        <div className="relative flex items-center py-1">
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: -25,
+                              top: 0,
+                              bottom: 22,
+                              width: 1.5,
+                              background: "var(--border)",
+                              opacity: 0.4
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: -25,
+                              top: 22,
+                              width: 25,
+                              height: 1.5,
+                              background: "var(--border)",
+                              opacity: 0.4
+                            }}
+                          />
+                          <div
+                            className="w-full rounded-lg border border-dashed py-3 px-4 flex items-center gap-2"
+                            style={{ background: "var(--card)", borderColor: "var(--border)", fontSize: 12, color: "var(--muted-foreground)" }}
                           >
                             <Info size={13} style={{ color: "var(--muted-foreground)" }} />
                             No Purchase Orders linked to this contract
                           </div>
                         </div>
                       ) : null}
+                    </div>
+                    </div>
                     </div>
 
                   </div>
