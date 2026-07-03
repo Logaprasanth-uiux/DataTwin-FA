@@ -1,3 +1,4 @@
+// deployment trigger 2026-07-03-v2
 import { useState, useEffect } from "react";
 import { 
   Sparkles, 
