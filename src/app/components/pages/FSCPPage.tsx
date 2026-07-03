@@ -1866,6 +1866,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
   const [issues, setIssues] = useState<FSCPIssue[]>(() => IssueRepository.loadIssues());
 
   useEffect(() => {
+    console.log("FSCP Page initialized context");
     return IssueRepository.subscribe((updatedIssues) => {
       setIssues(updatedIssues);
     });
