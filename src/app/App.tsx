@@ -81,6 +81,19 @@ const ALL_CARDS = [
 ];
 
 export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  const isWorkspace = params.get("mode") === "workspace";
+  const workspaceModule = params.get("module");
+  const workspaceIssueId = params.get("issueId");
+
+  if (isWorkspace && workspaceModule === "fscp" && workspaceIssueId) {
+    return (
+      <div className="h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
+        <FSCPPage workspaceIssueId={workspaceIssueId} />
+      </div>
+    );
+  }
+
   const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
   const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);

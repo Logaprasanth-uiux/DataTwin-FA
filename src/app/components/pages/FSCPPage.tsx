@@ -32,7 +32,8 @@ import {
   Scale,
   UserCheck,
   History,
-  FileSpreadsheet
+  FileSpreadsheet,
+  SquareArrowOutUpRight
 } from "lucide-react";
 
 // Types
@@ -426,6 +427,58 @@ const generateMockIssues = (): FSCPIssue[] => {
 };
 
 const INITIAL_ISSUES: FSCPIssue[] = generateMockIssues();
+class LocalIssueRepository {
+  private subscribers: Set<(issues: FSCPIssue[]) => void> = new Set();
+  private storageKey = "fscp_issues";
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", (e) => {
+        if (e.key === this.storageKey && e.newValue) {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            this.notify(parsed);
+          } catch (err) {
+            console.error("Failed to parse issues from storage event:", err);
+          }
+        }
+      });
+    }
+  }
+
+  loadIssues(): FSCPIssue[] {
+    const stored = localStorage.getItem(this.storageKey);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse stored issues:", e);
+      }
+    }
+    const initial = INITIAL_ISSUES;
+    localStorage.setItem(this.storageKey, JSON.stringify(initial));
+    return initial;
+  }
+
+  saveIssues(issues: FSCPIssue[]): void {
+    localStorage.setItem(this.storageKey, JSON.stringify(issues));
+    this.notify(issues);
+  }
+
+  subscribe(callback: (issues: FSCPIssue[]) => void): () => void {
+    this.subscribers.add(callback);
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  private notify(issues: FSCPIssue[]): void {
+    this.subscribers.forEach((cb) => cb(issues));
+  }
+}
+
+export const IssueRepository = new LocalIssueRepository();
+
 
 export interface InvestigationStageConfig {
   id: string;
@@ -442,11 +495,44 @@ export interface InvestigationStageConfig {
   breadcrumbField: string;
 }
 
-const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] => {
-  const lower = issue.process.toLowerCase();
+export interface DetailedRecordsColumn {
+  key: string;
+  label: string;
+  align?: "left" | "center" | "right";
+  type?: "text" | "number" | "currency" | "status";
+}
 
-  if (lower.includes("asset")) {
-    return [
+export interface DetailedRecordMock {
+  [key: string]: any;
+}
+
+export interface InvestigationConfig {
+  processName: string;
+  workspaceTitle: string;
+  detailedRecordsTitle: string;
+  detailedRecordsColumns: DetailedRecordsColumn[];
+  detailedRecordsMockData: DetailedRecordMock[];
+  stages: InvestigationStageConfig[];
+}
+
+export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
+  "Fixed Assets": {
+    processName: "Fixed Assets",
+    workspaceTitle: "Capitalization Delay Review",
+    detailedRecordsTitle: "Asset Line Items",
+    detailedRecordsColumns: [
+      { key: "tag", label: "Asset Tag" },
+      { key: "name", label: "Asset Name" },
+      { key: "life", label: "Useful Life (Yrs)", type: "number" },
+      { key: "method", label: "Method" },
+      { key: "value", label: "Net Value", align: "right", type: "currency" }
+    ],
+    detailedRecordsMockData: [
+      { tag: "AST-0012", name: "Server Blade #12", life: 5, method: "Straight Line", value: 24000 },
+      { tag: "AST-0013", name: "Generator #13", life: 7, method: "MACRS", value: 85000 },
+      { tag: "AST-0014", name: "HVAC System #14", life: 10, method: "Double Declining", value: 110000 }
+    ],
+    stages: [
       {
         id: "companies",
         stageTitle: "Affected Companies",
@@ -513,35 +599,26 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         emptyStateMessage: "No asset categories match your filter criteria.",
         totalRecords: 10000,
         breadcrumbField: "Category"
-      },
-      {
-        id: "assets",
-        stageTitle: "Assets",
-        description: "Analyze individual blocked capital assets and depreciation schedule lines.",
-        icon: FileText,
-        columns: [
-          { key: "Asset", label: "Asset Name", type: "text" },
-          { key: "ID", label: "Asset ID", type: "text" },
-          { key: "Ageing", label: "Ageing", type: "text" },
-          { key: "Financial Impact", label: "Net Value", type: "currency", align: "right" },
-          { key: "Date", label: "Acquisition Date", type: "text" }
-        ],
-        searchFields: ["Asset", "ID"],
-        filters: [
-          { label: "Ageing", key: "Ageing", options: ["All Ageing", "New (< 1 yr)", "Medium (1-3 yrs)", "Old (> 3 yrs)"] },
-          { label: "Acquisition Date", key: "Acquisition Date", options: ["All Dates", "Q1 2026", "Q2 2026", "2025", "2024"] }
-        ],
-        defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_FixedAssets_Assets",
-        emptyStateMessage: "No individual assets match the search query.",
-        totalRecords: 50000,
-        breadcrumbField: "Asset"
       }
-    ];
-  }
-
-  if (lower.includes("payable") || lower.includes("ap") || lower.includes("procure")) {
-    return [
+    ]
+  },
+  "Accounts Payable": {
+    processName: "Accounts Payable",
+    workspaceTitle: "Invoice Discrepancies",
+    detailedRecordsTitle: "Invoice Line Items",
+    detailedRecordsColumns: [
+      { key: "lineItem", label: "Line Item" },
+      { key: "desc", label: "Description" },
+      { key: "qty", label: "Qty", type: "number" },
+      { key: "rate", label: "Unit Rate", align: "right", type: "currency" },
+      { key: "amount", label: "Extended Amount", align: "right", type: "currency" }
+    ],
+    detailedRecordsMockData: [
+      { lineItem: "Item Inspection Charges", desc: "Mock description for line entry detail #1", qty: 1, rate: 120, amount: 120 },
+      { lineItem: "Maintenance Fee", desc: "Mock description for line entry detail #2", qty: 2, rate: 150, amount: 300 },
+      { lineItem: "Freight Overcharge", desc: "Mock description for line entry detail #3", qty: 1, rate: 45, amount: 45 }
+    ],
+    stages: [
       {
         id: "companies",
         stageTitle: "Companies",
@@ -607,35 +684,26 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         emptyStateMessage: "No invoices match the filters.",
         totalRecords: 12000,
         breadcrumbField: "Invoice"
-      },
-      {
-        id: "invoice_lines",
-        stageTitle: "Invoice Lines",
-        description: "Review detailed lines of the selected supplier invoice to locate price variances.",
-        icon: Calculator,
-        columns: [
-          { key: "Line Item", label: "Line Item", type: "text" },
-          { key: "Description", label: "Description", type: "text" },
-          { key: "Quantity", label: "Qty", type: "number" },
-          { key: "Rate", label: "Unit Rate", type: "currency", align: "right" },
-          { key: "Financial Impact", label: "Extended Amount", type: "currency", align: "right" }
-        ],
-        searchFields: ["Line Item", "Description"],
-        filters: [
-          { label: "Line Type", key: "Line Type", options: ["All Types", "Item", "Charge", "Tax", "Freight"] },
-          { label: "Variance Status", key: "Variance Status", options: ["All Statuses", "Price Variance", "Qty Variance", "No Variance"] }
-        ],
-        defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_AP_InvoiceLines",
-        emptyStateMessage: "No invoice lines found.",
-        totalRecords: 4,
-        breadcrumbField: "Line Item"
       }
-    ];
-  }
-
-  if (lower.includes("receivable") || lower.includes("ar") || lower.includes("order")) {
-    return [
+    ]
+  },
+  "Accounts Receivable": {
+    processName: "Accounts Receivable",
+    workspaceTitle: "Disputed Customer Vouchers",
+    detailedRecordsTitle: "Invoice Line Items",
+    detailedRecordsColumns: [
+      { key: "lineItem", label: "Line Item" },
+      { key: "desc", label: "Description" },
+      { key: "qty", label: "Qty", type: "number" },
+      { key: "rate", label: "Unit Rate", align: "right", type: "currency" },
+      { key: "amount", label: "Extended Amount", align: "right", type: "currency" }
+    ],
+    detailedRecordsMockData: [
+      { lineItem: "Item Inspection Charges", desc: "Mock description for line entry detail #1", qty: 1, rate: 120, amount: 120 },
+      { lineItem: "Maintenance Fee", desc: "Mock description for line entry detail #2", qty: 2, rate: 150, amount: 300 },
+      { lineItem: "Freight Overcharge", desc: "Mock description for line entry detail #3", qty: 1, rate: 45, amount: 45 }
+    ],
+    stages: [
       {
         id: "companies",
         stageTitle: "Companies",
@@ -701,84 +769,25 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         emptyStateMessage: "No matching invoices found.",
         totalRecords: 12000,
         breadcrumbField: "Invoice"
-      },
-      {
-        id: "invoice_items",
-        stageTitle: "Invoice Items",
-        description: "Inspect customer invoice line items to check active pricing disputes.",
-        icon: Calculator,
-        columns: [
-          { key: "Item", label: "Item / Service", type: "text" },
-          { key: "Description", label: "Detail Description", type: "text" },
-          { key: "Quantity", label: "Qty Sold", type: "number" },
-          { key: "Rate", label: "Selling Price", type: "currency", align: "right" },
-          { key: "Financial Impact", label: "Net Amount", type: "currency", align: "right" }
-        ],
-        searchFields: ["Item", "Description"],
-        filters: [
-          { label: "Product Category", key: "Product Category", options: ["All Categories", "Software", "Hardware", "Services"] },
-          { label: "Dispute Code", key: "Dispute Code", options: ["All Codes", "Price Match", "Tax Discrepancy", "Return Hold"] }
-        ],
-        defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_AR_InvoiceItems",
-        emptyStateMessage: "No items found.",
-        totalRecords: 5,
-        breadcrumbField: "Item"
       }
-    ];
-  }
-
-  if (lower.includes("bank") || lower.includes("cash")) {
-    return [
-      {
-        id: "companies",
-        stageTitle: "Entities / Companies",
-        description: "Select companies experiencing currency translation or bank ledger discrepancies.",
-        icon: Layers,
-        columns: [
-          { key: "Company", label: "Company", type: "text" },
-          { key: "Location", label: "HQ", type: "text" },
-          { key: "Issue Count", label: "Variance Alerts", type: "number" },
-          { key: "Financial Impact", label: "Translation Impact", type: "currency", align: "right" }
-        ],
-        searchFields: ["Company", "Location"],
-        filters: [
-          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
-          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
-        ],
-        defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_BankCash_Companies",
-        emptyStateMessage: "No companies found.",
-        totalRecords: 1200,
-        breadcrumbField: "Company"
-      },
-      {
-        id: "bank_accounts",
-        stageTitle: "Bank Accounts",
-        description: "Reconcile individual general ledger cash balance statements to bank feeds.",
-        icon: Wallet,
-        columns: [
-          { key: "ID", label: "Account Number", type: "text" },
-          { key: "Location", label: "Clearing Institution", type: "text" },
-          { key: "Ageing", label: "Unmatched Ageing", type: "text" },
-          { key: "Financial Impact", label: "Statement Variance", type: "currency", align: "right" }
-        ],
-        searchFields: ["ID", "Location"],
-        filters: [
-          { label: "Account Type", key: "Account Type", options: ["All Types", "Operating", "Savings", "Clearing", "Payroll"] },
-          { label: "Currency", key: "Currency", options: ["All Currencies", "USD", "EUR", "INR", "GBP"] }
-        ],
-        defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_BankCash_Accounts",
-        emptyStateMessage: "No bank accounts found matching criteria.",
-        totalRecords: 80,
-        breadcrumbField: "ID"
-      }
-    ];
-  }
-
-  if (lower.includes("general ledger") || lower.includes("ledger") || lower.includes("allocations") || lower.includes("prepar")) {
-    return [
+    ]
+  },
+  "General Ledger": {
+    processName: "General Ledger",
+    workspaceTitle: "Accrual & Allocation Adjustments",
+    detailedRecordsTitle: "Journal Entry Lines",
+    detailedRecordsColumns: [
+      { key: "acct", label: "Account" },
+      { key: "name", label: "Account Name" },
+      { key: "desc", label: "Description" },
+      { key: "debit", label: "Debit", align: "right" },
+      { key: "credit", label: "Credit", align: "right" }
+    ],
+    detailedRecordsMockData: [
+      { acct: "11000", name: "Cash Ledger", desc: "Allocation adjustments #1", debit: "$45,000.00", credit: "-" },
+      { acct: "21000", name: "Trade Payables", desc: "Allocation adjustments #2", debit: "-", credit: "$45,000.00" }
+    ],
+    stages: [
       {
         id: "companies",
         stageTitle: "Companies",
@@ -863,125 +872,182 @@ const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] =
         emptyStateMessage: "No general ledger accounts match your filters.",
         totalRecords: 8000,
         breadcrumbField: "GL Account"
-      },
+      }
+    ]
+  },
+  "Bank & Cash": {
+    processName: "Bank & Cash",
+    workspaceTitle: "Bank Reconciliation & Cash Applications",
+    detailedRecordsTitle: "Statement Lines",
+    detailedRecordsColumns: [
+      { key: "date", label: "Date" },
+      { key: "desc", label: "Description" },
+      { key: "ref", label: "Reference" },
+      { key: "withdrawal", label: "Withdrawal", align: "right" },
+      { key: "deposit", label: "Deposit", align: "right" }
+    ],
+    detailedRecordsMockData: [
+      { date: "2026-06-15", desc: "ACH Payment clearing #1", ref: "REF-98721", withdrawal: "-", deposit: "$12,500.00" },
+      { date: "2026-06-16", desc: "Bank processing fees", ref: "REF-44211", withdrawal: "$150.00", deposit: "-" }
+    ],
+    stages: [
       {
-        id: "journal_entries",
-        stageTitle: "Journal Entries",
-        description: "Inspect blocked journals and manual adjustments pending close reconciliation.",
-        icon: FileText,
+        id: "companies",
+        stageTitle: "Entities / Companies",
+        description: "Select companies experiencing currency translation or bank ledger discrepancies.",
+        icon: Layers,
         columns: [
-          { key: "Journal Entry", label: "Entry Number", type: "text" },
-          { key: "Description", label: "Reconciliation Description", type: "text" },
-          { key: "Financial Impact", label: "Amount", type: "currency", align: "right" },
-          { key: "Status", label: "Status", type: "status" }
+          { key: "Company", label: "Company", type: "text" },
+          { key: "Location", label: "HQ", type: "text" },
+          { key: "Issue Count", label: "Variance Alerts", type: "number" },
+          { key: "Financial Impact", label: "Translation Impact", type: "currency", align: "right" }
         ],
-        searchFields: ["Journal Entry", "Description"],
+        searchFields: ["Company", "Location"],
         filters: [
-          { label: "Entry Type", key: "Entry Type", options: ["All Types", "Manual Accrual", "Consolidation", "Tax", "Intercompany"] },
-          { label: "Status", key: "Status", options: ["All Statuses", "Open", "Pending Review", "Posted"] }
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
         ],
         defaultSort: { key: "Financial Impact", direction: "desc" },
-        exportFilename: "FSCP_GL_JournalEntries",
-        emptyStateMessage: "No journal entries found.",
-        totalRecords: 25000,
-        breadcrumbField: "Journal Entry"
+        exportFilename: "FSCP_BankCash_Companies",
+        emptyStateMessage: "No companies found.",
+        totalRecords: 1200,
+        breadcrumbField: "Company"
+      },
+      {
+        id: "bank_accounts",
+        stageTitle: "Bank Accounts",
+        description: "Reconcile individual general ledger cash balance statements to bank feeds.",
+        icon: Wallet,
+        columns: [
+          { key: "ID", label: "Account Number", type: "text" },
+          { key: "Location", label: "Clearing Institution", type: "text" },
+          { key: "Ageing", label: "Unmatched Ageing", type: "text" },
+          { key: "Financial Impact", label: "Statement Variance", type: "currency", align: "right" }
+        ],
+        searchFields: ["ID", "Location"],
+        filters: [
+          { label: "Account Type", key: "Account Type", options: ["All Types", "Operating", "Savings", "Clearing", "Payroll"] },
+          { label: "Currency", key: "Currency", options: ["All Currencies", "USD", "EUR", "INR", "GBP"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_BankCash_Accounts",
+        emptyStateMessage: "No bank accounts found matching criteria.",
+        totalRecords: 80,
+        breadcrumbField: "ID"
       }
-    ];
+    ]
+  },
+  "Inventory Accounting": {
+    processName: "Inventory Accounting",
+    workspaceTitle: "Inventory Stock Valuation Review",
+    detailedRecordsTitle: "Material Line Items",
+    detailedRecordsColumns: [
+      { key: "sku", label: "SKU ID" },
+      { key: "name", label: "Material Name" },
+      { key: "qty", label: "Stock Qty", type: "number" },
+      { key: "uom", label: "UOM" },
+      { key: "variance", label: "Valuation Diff", align: "right", type: "currency" }
+    ],
+    detailedRecordsMockData: [
+      { sku: "MAT-0008", name: "Aluminum Ingot 6061", qty: 250, uom: "units", variance: 15200 },
+      { sku: "MAT-0009", name: "Polyethylene Roll", qty: 400, uom: "meters", variance: 8400 }
+    ],
+    stages: [
+      {
+        id: "companies",
+        stageTitle: "Companies",
+        description: "Select companies experiencing balance variance discrepancy blocks.",
+        icon: Layers,
+        columns: [
+          { key: "Company", label: "Company", type: "text" },
+          { key: "Location", label: "HQ Location", type: "text" },
+          { key: "Issue Count", label: "Active Issues", type: "number" },
+          { key: "Financial Impact", label: "Exposure Amount", type: "currency", align: "right" }
+        ],
+        searchFields: ["Company", "Location"],
+        filters: [
+          { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
+          { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_Inventory_Companies",
+        emptyStateMessage: "No companies match the filters.",
+        totalRecords: 5000,
+        breadcrumbField: "Company"
+      },
+      {
+        id: "warehouses",
+        stageTitle: "Warehouses",
+        description: "Drill into distribution centers with WMS to ledger balance variances.",
+        icon: Sliders,
+        columns: [
+          { key: "Warehouse", label: "Warehouse", type: "text" },
+          { key: "Location", label: "Zone/Area", type: "text" },
+          { key: "Issue Count", label: "Discrepancy Count", type: "number" },
+          { key: "Financial Impact", label: "Write-down Value", type: "currency", align: "right" },
+          { key: "Status", label: "Status", type: "status" }
+        ],
+        searchFields: ["Warehouse", "Location"],
+        filters: [
+          { label: "Location", key: "Location", options: ["All Locations", "US East", "EU Central", "APAC South", "UK West"] },
+          { label: "Warehouse Type", key: "Warehouse Type", options: ["All Types", "Distribution Center", "Cold Storage", "Fulfillment", "Cross-Dock"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_Inventory_Warehouses",
+        emptyStateMessage: "No warehouses match search criteria.",
+        totalRecords: 2000,
+        breadcrumbField: "Warehouse"
+      },
+      {
+        id: "material_groups",
+        stageTitle: "Material Groups",
+        description: "Isolate valuation exception items by product material categories.",
+        icon: Layers,
+        columns: [
+          { key: "Material Group", label: "Material Group", type: "text" },
+          { key: "Issue Count", label: "Issues", type: "number" },
+          { key: "Financial Impact", label: "Impacted Value", type: "currency", align: "right" }
+        ],
+        searchFields: ["Material Group"],
+        filters: [
+          { label: "Material Group Type", key: "Material Group Type", options: ["All Types", "Raw Material", "Packaging", "Electronics"] },
+          { label: "Storage Requirement", key: "Storage Requirement", options: ["All Requirements", "Ambient", "Chilled", "Hazardous"] }
+        ],
+        defaultSort: { key: "Financial Impact", direction: "desc" },
+        exportFilename: "FSCP_Inventory_MaterialGroups",
+        emptyStateMessage: "No material groups found.",
+        totalRecords: 1500,
+        breadcrumbField: "Material Group"
+      }
+    ]
   }
-
-  // Default / Inventory Flow
-  return [
-    {
-      id: "companies",
-      stageTitle: "Companies",
-      description: "Select companies experiencing balance variance discrepancy blocks.",
-      icon: Layers,
-      columns: [
-        { key: "Company", label: "Company", type: "text" },
-        { key: "Location", label: "HQ Location", type: "text" },
-        { key: "Issue Count", label: "Active Issues", type: "number" },
-        { key: "Financial Impact", label: "Exposure Amount", type: "currency", align: "right" }
-      ],
-      searchFields: ["Company", "Location"],
-      filters: [
-        { label: "Region", key: "Region", options: ["All Regions", "North America", "Europe", "Asia-Pacific"] },
-        { label: "Company Type", key: "Company Type", options: ["All Types", "Subsidiary", "Parent", "Joint Venture"] }
-      ],
-      defaultSort: { key: "Financial Impact", direction: "desc" },
-      exportFilename: "FSCP_Inventory_Companies",
-      emptyStateMessage: "No companies match the filters.",
-      totalRecords: 5000,
-      breadcrumbField: "Company"
-    },
-    {
-      id: "warehouses",
-      stageTitle: "Warehouses",
-      description: "Drill into distribution centers with WMS to ledger balance variances.",
-      icon: Sliders,
-      columns: [
-        { key: "Warehouse", label: "Warehouse", type: "text" },
-        { key: "Location", label: "Zone/Area", type: "text" },
-        { key: "Issue Count", label: "Discrepancy Count", type: "number" },
-        { key: "Financial Impact", label: "Write-down Value", type: "currency", align: "right" },
-        { key: "Status", label: "Status", type: "status" }
-      ],
-      searchFields: ["Warehouse", "Location"],
-      filters: [
-        { label: "Location", key: "Location", options: ["All Locations", "US East", "EU Central", "APAC South", "UK West"] },
-        { label: "Warehouse Type", key: "Warehouse Type", options: ["All Types", "Distribution Center", "Cold Storage", "Fulfillment", "Cross-Dock"] }
-      ],
-      defaultSort: { key: "Financial Impact", direction: "desc" },
-      exportFilename: "FSCP_Inventory_Warehouses",
-      emptyStateMessage: "No warehouses match search criteria.",
-      totalRecords: 2000,
-      breadcrumbField: "Warehouse"
-    },
-    {
-      id: "material_groups",
-      stageTitle: "Material Groups",
-      description: "Isolate valuation exception items by product material categories.",
-      icon: Layers,
-      columns: [
-        { key: "Material Group", label: "Material Group", type: "text" },
-        { key: "Issue Count", label: "Issues", type: "number" },
-        { key: "Financial Impact", label: "Impacted Value", type: "currency", align: "right" }
-      ],
-      searchFields: ["Material Group"],
-      filters: [
-        { label: "Material Group Type", key: "Material Group Type", options: ["All Types", "Raw Material", "Packaging", "Electronics"] },
-        { label: "Storage Requirement", key: "Storage Requirement", options: ["All Requirements", "Ambient", "Chilled", "Hazardous"] }
-      ],
-      defaultSort: { key: "Financial Impact", direction: "desc" },
-      exportFilename: "FSCP_Inventory_MaterialGroups",
-      emptyStateMessage: "No material groups found.",
-      totalRecords: 1500,
-      breadcrumbField: "Material Group"
-    },
-    {
-      id: "materials",
-      stageTitle: "Materials",
-      description: "Analyze individual inventory items, standard costings, or quantity count holds.",
-      icon: FileSpreadsheet,
-      columns: [
-        { key: "Material", label: "Item Name", type: "text" },
-        { key: "ID", label: "Material SKU ID", type: "text" },
-        { key: "Quantity", label: "Stock Quantity", type: "number" },
-        { key: "UOM", label: "UOM", type: "text" },
-        { key: "Financial Impact", label: "Valuation Difference", type: "currency", align: "right" }
-      ],
-      searchFields: ["Material", "ID"],
-      filters: [
-        { label: "Storage Condition", key: "Storage Condition", options: ["All Conditions", "Standard", "Refrigerated", "Dry"] },
-        { label: "Stock Availability", key: "Stock Availability", options: ["All Stock", "In Stock", "Out of Stock"] }
-      ],
-      defaultSort: { key: "Financial Impact", direction: "desc" },
-      exportFilename: "FSCP_Inventory_Materials",
-      emptyStateMessage: "No SKUs match the current criteria.",
-      totalRecords: 35000,
-      breadcrumbField: "Material"
-    }
-  ];
 };
+
+export const getInvestigationConfig = (process: string): InvestigationConfig => {
+  const lower = process.toLowerCase();
+  if (lower.includes("asset")) {
+    return INVESTIGATION_CONFIGS["Fixed Assets"];
+  } else if (lower.includes("payable") || lower.includes("ap") || lower.includes("procure")) {
+    return INVESTIGATION_CONFIGS["Accounts Payable"];
+  } else if (lower.includes("receivable") || lower.includes("ar") || lower.includes("order")) {
+    return INVESTIGATION_CONFIGS["Accounts Receivable"];
+  } else if (lower.includes("bank") || lower.includes("cash")) {
+    return INVESTIGATION_CONFIGS["Bank & Cash"];
+  } else if (lower.includes("general ledger") || lower.includes("ledger") || lower.includes("allocations") || lower.includes("prepar")) {
+    return INVESTIGATION_CONFIGS["General Ledger"];
+  } else {
+    return INVESTIGATION_CONFIGS["Inventory Accounting"];
+  }
+};
+
+
+
+const getStagesConfigForIssue = (issue: FSCPIssue): InvestigationStageConfig[] => {
+  const config = getInvestigationConfig(issue.process);
+  return config.stages;
+};
+
+;
 
 const generateMockRowsForStage = (
   stage: InvestigationStageConfig,
@@ -1207,8 +1273,576 @@ const generateMockRowsForStage = (
   };
 };
 
-export function FSCPPage() {
-  const [issues, setIssues] = useState<FSCPIssue[]>(INITIAL_ISSUES);
+interface IssueResolutionWorkspaceProps {
+  issue: FSCPIssue;
+  onClose: () => void;
+  triggerToast: (msg: string) => void;
+  onUpdateIssue: (updated: FSCPIssue) => void;
+}
+
+function getTimelineIcon(desc: string) {
+  const lower = desc.toLowerCase();
+  if (lower.includes("assigned")) return <User size={10} className="text-blue-500" />;
+  if (lower.includes("communication") || lower.includes("sent") || lower.includes("dispatched")) return <Send size={10} className="text-emerald-500" />;
+  if (lower.includes("detected") || lower.includes("blocker")) return <AlertTriangle size={10} className="text-red-500" />;
+  if (lower.includes("ai") || lower.includes("recommendation")) return <Sparkles size={10} className="text-purple-500" />;
+  return <Activity size={10} className="text-slate-400" />;
+}
+
+function IssueResolutionWorkspace({
+  issue,
+  onClose,
+  triggerToast,
+  onUpdateIssue
+}: IssueResolutionWorkspaceProps) {
+  const [assignActionType, setAssignActionType] = useState("");
+  const [assignOwner, setAssignOwner] = useState("");
+  const [assignDept, setAssignDept] = useState("");
+  const [assignPriority, setAssignPriority] = useState("Medium");
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assignNotes, setAssignNotes] = useState("");
+
+  const [formBaseline, setFormBaseline] = useState<{
+    actionType: string;
+    owner: string;
+    dept: string;
+    priority: string;
+    dueDate: string;
+    notes: string;
+  } | null>(null);
+
+  const [mailTo, setMailTo] = useState("");
+  const [mailCc, setMailCc] = useState("");
+  const [mailSubject, setMailSubject] = useState("");
+  const [mailBody, setMailBody] = useState("");
+
+  useEffect(() => {
+    if (issue) {
+      const actions = getActionTypes(issue.process);
+      const initialActionType = actions[0] || "Master Data Correction";
+      const initialOwner = issue.ownerRole;
+      const initialDept = issue.domain;
+      const initialPriority = issue.severity === "Critical" || issue.severity === "High" ? "High" : "Medium";
+      
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + 3);
+      const initialDueDate = defaultDate.toISOString().substring(0, 10);
+      const initialNotes = "";
+
+      setAssignActionType(initialActionType);
+      setAssignOwner(initialOwner);
+      setAssignDept(initialDept);
+      setAssignPriority(initialPriority);
+      setAssignDueDate(initialDueDate);
+      setAssignNotes(initialNotes);
+
+      setFormBaseline({
+        actionType: initialActionType,
+        owner: initialOwner,
+        dept: initialDept,
+        priority: initialPriority,
+        dueDate: initialDueDate,
+        notes: initialNotes
+      });
+
+      setMailTo(issue.ownerRole.toLowerCase().replace(/[^a-z]/g, "") + "@datatwin.ai");
+      setMailCc("finance-close-control@datatwin.ai");
+      setMailSubject(`[Action Required] Close Blocker ID: ${issue.id} - ${issue.name}`);
+      
+      const body = `Dear Team,
+
+Please review the following Close Blocker issue identified on the closing dashboard.
+
+- Blocker ID: ${issue.id}
+- Domain: ${issue.domain}
+- Process: ${issue.process}
+- Financial Impact: $${issue.impact.toLocaleString()}
+
+AI Smart Recommendation Checklist:
+${issue.suggestedAction.map((act, i) => `- ${act}`).join("\n")}
+
+Please assign resolution immediately.
+
+Regards,
+Close Control Monitor`;
+      setMailBody(body);
+    }
+  }, [issue]);
+
+  const isFormModified = !!(
+    formBaseline &&
+    (assignActionType !== formBaseline.actionType ||
+     assignOwner !== formBaseline.owner ||
+     assignDept !== formBaseline.dept ||
+     assignPriority !== formBaseline.priority ||
+     assignDueDate !== formBaseline.dueDate ||
+     assignNotes !== formBaseline.notes)
+  );
+
+  const handleDownloadReport = () => {
+    const reportContent = `Financial Statement Close Process (FSCP) Workspace
+======================================================================
+ISSUE DETAIL REPORT - ${issue.id}
+Generated on: ${new Date().toLocaleString()}
+----------------------------------------------------------------------
+Blocker ID:          ${issue.id}
+Issue Name:          ${issue.name}
+Domain:              ${issue.domain}
+Process:             ${issue.process}
+Financial Impact:    $${issue.impact.toLocaleString()}
+Severity:            ${issue.severity}
+Status:              ${issue.status}
+Ageing Days:         ${issue.ageingDays}
+Company Code:        ${issue.companyCode}
+Fiscal Year:         ${issue.fiscalYear}
+Period:              ${issue.period}
+Asset Number:        ${issue.assetNumber}
+Owner Role:          ${issue.ownerRole}
+
+Reason for Blocker:
+-------------------
+${issue.reason}
+
+AI Smart Suggestions:
+---------------------
+${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
+======================================================================
+`;
+
+    const blob = new Blob([reportContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `FSCP_Report_${issue.id}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    triggerToast(`Report report_${issue.id}.txt downloaded successfully!`);
+  };
+
+  const handleAssignAction = () => {
+    const updated: FSCPIssue = {
+      ...issue,
+      status: "In Progress" as const,
+      timeline: [
+        ...issue.timeline,
+        {
+          dateLabel: "Today",
+          description: `Resolution assigned to ${assignOwner}`
+        }
+      ]
+    };
+
+    onUpdateIssue(updated);
+    triggerToast(`Resolution corrective actions successfully assigned to ${assignOwner}.`);
+
+    setFormBaseline({
+      actionType: assignActionType,
+      owner: assignOwner,
+      dept: assignDept,
+      priority: assignPriority,
+      dueDate: assignDueDate,
+      notes: assignNotes
+    });
+  };
+
+  const handleSendMailCommunication = () => {
+    const updated: FSCPIssue = {
+      ...issue,
+      status: "In Progress" as const,
+      timeline: [
+        ...issue.timeline,
+        {
+          dateLabel: "Today",
+          description: `Communication sent to Asset Owner`
+        }
+      ]
+    };
+
+    onUpdateIssue(updated);
+    triggerToast(`Remediation notification email successfully dispatched to ${mailTo}.`);
+  };
+
+  const config = getInvestigationConfig(issue.process);
+
+  return (
+    <div 
+      className="w-screen h-screen flex flex-col overflow-hidden"
+      style={{ background: "var(--card)", color: "var(--foreground)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+        <div>
+          <h3 className="text-base font-bold flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: issue.type === "Close Blocker" ? "#ef4444" : issue.type === "Moderate Issue" ? "#f59e0b" : "#10b981" }} />
+            Issue Resolution Workspace — {issue.id}
+          </h3>
+          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{issue.domain} • {issue.process}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownloadReport}
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
+            style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
+          >
+            <Download size={13} />
+            Download Report
+          </button>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors flex items-center justify-center font-bold"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+            title="Close Tab"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Split Columns Grid Container */}
+      <div className="flex-1 overflow-hidden flex">
+        
+        {/* Left Column (2/3 width) - Scrollable working area */}
+        <div className="w-2/3 overflow-y-auto p-6 flex flex-col gap-6 border-r h-full" style={{ borderColor: "var(--border)" }}>
+          
+          {/* 1. Issue Information */}
+          <div className="rounded-xl border p-5 bg-secondary/15" style={{ borderColor: "var(--border)" }}>
+            <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 12 }}>Issue Information</h4>
+            <div className="grid grid-cols-3 gap-y-4 gap-x-2 text-[13px]">
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Blocker ID</span>
+                <strong className="font-semibold text-foreground">{issue.id}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Company Code</span>
+                <strong className="font-semibold text-foreground">{issue.companyCode}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Fiscal Year / Period</span>
+                <strong className="font-semibold text-foreground">{issue.fiscalYear} / {issue.period}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Asset / Document Number</span>
+                <strong className="font-semibold text-foreground font-mono">{issue.assetNumber}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Business Process</span>
+                <strong className="font-semibold text-foreground">{issue.process}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Blocker Type</span>
+                <strong className="font-semibold text-foreground">{issue.blockerType}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Severity</span>
+                <strong className="font-semibold" style={{ color: issue.severity === "Critical" ? "#ef4444" : issue.severity === "High" ? "#f59e0b" : "var(--foreground)" }}>{issue.severity}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Status</span>
+                <strong className="font-semibold" style={{ color: issue.status === "In Progress" ? "#3b82f6" : "#f59e0b" }}>{issue.status}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Financial Impact</span>
+                <strong className="font-semibold text-red-500">${issue.impact.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Source File</span>
+                <strong className="font-semibold text-foreground font-mono text-[11px] truncate block">{issue.sourceFile}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Owner Role</span>
+                <strong className="font-semibold text-foreground">{issue.ownerRole}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[11px] font-semibold">Ageing Days</span>
+                <strong className="font-semibold text-foreground">{issue.ageingDays} Days</strong>
+              </div>
+            </div>
+            <div className="border-t pt-3 mt-3 text-xs" style={{ borderColor: "var(--border)" }}>
+              <span className="text-muted-foreground block text-[11px] uppercase font-bold tracking-wider mb-1">Reason for outstanding issue</span>
+              <p style={{ color: "var(--foreground)", fontSize: "13px", lineHeight: 1.5 }}>{issue.reason}</p>
+            </div>
+          </div>
+
+          {/* Detailed Records Section */}
+          <div className="rounded-xl border p-5 bg-card" style={{ borderColor: "var(--border)" }}>
+            <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 12 }}>
+              Detailed Records — {config.detailedRecordsTitle}
+            </h4>
+            <div className="overflow-x-auto border rounded-lg animate-fadeIn" style={{ borderColor: "var(--border)" }}>
+              <table className="w-full text-left font-sans text-[13px]" style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr className="border-b bg-muted/15" style={{ borderColor: "var(--border)", fontSize: "11px", color: "var(--muted-foreground)" }}>
+                    {config.detailedRecordsColumns.map((col) => (
+                      <th key={col.key} className={`py-2 px-3 font-bold ${col.align === "right" ? "text-right" : "text-left"}`}>
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {config.detailedRecordsMockData.map((row, idx) => (
+                    <tr key={idx} className="border-b hover:bg-muted/5 transition-colors font-medium" style={{ borderColor: "var(--border)" }}>
+                      {config.detailedRecordsColumns.map((col) => {
+                        const val = row[col.key];
+                        return (
+                          <td key={col.key} className={`py-2 px-3 ${col.align === "right" ? "text-right font-semibold" : "text-left"}`}>
+                            {col.type === "currency" ? `$${val.toLocaleString()}` : val}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 2. Resolution Assignment */}
+          <div className="rounded-xl border p-5 bg-card" style={{ borderColor: "var(--border)" }}>
+            <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 16 }}>
+              <Layers size={14} style={{ color: "#3b82f6" }} />
+              Resolution Assignment
+            </h4>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs font-sans">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Action Type</label>
+                <select 
+                  value={assignActionType}
+                  onChange={(e) => setAssignActionType(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {getActionTypes(issue.process).map(action => (
+                    <option key={action} value={action}>{action}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Responsible Person / Role</label>
+                <input 
+                  type="text" 
+                  value={assignOwner}
+                  onChange={(e) => setAssignOwner(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Department</label>
+                <input 
+                  type="text" 
+                  value={assignDept}
+                  onChange={(e) => setAssignDept(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Priority</label>
+                <select 
+                  value={assignPriority}
+                  onChange={(e) => setAssignPriority(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Due Date</label>
+                <input 
+                  type="date" 
+                  value={assignDueDate}
+                  onChange={(e) => setAssignDueDate(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Resolution Notes</label>
+                <textarea 
+                  rows={3} 
+                  value={assignNotes}
+                  onChange={(e) => setAssignNotes(e.target.value)}
+                  placeholder="Enter closing remediation instructions or action history..."
+                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors resize-none text-foreground leading-relaxed font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Communications Hub */}
+          <div className="rounded-xl border p-5 bg-card" style={{ borderColor: "var(--border)" }}>
+            <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 16 }}>
+              <Mail size={14} style={{ color: "#3b82f6" }} />
+              Communications Hub
+            </h4>
+
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs font-sans">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">To</label>
+                <input 
+                  type="text" 
+                  value={mailTo} 
+                  onChange={(e) => setMailTo(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Cc</label>
+                <input 
+                  type="text" 
+                  value={mailCc} 
+                  onChange={(e) => setMailCc(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Subject</label>
+                <input 
+                  type="text" 
+                  value={mailSubject} 
+                  onChange={(e) => setMailSubject(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5 col-span-2">
+                <label className="text-muted-foreground text-[11px] uppercase font-bold tracking-wider block mb-1.5">Email Body</label>
+                <textarea 
+                  rows={4} 
+                  value={mailBody} 
+                  onChange={(e) => setMailBody(e.target.value)}
+                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors font-mono text-[15px] leading-relaxed resize-y text-foreground font-medium"
+                  style={{ borderColor: "var(--border)" }}
+                />
+              </div>
+
+              <div className="col-span-2 flex justify-end">
+                <button
+                  onClick={handleSendMailCommunication}
+                  className="px-5 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 hover:bg-muted/10 border"
+                  style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
+                >
+                  <Send size={12} />
+                  Send Remediation Notice
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column (1/3 width) - Fixed contextual sidebar */}
+        <div className="w-1/3 p-6 flex flex-col gap-6 h-full overflow-hidden flex-shrink-0" style={{ background: "var(--card)" }}>
+          
+          {/* AI Smart Suggestion */}
+          <div 
+            className="rounded-xl p-5 border flex flex-col gap-4"
+            style={{ 
+              background: "rgba(59, 130, 246, 0.04)", 
+              borderColor: "rgba(59, 130, 246, 0.25)",
+              boxShadow: "inset 0 0 24px rgba(59, 130, 246, 0.03), 0 4px 20px rgba(59, 130, 246, 0.05)"
+            }}
+          >
+            <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: "rgba(59, 130, 246, 0.15)" }}>
+              <Sparkles size={16} style={{ color: "#3b82f6" }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Smart Suggestion</span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {issue.suggestedAction.map((action, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-blue-500 font-bold" style={{ fontSize: 12 }}>{i + 1}.</span>
+                  <p style={{ fontSize: 12, color: "var(--foreground)", lineHeight: 1.4 }}>{action}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Issue Activity Timeline */}
+          <div className="rounded-xl border p-4 bg-card flex-1 overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+            <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 16 }}>
+              <Calendar size={14} style={{ color: "#3b82f6" }} />
+              Issue Activity Timeline
+            </h4>
+
+            <div className="flex flex-col gap-5 pl-4 relative border-l" style={{ borderColor: "var(--border)" }}>
+              {[...issue.timeline].reverse().map((event, idx) => (
+                <div key={idx} className="relative text-xs animate-fadeIn pb-1">
+                  <span 
+                    className="absolute rounded-full flex items-center justify-center" 
+                    style={{ 
+                      width: 20, 
+                      height: 20, 
+                      left: "-25px", 
+                      top: "-2px", 
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                    }} 
+                  >
+                    {getTimelineIcon(event.description)}
+                  </span>
+                  
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", display: "block", textTransform: "uppercase" }}>
+                    {event.dateLabel}
+                  </span>
+                  
+                  <p className="mt-0.5 text-foreground font-medium text-[12px] leading-relaxed">
+                    {event.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-shrink-0 items-center justify-end px-6 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+        <button
+          disabled={!isFormModified}
+          onClick={handleAssignAction}
+          className="px-5 py-2 rounded-lg text-xs font-bold border-none transition-colors"
+          style={{
+            background: isFormModified ? "var(--foreground)" : "var(--muted)",
+            color: isFormModified ? "var(--background)" : "var(--muted-foreground)",
+            cursor: isFormModified ? "pointer" : "not-allowed",
+            opacity: isFormModified ? 1 : 0.5
+          }}
+        >
+          Save Action
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {}) {
+  const [issues, setIssues] = useState<FSCPIssue[]>(() => IssueRepository.loadIssues());
+
+  useEffect(() => {
+    return IssueRepository.subscribe((updatedIssues) => {
+      setIssues(updatedIssues);
+    });
+  }, []);
+
   const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [activeProcess, setActiveProcess] = useState<string | null>(null);
@@ -1259,7 +1893,8 @@ export function FSCPPage() {
         setModalSortKey(stages[nextStageIndex].defaultSort.key);
         setModalSortDirection(stages[nextStageIndex].defaultSort.direction);
       } else {
-        setShowDetails(activeIssueForInvestigation);
+        const workspaceUrl = `${window.location.origin}${window.location.pathname}?mode=workspace&module=fscp&issueId=${activeIssueForInvestigation.id}`;
+        window.open(workspaceUrl, "_blank", "noopener,noreferrer");
       }
     }, 400);
   };
@@ -1320,39 +1955,6 @@ export function FSCPPage() {
     message: string;
   } | null>(null);
   
-  // Resolution Assignment Form fields
-  const [assignActionType, setAssignActionType] = useState("");
-  const [assignOwner, setAssignOwner] = useState("");
-  const [assignDept, setAssignDept] = useState("");
-  const [assignPriority, setAssignPriority] = useState("Medium");
-  const [assignDueDate, setAssignDueDate] = useState("");
-  const [assignNotes, setAssignNotes] = useState("");
-
-  const [formBaseline, setFormBaseline] = useState<{
-    actionType: string;
-    owner: string;
-    dept: string;
-    priority: string;
-    dueDate: string;
-    notes: string;
-  } | null>(null);
-
-  const isFormModified = !!(
-    formBaseline &&
-    (assignActionType !== formBaseline.actionType ||
-     assignOwner !== formBaseline.owner ||
-     assignDept !== formBaseline.dept ||
-     assignPriority !== formBaseline.priority ||
-     assignDueDate !== formBaseline.dueDate ||
-     assignNotes !== formBaseline.notes)
-  );
-
-  // Communication fields
-  const [mailTo, setMailTo] = useState("");
-  const [mailCc, setMailCc] = useState("");
-  const [mailSubject, setMailSubject] = useState("");
-  const [mailBody, setMailBody] = useState("");
-
   // Success toast message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -1363,59 +1965,44 @@ export function FSCPPage() {
     }, 4500);
   };
 
-  // Prefill forms when details overlay loads
-  useEffect(() => {
-    if (showDetails) {
-      const actions = getActionTypes(showDetails.process);
-      const initialActionType = actions[0] || "Master Data Correction";
-      const initialOwner = showDetails.ownerRole;
-      const initialDept = showDetails.domain;
-      const initialPriority = showDetails.severity === "Critical" || showDetails.severity === "High" ? "High" : "Medium";
-      
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() + 3);
-      const initialDueDate = defaultDate.toISOString().substring(0, 10);
-      const initialNotes = "";
-
-      setAssignActionType(initialActionType);
-      setAssignOwner(initialOwner);
-      setAssignDept(initialDept);
-      setAssignPriority(initialPriority);
-      setAssignDueDate(initialDueDate);
-      setAssignNotes(initialNotes);
-
-      setFormBaseline({
-        actionType: initialActionType,
-        owner: initialOwner,
-        dept: initialDept,
-        priority: initialPriority,
-        dueDate: initialDueDate,
-        notes: initialNotes
-      });
-
-      setMailTo(showDetails.ownerRole.toLowerCase().replace(/[^a-z]/g, "") + "@datatwin.ai");
-      setMailCc("finance-close-control@datatwin.ai");
-      setMailSubject(`[Action Required] Close Blocker ID: ${showDetails.id} - ${showDetails.name}`);
-      
-      const body = `Dear Team,
-
-Please review the following Close Blocker issue identified on the closing dashboard.
-
-- Blocker ID: ${showDetails.id}
-- Domain: ${showDetails.domain}
-- Process: ${showDetails.process}
-- Financial Impact: $${showDetails.impact.toLocaleString()}
-
-AI Smart Recommendation Checklist:
-${showDetails.suggestedAction.map((act, i) => `- ${act}`).join("\n")}
-
-Please assign resolution immediately.
-
-Regards,
-Close Control Monitor`;
-      setMailBody(body);
+  // Dedicated workspace mode check
+  if (workspaceIssueId) {
+    const activeIssue = issues.find(i => i.id === workspaceIssueId);
+    if (!activeIssue) {
+      return (
+        <div className="p-8 text-center text-muted-foreground text-sm font-sans">
+          Issue {workspaceIssueId} not found.
+        </div>
+      );
     }
-  }, [showDetails]);
+
+    return (
+      <>
+        <IssueResolutionWorkspace
+          issue={activeIssue}
+          onClose={() => window.close()}
+          triggerToast={triggerToast}
+          onUpdateIssue={(updated) => {
+            const next = issues.map(x => x.id === updated.id ? updated : x);
+            IssueRepository.saveIssues(next);
+          }}
+        />
+        {toastMessage && (
+          <div 
+            className="fixed bottom-6 right-6 px-4 py-3 rounded-lg border shadow-xl flex items-center gap-2 z-[9999] animate-fadeIn text-xs font-semibold"
+            style={{ 
+              background: "var(--card)", 
+              borderColor: "var(--border)",
+              color: "var(--foreground)" 
+            }}
+          >
+            <CheckCircle size={15} style={{ color: "#10b981" }} />
+            {toastMessage}
+          </div>
+        )}
+      </>
+    );
+  }
 
   // Calculations
   const counts = {
@@ -1492,138 +2079,8 @@ Close Control Monitor`;
 
 
   const handleDrillAction = (issue: FSCPIssue) => {
-    setShowDetails(issue);
-  };
-
-  const handleDownloadReport = (issue: FSCPIssue) => {
-    const reportContent = `Financial Statement Close Process (FSCP) Workspace
-======================================================================
-ISSUE DETAIL REPORT - ${issue.id}
-Generated on: ${new Date().toLocaleString()}
-----------------------------------------------------------------------
-Blocker ID:          ${issue.id}
-Issue Name:          ${issue.name}
-Domain:              ${issue.domain}
-Process:             ${issue.process}
-Financial Impact:    $${issue.impact.toLocaleString()}
-Severity:            ${issue.severity}
-Status:              ${issue.status}
-Ageing Days:         ${issue.ageingDays}
-Company Code:        ${issue.companyCode}
-Fiscal Year:         ${issue.fiscalYear}
-Period:              ${issue.period}
-Asset Number:        ${issue.assetNumber}
-Sub Asset Number:    ${issue.subAssetNumber}
-Asset Description:   ${issue.assetDescription}
-Blocker Type:        ${issue.blockerType}
-Source File:         ${issue.sourceFile}
-Owner Role:          ${issue.ownerRole}
-
-Reason for Blocker:
--------------------
-${issue.reason}
-
-AI Smart Suggestions:
----------------------
-${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
-======================================================================
-`;
-
-    const blob = new Blob([reportContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `FSCP_Report_${issue.id}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast(`Report report_${issue.id}.txt downloaded successfully!`);
-  };
-
-  const handleAssignAction = () => {
-    if (!showDetails) return;
-
-    setIssues(prev => prev.map(issue => {
-      if (issue.id === showDetails.id) {
-        return {
-          ...issue,
-          status: "In Progress" as const,
-          timeline: [
-            ...issue.timeline,
-            {
-              dateLabel: "Today",
-              description: `Resolution assigned to ${assignOwner}`
-            }
-          ]
-        };
-      }
-      return issue;
-    }));
-
-    setShowDetails(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        status: "In Progress" as const,
-        timeline: [
-          ...prev.timeline,
-          {
-            dateLabel: "Today",
-            description: `Resolution assigned to ${assignOwner}`
-          }
-        ]
-      };
-    });
-
-    triggerToast(`Resolution corrective actions successfully assigned to ${assignOwner}.`);
-
-    setFormBaseline({
-      actionType: assignActionType,
-      owner: assignOwner,
-      dept: assignDept,
-      priority: assignPriority,
-      dueDate: assignDueDate,
-      notes: assignNotes
-    });
-  };
-
-  const handleSendMailCommunication = () => {
-    if (!showDetails) return;
-
-    setIssues(prev => prev.map(issue => {
-      if (issue.id === showDetails.id) {
-        return {
-          ...issue,
-          status: "In Progress" as const,
-          timeline: [
-            ...issue.timeline,
-            {
-              dateLabel: "Today",
-              description: `Communication sent to Asset Owner`
-            }
-          ]
-        };
-      }
-      return issue;
-    }));
-
-    setShowDetails(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        status: "In Progress" as const,
-        timeline: [
-          ...prev.timeline,
-          {
-            dateLabel: "Today",
-            description: `Communication sent to Asset Owner`
-          }
-        ]
-      };
-    });
-
-    triggerToast(`Remediation notification email successfully dispatched to ${mailTo}.`);
+    const workspaceUrl = `${window.location.origin}${window.location.pathname}?mode=workspace&module=fscp&issueId=${issue.id}`;
+    window.open(workspaceUrl, "_blank", "noopener,noreferrer");
   };
 
   const filteredIssues = issues.filter(
@@ -2104,8 +2561,10 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                 <td className="py-2.5 text-right font-semibold text-foreground">
                                   ${issue.impact.toLocaleString()}
                                 </td>
-                                <td className="py-2.5 text-right pr-4 text-blue-500 font-semibold">
-                                  <span className="hover:underline">Investigate →</span>
+                                <td className="py-2.5 text-right pr-4 text-blue-500 font-semibold font-sans">
+                                  <span className="inline-flex items-center justify-center p-1.5 rounded hover:bg-blue-500/10 transition-colors" title="Dive Deep">
+                                    <SquareArrowOutUpRight size={14} />
+                                  </span>
                                 </td>
                               </tr>
                             ))}
@@ -2126,363 +2585,6 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
             </div>
           )}
       </>
-
-      {/* ─── 4. Issue Resolution Workspace Modal ─── */}
-      {showDetails && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fadeIn">
-          <div 
-            className="w-full max-w-5xl rounded-xl border flex flex-col h-[90vh] shadow-2xl overflow-hidden"
-            style={{ background: "var(--card)", borderColor: "var(--border)" }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
-              <div>
-                <h3 className="text-base font-bold flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: showDetails.type === "Close Blocker" ? "#ef4444" : showDetails.type === "Moderate Issue" ? "#f59e0b" : "#10b981" }} />
-                  Issue Resolution Workspace — {showDetails.id}
-                </h3>
-                <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{showDetails.domain} • {showDetails.process}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleDownloadReport(showDetails)}
-                  className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
-                  style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)", cursor: "pointer" }}
-                >
-                  <Download size={13} />
-                  Download Report
-                </button>
-                <button 
-                  onClick={handleCloseWorkspace}
-                  className="p-1.5 rounded-full hover:bg-muted/50 transition-colors flex items-center justify-center"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
-                  title="Close Workspace"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Split Columns Grid Container */}
-            <div className="flex-1 overflow-hidden flex">
-              
-              {/* Left Column (2/3 width) - Scrollable working area */}
-              <div className="w-2/3 overflow-y-auto p-6 flex flex-col gap-6 border-r" style={{ borderColor: "var(--border)" }}>
-                
-                {/* 1. Issue Information */}
-                <div className="rounded-xl border p-4" style={{ background: "var(--secondary)", borderColor: "var(--border)" }}>
-                  <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 12 }}>Issue Information</h4>
-                  <div className="grid grid-cols-3 gap-y-4 gap-x-2 text-xs">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Blocker ID</span>
-                      <strong className="font-semibold text-foreground">{showDetails.id}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Company Code</span>
-                      <strong className="font-semibold text-foreground">{showDetails.companyCode}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Fiscal Year / Period</span>
-                      <strong className="font-semibold text-foreground">{showDetails.fiscalYear} / {showDetails.period}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Asset / Document Number</span>
-                      <strong className="font-semibold text-foreground font-mono">{showDetails.assetNumber}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Business Process</span>
-                      <strong className="font-semibold text-foreground">{showDetails.process}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Blocker Type</span>
-                      <strong className="font-semibold text-foreground">{showDetails.blockerType}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Severity</span>
-                      <strong className="font-semibold" style={{ color: showDetails.severity === "Critical" ? "#ef4444" : showDetails.severity === "High" ? "#f59e0b" : "var(--foreground)" }}>{showDetails.severity}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Status</span>
-                      <strong className="font-semibold" style={{ color: showDetails.status === "In Progress" ? "#3b82f6" : "#f59e0b" }}>{showDetails.status}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Financial Impact</span>
-                      <strong className="font-semibold text-red-500">${showDetails.impact.toLocaleString()}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Source File</span>
-                      <strong className="font-semibold text-foreground font-mono text-[11px] truncate block">{showDetails.sourceFile}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Owner Role</span>
-                      <strong className="font-semibold text-foreground">{showDetails.ownerRole}</strong>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[10px]">Ageing Days</span>
-                      <strong className="font-semibold text-foreground">{showDetails.ageingDays} Days</strong>
-                    </div>
-                  </div>
-                  <div className="border-t pt-3 mt-3 text-xs" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Reason for outstanding issue</span>
-                    <p style={{ color: "var(--foreground)", lineHeight: 1.5 }}>{showDetails.reason}</p>
-                  </div>
-                </div>
-
-                {/* 2. Resolution Assignment */}
-                <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                  <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 12 }}>
-                    <Layers size={14} style={{ color: "#3b82f6" }} />
-                    Resolution Assignment
-                  </h4>
-
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Action Type</label>
-                      <select 
-                        value={assignActionType}
-                        onChange={(e) => setAssignActionType(e.target.value)}
-                        className="w-full rounded p-2 border outline-none bg-secondary"
-                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                      >
-                        {getActionTypes(showDetails.process).map(action => (
-                          <option key={action} value={action}>{action}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Responsible Person</label>
-                      <input 
-                        type="text"
-                        value={assignOwner}
-                        onChange={(e) => setAssignOwner(e.target.value)}
-                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                        placeholder="Assign Owner"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Department</label>
-                      <input 
-                        type="text"
-                        value={assignDept}
-                        onChange={(e) => setAssignDept(e.target.value)}
-                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Priority</label>
-                        <select 
-                          value={assignPriority}
-                          onChange={(e) => setAssignPriority(e.target.value)}
-                          className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                          style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                        >
-                          <option value="High">High</option>
-                          <option value="Medium">Medium</option>
-                          <option value="Low">Low</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Due Date</label>
-                        <input 
-                          type="date"
-                          value={assignDueDate}
-                          onChange={(e) => setAssignDueDate(e.target.value)}
-                          className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                          style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-xs">
-                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Resolution Notes</label>
-                    <textarea 
-                      rows={2}
-                      value={assignNotes}
-                      onChange={(e) => setAssignNotes(e.target.value)}
-                      placeholder="Add corrective instructions, adjustment keys, or override details..."
-                      className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                    />
-                  </div>
-
-                  <button
-                    disabled={!isFormModified}
-                    onClick={handleAssignAction}
-                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none transition-colors"
-                    style={{
-                      background: isFormModified ? "#3b82f6" : "var(--muted)",
-                      color: isFormModified ? "#fff" : "var(--muted-foreground)",
-                      cursor: isFormModified ? "pointer" : "not-allowed",
-                      opacity: isFormModified ? 1 : 0.6
-                    }}
-                  >
-                    Assign Resolution
-                  </button>
-                </div>
-
-                {/* 3. Communication */}
-                <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                  <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--foreground)", marginBottom: 12 }}>
-                    <Mail size={14} style={{ color: "#3b82f6" }} />
-                    Communication
-                  </h4>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs mb-3">
-                    <div>
-                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">To</label>
-                      <input 
-                        type="text"
-                        value={mailTo}
-                        onChange={(e) => setMailTo(e.target.value)}
-                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">CC</label>
-                      <input 
-                        type="text"
-                        value={mailCc}
-                        onChange={(e) => setMailCc(e.target.value)}
-                        className="w-full rounded p-2 border outline-none bg-secondary text-xs"
-                        style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="text-xs mb-3">
-                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Subject</label>
-                    <input 
-                      type="text"
-                      value={mailSubject}
-                      onChange={(e) => setMailSubject(e.target.value)}
-                      className="w-full rounded p-2 border outline-none bg-secondary text-xs font-semibold"
-                      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
-                    />
-                  </div>
-
-                  <div className="text-xs">
-                    <label className="text-muted-foreground block text-[10px] uppercase font-semibold mb-1">Message Body</label>
-                    <textarea 
-                      rows={5}
-                      value={mailBody}
-                      onChange={(e) => setMailBody(e.target.value)}
-                      className="w-full rounded p-2 border outline-none bg-secondary text-xs font-mono"
-                      style={{ borderColor: "var(--border)", color: "var(--foreground)", lineHeight: 1.4 }}
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleSendMailCommunication}
-                    className="mt-3 px-4 py-2 rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1.5 transition-colors"
-                    style={{ background: "var(--foreground)", color: "var(--background)" }}
-                  >
-                    <Send size={12} />
-                    Send Communication
-                  </button>
-                </div>
-
-              </div>
-
-              {/* Right Column (1/3 width) - Sticky container for AI Suggestions & Activity Timeline */}
-              <div className="w-1/3 overflow-y-auto p-6 flex flex-col gap-6 bg-secondary/20">
-                <div className="flex flex-col gap-6">
-                  
-                  {/* AI Smart Suggestion */}
-                  <div 
-                    className="rounded-xl p-5 border flex flex-col gap-4"
-                    style={{ 
-                      background: "rgba(59, 130, 246, 0.04)", 
-                      borderColor: "rgba(59, 130, 246, 0.25)",
-                      boxShadow: "inset 0 0 24px rgba(59, 130, 246, 0.03), 0 4px 20px rgba(59, 130, 246, 0.05)"
-                    }}
-                  >
-                    <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: "rgba(59, 130, 246, 0.15)" }}>
-                      <Sparkles size={16} style={{ color: "#3b82f6" }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Smart Suggestion</span>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      {showDetails.suggestedAction.map((action, i) => (
-                        <div key={i} className="flex gap-2">
-                          <span className="text-blue-500 font-bold" style={{ fontSize: 12 }}>{i + 1}.</span>
-                          <p style={{ fontSize: 12, color: "var(--foreground)", lineHeight: 1.4 }}>{action}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Issue Activity Timeline */}
-                  <div className="rounded-xl border p-4" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                    <h4 className="flex items-center gap-2" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 16 }}>
-                      <Calendar size={14} style={{ color: "#3b82f6" }} />
-                      Issue Activity Timeline
-                    </h4>
-
-                    {/* Timeline items rendered in REVERSE chronological order */}
-                    <div className="flex flex-col gap-5 pl-4 relative border-l" style={{ borderColor: "var(--border)" }}>
-                      {[...showDetails.timeline].reverse().map((event, idx) => (
-                        <div key={idx} className="relative text-xs animate-fadeIn pb-1">
-                          {/* Dot Circle wrapper containing matching context icon */}
-                          <span 
-                            className="absolute rounded-full flex items-center justify-center" 
-                            style={{ 
-                              width: 20, 
-                              height: 20, 
-                              left: "-25px", 
-                              top: "-2px", 
-                              background: "var(--card)",
-                              border: "1px solid var(--border)",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
-                            }} 
-                          >
-                            {getTimelineIcon(event.description)}
-                          </span>
-                          
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", display: "block", textTransform: "uppercase" }}>
-                            {event.dateLabel}
-                          </span>
-                          
-                          <p className="mt-0.5 text-foreground font-medium text-[11px] leading-relaxed">
-                            {event.description}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-shrink-0 items-center justify-end px-6 py-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <button
-                disabled={!isFormModified}
-                onClick={handleAssignAction}
-                className="px-5 py-1.5 rounded text-xs font-bold border-none transition-colors"
-                style={{
-                  background: isFormModified ? "var(--foreground)" : "var(--muted)",
-                  color: isFormModified ? "var(--background)" : "var(--muted-foreground)",
-                  cursor: isFormModified ? "pointer" : "not-allowed",
-                  opacity: isFormModified ? 1 : 0.5
-                }}
-              >
-                Save Action
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {activeIssueForInvestigation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
@@ -2730,9 +2832,11 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                                       </td>
                                     );
                                   })}
-                                  <td className="py-3 px-4 text-right pr-4 text-blue-500 font-semibold">
-                                    <span className="hover:underline">Investigate →</span>
-                                  </td>
+                                   <td className="py-3 px-4 text-right pr-4 text-blue-500 font-semibold font-sans">
+                                     <span className="inline-flex items-center justify-center p-1.5 rounded hover:bg-blue-500/10 transition-colors" title="Dive Deep">
+                                       <SquareArrowOutUpRight size={14} />
+                                     </span>
+                                   </td>
                                 </tr>
                               );
                             })}
