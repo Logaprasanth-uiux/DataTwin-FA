@@ -40,6 +40,23 @@ import {
 export type FSCPIssueType = "No Issue" | "Moderate Issue" | "Close Blocker";
 export type FSCPViewMode = "View 1" | "View 2";
 
+export interface CompanyGroup {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  domainsCount: number;
+}
+
+const COMPANY_GROUPS: CompanyGroup[] = [
+  { id: "global-holdings", name: "Global Holdings Group", code: "GH-001", type: "Global", domainsCount: 6 },
+  { id: "north-america", name: "North America Operations", code: "NA-002", type: "Regional", domainsCount: 4 },
+  { id: "apac-shared", name: "APAC Shared Services", code: "AP-003", type: "Shared Services", domainsCount: 3 },
+  { id: "europe-finance", name: "Europe Finance Group", code: "EU-004", type: "Regional", domainsCount: 4 },
+  { id: "contoso-mfg", name: "Contoso Manufacturing", code: "CO-005", type: "Operational", domainsCount: 3 },
+  { id: "fabrikam-retail", name: "Fabrikam Retail", code: "FR-006", type: "Operational", domainsCount: 2 }
+];
+
 export interface TimelineEvent {
   dateLabel: string;
   description: string;
@@ -1858,6 +1875,23 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [activeProcess, setActiveProcess] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
+  const [selectedCompanyGroup, setSelectedCompanyGroup] = useState<string>("Global Holdings Group");
+
+  const filteredCompanyIssues = issues.filter(issue => {
+    if (selectedCompanyGroup === "Global Holdings Group") return true;
+    if (selectedCompanyGroup === "North America Operations") return issue.companyCode === "US01";
+    if (selectedCompanyGroup === "APAC Shared Services") return issue.companyCode === "APAC09" || issue.companyCode === "IN02";
+    if (selectedCompanyGroup === "Europe Finance Group") return issue.companyCode === "EU02" || issue.companyCode === "UK03";
+    if (selectedCompanyGroup === "Contoso Manufacturing") return issue.companyCode === "US01" || issue.companyCode === "IN02";
+    if (selectedCompanyGroup === "Fabrikam Retail") return issue.companyCode === "EU02" || issue.companyCode === "APAC09";
+    return true;
+  });
+
+  const handleSelectCompanyGroup = (groupName: string) => {
+    setSelectedCompanyGroup(groupName);
+    setSelectedDomain(null);
+    setActiveProcess(null);
+  };
   
   // Modals state
   const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
@@ -2026,12 +2060,12 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
 
   const getDomainCount = (domain: string, type: FSCPIssueType | null): number => {
     if (!type) return 0;
-    return issues.filter(i => i.domain === domain && i.type === type).length;
+    return filteredCompanyIssues.filter(i => i.domain === domain && i.type === type).length;
   };
 
   const getProcessCount = (process: string, type: FSCPIssueType | null): number => {
     if (!type) return 0;
-    return issues.filter(i => i.process === process && i.type === type).length;
+    return filteredCompanyIssues.filter(i => i.process === process && i.type === type).length;
   };
 
   const activeKPIFilter = selectedKPI;
@@ -2094,7 +2128,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
     window.open(workspaceUrl, "_blank", "noopener,noreferrer");
   };
 
-  const filteredIssues = issues.filter(
+  const filteredIssues = filteredCompanyIssues.filter(
     i => i.process === activeProcess && i.type === activeKPIFilter
   );
 
@@ -2269,8 +2303,70 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
 
           {/* KPI Drilldown Section */}
           {selectedKPI && (
-            <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-              <div className="flex items-center justify-between mb-5">
+            <>
+              {/* ─── Company / Group Context Selector ─── */}
+              <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                <div className="mb-4">
+                  <h2 className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-1">
+                    Choose Company / Group
+                  </h2>
+                  <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                    Select the company or organizational group you want to investigate. All Finance Domains, KPIs, issues, and downstream data should be filtered based on this selection.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {COMPANY_GROUPS.map((group) => {
+                    const isSelected = selectedCompanyGroup === group.name;
+                    return (
+                      <div
+                        key={group.id}
+                        onClick={() => handleSelectCompanyGroup(group.name)}
+                        className={`rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none ${
+                          isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
+                        }`}
+                        style={{
+                          borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                          boxShadow: isSelected ? "0 2px 10px rgba(59, 130, 246, 0.15)" : "none"
+                        }}
+                      >
+                        {/* Top Row: Code & Selection Indicator */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">
+                            {group.code}
+                          </span>
+                          
+                          {/* Selection Indicator Light */}
+                          <span 
+                            className="w-2.5 h-2.5 rounded-full border transition-all duration-200"
+                            style={{
+                              background: isSelected ? "#3b82f6" : "transparent",
+                              borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                              boxShadow: isSelected ? "0 0 8px #3b82f6" : "none"
+                            }}
+                          />
+                        </div>
+
+                        {/* Middle Row: Name */}
+                        <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
+                          {group.name}
+                        </div>
+
+                        {/* Bottom Row: Type / Domains */}
+                        <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                          <span>{group.type}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/20 font-mono">
+                            {group.domainsCount} domains
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+                <div className="flex items-center justify-between mb-5">
                 <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase">
                   Domain Breakdown: {selectedKPI} List ({viewMode})
                 </h2>
@@ -2592,6 +2688,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                 </div>
               )}
             </div>
+            </>
           )}
       </>
 
