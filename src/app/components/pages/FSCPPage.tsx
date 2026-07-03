@@ -1226,6 +1226,7 @@ export function FSCPPage() {
   const [modalSortDirection, setModalSortDirection] = useState<"asc" | "desc">("desc");
 
   const handleStartInvestigation = (issue: FSCPIssue) => {
+    console.log("FSCP Page investigation started:", issue.id);
     setActiveIssueForInvestigation(issue);
     setInvestigationPath([]); 
     setModalPage(1);
