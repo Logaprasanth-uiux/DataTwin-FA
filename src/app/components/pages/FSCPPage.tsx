@@ -535,11 +535,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Affected Companies",
-        description: "Review legal entities impacted by capitalization delays or retirement variances.",
+        stageTitle: "LOB Units / Branch",
+        description: "Review LOB units and branches impacted by capitalization delays or retirement variances.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Company", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "Headquarters", type: "text" },
           { key: "Issue Count", label: "Issues", type: "number" },
           { key: "Financial Impact", label: "Financial Impact", type: "currency", align: "right" },
@@ -621,11 +621,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Companies",
-        description: "Select companies experiencing vendor liability matching disputes.",
+        stageTitle: "LOB Units / Branch",
+        description: "Select LOB units and branches experiencing vendor liability matching disputes.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Company Entity", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "Region", type: "text" },
           { key: "Issue Count", label: "Open Issues", type: "number" },
           { key: "Financial Impact", label: "Outstanding Liability", type: "currency", align: "right" }
@@ -706,11 +706,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Companies",
-        description: "Identify trading entities experiencing unallocated cash or customer disputes.",
+        stageTitle: "LOB Units / Branch",
+        description: "Identify LOB units and branches experiencing unallocated cash or customer disputes.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Company Entity", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "Region", type: "text" },
           { key: "Issue Count", label: "Disputes", type: "number" },
           { key: "Financial Impact", label: "Aging Receivable", type: "currency", align: "right" }
@@ -790,11 +790,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Companies",
-        description: "Identify companies with manual allocation entry or rate translation issues.",
+        stageTitle: "LOB Units / Branch",
+        description: "Identify LOB units and branches with manual allocation entry or rate translation issues.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Legal Entity", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "Region", type: "text" },
           { key: "Issue Count", label: "Ledger Alerts", type: "number" },
           { key: "Financial Impact", label: "Total Exposure", type: "currency", align: "right" }
@@ -893,11 +893,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Entities / Companies",
-        description: "Select companies experiencing currency translation or bank ledger discrepancies.",
+        stageTitle: "LOB Units / Branch",
+        description: "Select LOB units and branches experiencing currency translation or bank ledger discrepancies.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Company", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "HQ", type: "text" },
           { key: "Issue Count", label: "Variance Alerts", type: "number" },
           { key: "Financial Impact", label: "Translation Impact", type: "currency", align: "right" }
@@ -955,11 +955,11 @@ export const INVESTIGATION_CONFIGS: Record<string, InvestigationConfig> = {
     stages: [
       {
         id: "companies",
-        stageTitle: "Companies",
-        description: "Select companies experiencing balance variance discrepancy blocks.",
+        stageTitle: "LOB Units / Branch",
+        description: "Select LOB units and branches experiencing balance variance discrepancy blocks.",
         icon: Layers,
         columns: [
-          { key: "Company", label: "Company", type: "text" },
+          { key: "Company", label: "LOB Unit / Branch", type: "text" },
           { key: "Location", label: "HQ Location", type: "text" },
           { key: "Issue Count", label: "Active Issues", type: "number" },
           { key: "Financial Impact", label: "Exposure Amount", type: "currency", align: "right" }
@@ -1474,11 +1474,22 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
         <div>
+          {/* Breadcrumbs */}
+          <div className="flex items-center flex-wrap gap-1 text-[11px] text-muted-foreground font-medium mb-1.5 select-none">
+            <span>Close Blockers</span>
+            <span className="text-slate-400 font-normal">/</span>
+            <span>{issue.domain}</span>
+            <span className="text-slate-400 font-normal">/</span>
+            <span>{issue.process}</span>
+            <span className="text-slate-400 font-normal">/</span>
+            <span className="text-foreground font-semibold">
+              {issue.name}
+            </span>
+          </div>
           <h3 className="text-base font-bold flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: issue.type === "Close Blocker" ? "#ef4444" : issue.type === "Moderate Issue" ? "#f59e0b" : "#10b981" }} />
             Issue Resolution Workspace — {issue.id}
           </h3>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{issue.domain} • {issue.process}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1612,7 +1623,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                 <select 
                   value={assignActionType}
                   onChange={(e) => setAssignActionType(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 >
                   {getActionTypes(issue.process).map(action => (
@@ -1627,7 +1638,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="text" 
                   value={assignOwner}
                   onChange={(e) => setAssignOwner(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1638,7 +1649,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="text" 
                   value={assignDept}
                   onChange={(e) => setAssignDept(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1648,7 +1659,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                 <select 
                   value={assignPriority}
                   onChange={(e) => setAssignPriority(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 >
                   <option value="High">High</option>
@@ -1663,7 +1674,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="date" 
                   value={assignDueDate}
                   onChange={(e) => setAssignDueDate(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1675,7 +1686,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   value={assignNotes}
                   onChange={(e) => setAssignNotes(e.target.value)}
                   placeholder="Enter closing remediation instructions or action history..."
-                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors resize-none text-foreground leading-relaxed font-medium text-[15px]"
+                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors resize-none text-foreground leading-relaxed font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1696,7 +1707,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="text" 
                   value={mailTo} 
                   onChange={(e) => setMailTo(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1706,7 +1717,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="text" 
                   value={mailCc} 
                   onChange={(e) => setMailCc(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1716,7 +1727,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   type="text" 
                   value={mailSubject} 
                   onChange={(e) => setMailSubject(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[15px]"
+                  className="w-full rounded-lg px-3 py-2 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors h-[38px] text-foreground font-medium text-[12px]"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -1726,7 +1737,7 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
                   rows={4} 
                   value={mailBody} 
                   onChange={(e) => setMailBody(e.target.value)}
-                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors font-mono text-[15px] leading-relaxed resize-y text-foreground font-medium"
+                  className="w-full rounded-lg p-3 border outline-none bg-secondary/50 focus:border-blue-500/50 transition-colors font-mono text-[12px] leading-relaxed resize-y text-foreground font-medium"
                   style={{ borderColor: "var(--border)" }}
                 />
               </div>
@@ -2484,13 +2495,11 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                     >
                       {/* Breadcrumb */}
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 font-medium">
+                        <span>Close Blockers</span>
+                        <span className="text-slate-400">›</span>
                         <span>{selectedDomain}</span>
                         <span className="text-slate-400">›</span>
                         <span>{activeProcess}</span>
-                        <span className="text-slate-400">›</span>
-                        <span style={{ color: selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981", fontWeight: 600 }}>
-                          {selectedKPI === "Close Blocker" ? "Close Blockers" : selectedKPI === "Moderate Issue" ? "Moderate Issues" : "No Issues"}
-                        </span>
                       </div>
 
                       {/* Header Title and Context Summary */}
@@ -2600,9 +2609,10 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
               const IconComp = stage?.icon || FileText;
 
               const breadcrumbs = [
+                "Close Blockers",
                 activeIssueForInvestigation.domain,
                 activeIssueForInvestigation.process,
-                activeIssueForInvestigation.type === "Close Blocker" ? "Close Blockers" : activeIssueForInvestigation.type === "Moderate Issue" ? "Moderate Issues" : "No Issues",
+                activeIssueForInvestigation.name,
                 ...investigationPath.map(p => p.label)
               ];
 
@@ -2627,7 +2637,6 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                       {/* Breadcrumbs */}
                       <div className="flex items-center flex-wrap gap-1 text-[11px] text-muted-foreground font-medium mb-1.5 select-none">
                         {breadcrumbs.map((bc, idx) => {
-                          const isSelection = idx >= 3;
                           const isLast = idx === breadcrumbs.length - 1;
                           return (
                             <span key={idx} className="flex items-center gap-1">
@@ -2635,7 +2644,9 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                               <span 
                                 onClick={() => {
                                   if (isLast) return;
-                                  if (isSelection) {
+                                  if (idx === 3) {
+                                    handleNavigateBreadcrumb(0);
+                                  } else if (idx >= 4) {
                                     handleNavigateBreadcrumb(idx - 3);
                                   } else {
                                     handleCloseInvestigationExplorer();
@@ -2677,7 +2688,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                       ) : (
                         <span>
                           Showing <strong className="text-foreground">{rows.length}</strong> of{" "}
-                          <strong className="text-foreground">{filteredCount.toLocaleString()}</strong> {stage?.stageTitle}
+                          <strong className="text-foreground">{filteredCount.toLocaleString()}</strong> {stage?.stageTitle === "LOB Units / Branch" ? "LOB Units / Branches" : stage?.stageTitle}
                         </span>
                       )}
                     </div>
@@ -2686,7 +2697,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder={`Search ${stage?.stageTitle.toLowerCase()}...`}
+                          placeholder={stage?.stageTitle === "LOB Units / Branch" ? "Search LOB Units / Branches..." : `Search ${stage?.stageTitle.toLowerCase()}...`}
                           value={modalSearch}
                           onChange={(e) => {
                             setModalSearch(e.target.value);
