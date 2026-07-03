@@ -6,8 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "predeploy": "vite build",
-    "deploy": "gh-pages -d dist"
+    "predeploy": "vite build && node -e \"require('fs').writeFileSync('dist/.nojekyll', '')\"",
+    "deploy": "gh-pages -d dist -t"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
