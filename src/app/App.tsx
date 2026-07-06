@@ -82,6 +82,7 @@ const ALL_CARDS = [
 
 export default function App() {
   // Trigger build change to force redeployment: version 0.0.2
+  console.log("DataTwin Workspace Version: 0.0.2");
   const params = new URLSearchParams(window.location.search);
   const isWorkspace = params.get("mode") === "workspace";
   const workspaceModule = params.get("module");
