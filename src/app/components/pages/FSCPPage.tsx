@@ -1,5 +1,5 @@
 // deployment trigger 2026-07-03-v3
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Sparkles, 
   Download, 
@@ -46,15 +46,16 @@ export interface CompanyGroup {
   code: string;
   type: string;
   domainsCount: number;
+  region: string;
 }
 
 const COMPANY_GROUPS: CompanyGroup[] = [
-  { id: "global-holdings", name: "Global Holdings Group", code: "GH-001", type: "Global", domainsCount: 6 },
-  { id: "north-america", name: "North America Operations", code: "NA-002", type: "Regional", domainsCount: 4 },
-  { id: "apac-shared", name: "APAC Shared Services", code: "AP-003", type: "Shared Services", domainsCount: 3 },
-  { id: "europe-finance", name: "Europe Finance Group", code: "EU-004", type: "Regional", domainsCount: 4 },
-  { id: "contoso-mfg", name: "Contoso Manufacturing", code: "CO-005", type: "Operational", domainsCount: 3 },
-  { id: "fabrikam-retail", name: "Fabrikam Retail", code: "FR-006", type: "Operational", domainsCount: 2 }
+  { id: "global-holdings", name: "Global Holdings Group", code: "GH-001", type: "Global", domainsCount: 6, region: "Global" },
+  { id: "north-america", name: "North America Operations", code: "NA-002", type: "Regional", domainsCount: 4, region: "North America" },
+  { id: "apac-shared", name: "APAC Shared Services", code: "AP-003", type: "Shared Services", domainsCount: 3, region: "APAC" },
+  { id: "europe-finance", name: "Europe Finance Group", code: "EU-004", type: "Regional", domainsCount: 4, region: "Europe" },
+  { id: "contoso-mfg", name: "Contoso Manufacturing", code: "CO-005", type: "Operational", domainsCount: 3, region: "North America" },
+  { id: "fabrikam-retail", name: "Fabrikam Retail", code: "FR-006", type: "Operational", domainsCount: 2, region: "Global" }
 ];
 
 export interface TimelineEvent {
@@ -1864,6 +1865,72 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
 
 export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {}) {
   const [issues, setIssues] = useState<FSCPIssue[]>(() => IssueRepository.loadIssues());
+  
+  const mainContainerRef = useRef<HTMLElement | null>(null);
+  const userClickedDomain = useRef(false);
+  const userClickedProcess = useRef(false);
+  const userClickedIssue = useRef(false);
+  const userClickedStage = useRef(false);
+
+  const businessProcessRef = (el: HTMLDivElement | null) => {
+    if (el && userClickedDomain.current && mainContainerRef.current) {
+      userClickedDomain.current = false;
+      const container = mainContainerRef.current;
+      
+      const containerRect = container.getBoundingClientRect();
+      const elemRect = el.getBoundingClientRect();
+      const isFullyVisible = (elemRect.top >= containerRect.top) && (elemRect.bottom <= containerRect.bottom);
+      
+      if (!isFullyVisible) {
+        let offsetTop = 0;
+        let curr: HTMLElement | null = el;
+        while (curr && curr !== container) {
+          offsetTop += curr.offsetTop;
+          curr = curr.offsetParent as HTMLElement | null;
+        }
+        container.scrollTo({
+          top: Math.max(0, offsetTop - 30),
+          behavior: "smooth"
+        });
+      }
+    }
+  };
+
+  const activeIssuesRef = (el: HTMLDivElement | null) => {
+    if (el && userClickedProcess.current && mainContainerRef.current) {
+      userClickedProcess.current = false;
+      const container = mainContainerRef.current;
+      
+      const containerRect = container.getBoundingClientRect();
+      const elemRect = el.getBoundingClientRect();
+      const isFullyVisible = (elemRect.top >= containerRect.top) && (elemRect.bottom <= containerRect.bottom);
+      
+      if (!isFullyVisible) {
+        let offsetTop = 0;
+        let curr: HTMLElement | null = el;
+        while (curr && curr !== container) {
+          offsetTop += curr.offsetTop;
+          curr = curr.offsetParent as HTMLElement | null;
+        }
+        container.scrollTo({
+          top: Math.max(0, offsetTop - 30),
+          behavior: "smooth"
+        });
+      }
+    }
+  };
+
+  const modalScrollContainerRef = (el: HTMLDivElement | null) => {
+    if (el) {
+      if (userClickedIssue.current) {
+        userClickedIssue.current = false;
+        el.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (userClickedStage.current) {
+        userClickedStage.current = false;
+        el.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+  };
 
   useEffect(() => {
     console.log("FSCP Page initialized context");
@@ -1877,6 +1944,23 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
   const [activeProcess, setActiveProcess] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
   const [selectedCompanyGroup, setSelectedCompanyGroup] = useState<string>("Global Holdings Group");
+  const [companySearch, setCompanySearch] = useState<string>("");
+  const [companyRegion, setCompanyRegion] = useState<string>("All Regions");
+  const [companyType, setCompanyType] = useState<string>("All Types");
+
+  const handleClearCompanyFilters = () => {
+    setCompanySearch("");
+    setCompanyRegion("All Regions");
+    setCompanyType("All Types");
+  };
+
+  const filteredCompanyGroups = COMPANY_GROUPS.filter(group => {
+    const matchesSearch = group.name.toLowerCase().includes(companySearch.toLowerCase()) || 
+                          group.code.toLowerCase().includes(companySearch.toLowerCase());
+    const matchesRegion = companyRegion === "All Regions" || group.region === companyRegion;
+    const matchesType = companyType === "All Types" || group.type === companyType;
+    return matchesSearch && matchesRegion && matchesType;
+  });
 
   const filteredCompanyIssues = issues.filter(issue => {
     if (selectedCompanyGroup === "Global Holdings Group") return true;
@@ -1918,6 +2002,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
       setModalSortKey(stages[0].defaultSort.key);
       setModalSortDirection(stages[0].defaultSort.direction);
     }
+
+    userClickedIssue.current = true;
   };
 
   const handleSelectStageRecord = (record: any, stage: InvestigationStageConfig) => {
@@ -1942,6 +2028,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
         const workspaceUrl = `${window.location.origin}${window.location.pathname}?mode=workspace&module=fscp&issueId=${activeIssueForInvestigation.id}`;
         window.open(workspaceUrl, "_blank", "noopener,noreferrer");
       }
+
+      userClickedStage.current = true;
     }, 400);
   };
 
@@ -1962,6 +2050,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
           setModalSortDirection(stages[index].defaultSort.direction);
         }
       }
+
+      userClickedStage.current = true;
     }, 400);
   };
 
@@ -2150,7 +2240,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
   };
 
   return (
-    <main className="flex-1 overflow-y-auto px-8 py-6 relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
+    <main ref={mainContainerRef} className="flex-1 overflow-y-auto px-8 py-6 relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
       
       {/* Toast Alert */}
       {toastMessage && (
@@ -2316,54 +2406,142 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {COMPANY_GROUPS.map((group) => {
-                    const isSelected = selectedCompanyGroup === group.name;
-                    return (
-                      <div
-                        key={group.id}
-                        onClick={() => handleSelectCompanyGroup(group.name)}
-                        className={`rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none ${
-                          isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
-                        }`}
+                {/* Lightweight Filter Toolbar */}
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4 select-none">
+                  {/* Search Company / Group */}
+                  <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+                    <input
+                      type="text"
+                      placeholder="Search Company / Group..."
+                      value={companySearch}
+                      onChange={(e) => setCompanySearch(e.target.value)}
+                      className="w-full pl-2.5 pr-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      style={{
+                        background: "var(--card)",
+                        borderColor: "var(--border)",
+                        color: "var(--foreground)"
+                      }}
+                    />
+                  </div>
+
+                  {/* Right side: Dropdown filters and clear action */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Region Filter */}
+                    <div className="min-w-[120px]">
+                      <select
+                        value={companyRegion}
+                        onChange={(e) => setCompanyRegion(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                         style={{
-                          borderColor: isSelected ? "#3b82f6" : "var(--border)",
-                          boxShadow: isSelected ? "0 2px 10px rgba(59, 130, 246, 0.15)" : "none"
+                          background: "var(--card)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)"
                         }}
                       >
-                        {/* Top Row: Code & Selection Indicator */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">
-                            {group.code}
-                          </span>
-                          
-                          {/* Selection Indicator Light */}
-                          <span 
-                            className="w-2.5 h-2.5 rounded-full border transition-all duration-200"
-                            style={{
-                              background: isSelected ? "#3b82f6" : "transparent",
-                              borderColor: isSelected ? "#3b82f6" : "var(--border)",
-                              boxShadow: isSelected ? "0 0 8px #3b82f6" : "none"
-                            }}
-                          />
-                        </div>
+                        <option value="All Regions">All Regions</option>
+                        <option value="Global">Global</option>
+                        <option value="North America">North America</option>
+                        <option value="APAC">APAC</option>
+                        <option value="Europe">Europe</option>
+                      </select>
+                    </div>
 
-                        {/* Middle Row: Name */}
-                        <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
-                          {group.name}
-                        </div>
+                    {/* Group Type Filter */}
+                    <div className="min-w-[120px]">
+                      <select
+                        value={companyType}
+                        onChange={(e) => setCompanyType(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                        style={{
+                          background: "var(--card)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)"
+                        }}
+                      >
+                        <option value="All Types">All Types</option>
+                        <option value="Global">Global</option>
+                        <option value="Regional">Regional</option>
+                        <option value="Shared Services">Shared Services</option>
+                        <option value="Operational">Operational</option>
+                      </select>
+                    </div>
 
-                        {/* Bottom Row: Type / Domains */}
-                        <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                          <span>{group.type}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/20 font-mono">
-                            {group.domainsCount} domains
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    {/* Clear Filters Button */}
+                    {(companySearch || companyRegion !== "All Regions" || companyType !== "All Types") && (
+                      <button
+                        onClick={handleClearCompanyFilters}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors cursor-pointer border"
+                        style={{
+                          background: "var(--card)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)"
+                        }}
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Bottom Divider */}
+                <hr className="mb-5" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+                {filteredCompanyGroups.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed rounded-lg" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                    <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                      No companies or groups match the selected filters.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {filteredCompanyGroups.map((group) => {
+                      const isSelected = selectedCompanyGroup === group.name;
+                      return (
+                        <div
+                          key={group.id}
+                          onClick={() => handleSelectCompanyGroup(group.name)}
+                          className={`rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none ${
+                            isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
+                          }`}
+                          style={{
+                            borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                            boxShadow: isSelected ? "0 2px 10px rgba(59, 130, 246, 0.15)" : "none"
+                          }}
+                        >
+                          {/* Top Row: Code & Selection Indicator */}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">
+                              {group.code}
+                            </span>
+                            
+                            {/* Selection Indicator Light */}
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full border transition-all duration-200"
+                              style={{
+                                background: isSelected ? "#3b82f6" : "transparent",
+                                borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                                boxShadow: isSelected ? "0 0 8px #3b82f6" : "none"
+                              }}
+                            />
+                          </div>
+
+                          {/* Middle Row: Name */}
+                          <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
+                            {group.name}
+                          </div>
+
+                          {/* Bottom Row: Type / Domains */}
+                          <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                            <span>{group.type}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/20 font-mono">
+                              {group.domainsCount} domains
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
@@ -2417,8 +2595,13 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                           setActiveProcess(null);
                           return;
                         }
-                        setSelectedDomain(isActive ? null : domain);
+                        const willBeActive = !isActive;
+                        setSelectedDomain(willBeActive ? domain : null);
                         setActiveProcess(null);
+
+                        if (willBeActive) {
+                          userClickedDomain.current = true;
+                        }
                       }}
                       className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
                       style={{
@@ -2476,7 +2659,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                   </p>
                 </div>
               ) : (
-                <div className="animate-fadeIn">
+                <div ref={businessProcessRef} id="business-process-section" className="animate-fadeIn">
                   <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase mb-4">
                     {selectedDomain} • Business Processes
                   </h2>
@@ -2516,7 +2699,12 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                               setActiveProcess(null);
                               return;
                             }
-                            setActiveProcess(activeProcess === process ? null : process);
+                            const willBeActive = activeProcess !== process;
+                            setActiveProcess(willBeActive ? process : null);
+
+                            if (willBeActive) {
+                              userClickedProcess.current = true;
+                            }
                           }}
                           className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
                           style={{
@@ -2576,6 +2764,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                     </div>
                   ) : (
                     <div 
+                      ref={activeIssuesRef}
+                      id="active-issues-section"
                       className="rounded-xl border p-6 mt-6 transition-all duration-300 ease-in-out animate-fadeIn animate-duration-300"
                       style={{
                         background: "#ffffff",
@@ -2857,7 +3047,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                   </div>
 
                   {/* Main Scrollable Working Table Area */}
-                  <div className="flex-1 overflow-y-auto p-6 relative">
+                  <div ref={modalScrollContainerRef} id="modal-scroll-container" className="flex-1 overflow-y-auto p-6 relative">
                     {isStageLoading ? (
                       <div className="absolute inset-0 bg-card/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-3 animate-fadeIn">
                         <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
