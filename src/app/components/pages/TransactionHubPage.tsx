@@ -1013,7 +1013,8 @@ export function TransactionHubPage() {
   const [expandedReceipts, setExpandedReceipts] = useState<Record<string, boolean>>({});
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<"receipt" | "invoice" | null>(null);
-  const [viewMode, setViewMode] = useState<"vertical" | "horizontal">("vertical");
+  const [viewMode, setViewMode] = useState<"vertical" | "horizontal" | "stack">("vertical");
+  const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   
   // Search, Filter, Sort state
   const [searchQuery, setSearchQuery] = useState("");
@@ -2408,7 +2409,7 @@ Processed successfully.
                   const isManual = e.id.startsWith("MAN-");
                   const matchesTab = queueTab === "email" ? !isManual : isManual;
                   return matchesTab && e.processingStatus !== "Resolved" && e.processingStatus !== "Processed";
-                }).length} open
+                }).length} Pending
               </span>
             </div>
 
@@ -2454,7 +2455,7 @@ Processed successfully.
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={queueTab === "email" ? "Search communications…" : "Search uploads…"}
+                placeholder="Search remediation records…"
                 style={{
                   background: "none",
                   border: "none",
@@ -2528,7 +2529,7 @@ Processed successfully.
                       onClick={() => handleEmailSelect(item.id)}
                       className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
                         isSelected
-                          ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                          ? "bg-[var(--accent)] border-[1.8px] border-indigo-500/40 shadow-[0_6px_16px_rgba(107,140,255,0.08)]"
                           : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
                       }`}
                       style={{}}
@@ -2547,6 +2548,11 @@ Processed successfully.
                           }}
                         >
                           {item.processingStatus}
+                        </span>
+                        
+                        {/* Source Ingestion Badge */}
+                        <span className="text-[8.5px] font-bold text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-border/30">
+                          📧 Email
                         </span>
                       </div>
 
@@ -2703,7 +2709,7 @@ Processed successfully.
                       onClick={() => handleEmailSelect(item.id)}
                       className={`flex flex-col gap-3 rounded-2xl p-4 text-left w-full transition-all duration-200 cursor-pointer relative ${
                         isSelected
-                          ? "bg-[var(--accent)] border-[1.5px] border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+                          ? "bg-[var(--accent)] border-[1.8px] border-indigo-500/40 shadow-[0_6px_16px_rgba(107,140,255,0.08)]"
                           : "bg-white border border-[var(--border)] shadow-none hover:border-[var(--muted-foreground)]/70"
                       }`}
                       style={{}}
@@ -2718,6 +2724,11 @@ Processed successfully.
                           }}
                         >
                           {manualStatus}
+                        </span>
+                        
+                        {/* Source Ingestion Badge */}
+                        <span className="text-[8.5px] font-bold text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded flex items-center gap-1 border border-border/30">
+                          ⬆ Manual Upload
                         </span>
                       </div>
 
@@ -2828,15 +2839,52 @@ Processed successfully.
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
               Payment Allocation Workspace
             </span>
-            <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+            <span className="font-mono ml-1.5 opacity-60 text-muted-foreground tracking-wide" style={{ fontSize: "9.5px", fontWeight: 500 }}>
               QUEUE REF: {activeEmail.id}
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span style={{ fontSize: 10, color: "var(--muted-foreground)" }} className="hidden sm:inline">
-              🖐 Drag to explore • Ctrl + Scroll to zoom
-            </span>
+          <div className="flex items-center gap-4 relative">
+            <div 
+              className="relative flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-1"
+              onMouseEnter={() => setShowHelpTooltip(true)}
+              onMouseLeave={() => setShowHelpTooltip(false)}
+              onClick={() => setShowHelpTooltip(prev => !prev)}
+              title="Canvas Help"
+            >
+              <Info size={14} />
+              
+              {showHelpTooltip && (
+                <div 
+                  className="absolute right-0 top-6 rounded-lg p-3 flex flex-col gap-1.5 transition-all duration-200 z-[110] text-left"
+                  style={{
+                    background: "rgba(15, 23, 42, 0.95)",
+                    backdropFilter: "blur(8px)",
+                    border: "1px solid var(--border)",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+                    width: "190px",
+                    color: "#f8fafc",
+                    fontSize: "10.5px"
+                  }}
+                >
+                  <div className="font-bold border-b border-slate-700/50 pb-1.5 mb-1 text-slate-300 tracking-wide uppercase font-sans" style={{ fontSize: "9px" }}>
+                    Canvas Shortcuts
+                  </div>
+                  <div className="flex items-center justify-between font-sans">
+                    <span>Drag to Pan</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] border border-slate-700 font-mono">Drag</kbd>
+                  </div>
+                  <div className="flex items-center justify-between font-sans">
+                    <span>Ctrl + Scroll to Zoom</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] border border-slate-700 font-mono">Ctrl + Scroll</kbd>
+                  </div>
+                  <div className="flex items-center justify-between font-sans">
+                    <span>Double Click to Fit View</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] border border-slate-700 font-mono">DbClick</kbd>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -2849,23 +2897,38 @@ Processed successfully.
               <div className="flex rounded-lg bg-secondary p-0.5 border border-border/40">
                 <button
                   onClick={() => setViewMode("vertical")}
-                  className={`px-2.5 py-1 rounded-md transition-all font-semibold border-none cursor-pointer text-[10px] ${
+                  className={`px-3 py-1 rounded-md transition-all font-bold border cursor-pointer text-[10px] ${
                     viewMode === "vertical"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground bg-transparent"
+                      ? "bg-card text-indigo-600 border-indigo-500/20 shadow-sm"
+                      : "text-muted-foreground hover:text-foreground bg-transparent border-transparent"
                   }`}
                 >
                   Vertical
                 </button>
                 <button
                   onClick={() => setViewMode("horizontal")}
-                  className={`px-2.5 py-1 rounded-md transition-all font-semibold border-none cursor-pointer text-[10px] ${
+                  className={`px-3 py-1 rounded-md transition-all font-bold border cursor-pointer text-[10px] ${
                     viewMode === "horizontal"
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground bg-transparent"
+                      ? "bg-card text-indigo-600 border-indigo-500/20 shadow-sm"
+                      : "text-muted-foreground hover:text-foreground bg-transparent border-transparent"
                   }`}
                 >
                   Horizontal
+                </button>
+                <button
+                  onClick={() => {
+                    setViewMode("stack");
+                    setExpandedReceipts({});
+                    setSelectedEntityId(null);
+                    setSelectedEntityType(null);
+                  }}
+                  className={`px-3 py-1 rounded-md transition-all font-bold border cursor-pointer text-[10px] ${
+                    viewMode === "stack"
+                      ? "bg-card text-indigo-600 border-indigo-500/20 shadow-sm"
+                      : "text-muted-foreground hover:text-foreground bg-transparent border-transparent"
+                  }`}
+                >
+                  Stack
                 </button>
               </div>
             </div>
@@ -2953,7 +3016,7 @@ Processed successfully.
                 );
               })}
             </div>
-          ) : (
+          ) : viewMode === "horizontal" ? (
             /* Horizontal Flow View */
             <div className="flex flex-col items-start gap-8 p-6 select-none animate-in fade-in duration-200" style={{ minWidth: "max-content", minHeight: "100%" }}>
               {paymentGroups.map((group) => {
@@ -3047,6 +3110,176 @@ Processed successfully.
                   </div>
                 );
               })}
+            </div>
+          ) : (
+            /* Stack Flow View */
+            <div className="flex justify-center items-center p-6 w-full" style={{ minWidth: "100%", minHeight: "680px" }}>
+              {(() => {
+                const hasExpanded = Object.values(expandedReceipts).some(Boolean);
+                const stackWidth = (paymentGroups.length - 1) * 80 + 280;
+                const stackHeight = (paymentGroups.length - 1) * 50 + 80;
+                
+                // Center the stack if nothing is expanded, otherwise drift stack left to leave room for the expanded card on the right
+                const stackBaseX = hasExpanded ? 10 : Math.max(10, (860 - stackWidth) / 2);
+                const stackBaseY = hasExpanded ? 40 : Math.max(40, (620 - stackHeight) / 2);
+
+                return (
+                  <div className="relative" style={{ width: "860px", height: "620px" }}>
+                    {/* Canvas Empty State Overlay */}
+                    {!hasExpanded && (
+                      <div 
+                        className="absolute left-1/2 bottom-4 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed select-none bg-card text-muted-foreground shadow-sm animate-fadeIn"
+                        style={{
+                          borderColor: "var(--border)",
+                          zIndex: 5
+                        }}
+                      >
+                        <Info size={13} className="text-indigo-500" />
+                        <span style={{ fontSize: "11px", fontWeight: 550 }} className="font-sans">
+                          Click a receipt to expand and review allocation details.
+                        </span>
+                      </div>
+                    )}
+                    {paymentGroups.map((group, idx) => {
+                      const { payment, invoices, adjustments } = group;
+                      const isExpanded = !!expandedReceipts[payment.id];
+                      const isSelected = selectedEntityId === payment.id;
+
+                      // Receipt Type label helper
+                      let receiptLabel = "Payment Receipt";
+                      if (payment.type === "NEFT Payment") {
+                        receiptLabel = "NEFT Receipt";
+                      } else if (payment.type === "Receipt Voucher") {
+                        if (payment.ref.toLowerCase().includes("wire") || payment.ref.toLowerCase().includes("hdfc") || payment.ref.toLowerCase().includes("9812")) {
+                          receiptLabel = "Wire Transfer";
+                        } else {
+                          receiptLabel = "Receipt Voucher";
+                        }
+                      } else if (payment.type === "Refund Entry") {
+                        receiptLabel = "Refund Receipt";
+                      } else if (payment.type === "Credit Note") {
+                        receiptLabel = "Credit Receipt";
+                      }
+
+                      // Dynamic offsets to show headers of cards underneath clearly
+                      const xOffset = stackBaseX + idx * 80;
+                      const yOffset = stackBaseY + idx * 50;
+
+                      // Stack visuals
+                      const scale = 0.93 + idx * 0.02; // progression from back to front
+                      const elevationShadow = `0 ${1 + idx * 3}px ${3 + idx * 6}px rgba(0,0,0,${0.03 + idx * 0.02})`;
+
+                      return (
+                        <div
+                          key={payment.id}
+                          onClick={() => {
+                            if (!isExpanded) {
+                              setExpandedReceipts({ [payment.id]: true });
+                              setSelectedEntityId(payment.id);
+                              setSelectedEntityType("receipt");
+                            }
+                          }}
+                          className="absolute bg-card border rounded-2xl shadow-sm transition-all select-none flex flex-col items-center animate-in fade-in duration-200"
+                          style={{
+                            width: isExpanded ? "380px" : "280px",
+                            minHeight: isExpanded ? "180px" : "80px",
+                            height: isExpanded ? "auto" : "80px",
+                            left: isExpanded ? "450px" : `${xOffset}px`,
+                            top: isExpanded ? "0px" : `${yOffset}px`,
+                            zIndex: isExpanded ? 100 : idx + 10,
+                            borderColor: isExpanded 
+                              ? "rgba(107,140,255,0.6)" 
+                              : isSelected 
+                                ? "rgba(107,140,255,0.5)" 
+                                : "var(--border)",
+                            boxShadow: isExpanded 
+                              ? "0 15px 35px rgba(0,0,0,0.15)" 
+                              : isSelected
+                                ? "0 4px 12px rgba(107,140,255,0.08)"
+                                : elevationShadow,
+                            padding: isExpanded ? "20px" : "14px",
+                            cursor: isExpanded ? "default" : "pointer",
+                            overflow: isExpanded ? "visible" : "hidden",
+                            transform: isExpanded ? "scale(1)" : `scale(${scale})`,
+                            transition: "all 0.5s cubic-bezier(0.25, 1, 0.5, 1)"
+                          }}
+                        >
+                          {!isExpanded ? (
+                            <div className="w-full flex flex-col justify-center h-full text-left">
+                              <div className="font-bold text-xs text-foreground uppercase tracking-wider mb-1">
+                                {receiptLabel}
+                              </div>
+                              <div className="text-[10.5px] text-muted-foreground font-mono truncate">
+                                UTR: {payment.ref}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full animate-fadeIn flex flex-col items-center">
+                              {renderReceiptCard(payment, group, "vertical")}
+
+                              {/* Vertical Connector Line */}
+                              <div className="w-px h-6 bg-border relative my-1">
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
+                              </div>
+
+                              {/* Linked Invoices */}
+                              <div className="w-full flex flex-col gap-2.5">
+                                <div className="flex items-center justify-between text-left">
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                                    Linked Invoices ({invoices.length})
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-3 w-full">
+                                  {invoices.map((txn) => renderInvoiceCard(txn))}
+                                </div>
+                              </div>
+
+                              {/* Related Adjustments */}
+                              {adjustments.length > 0 && (
+                                <>
+                                  <div className="w-px h-6 bg-border relative my-1">
+                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 border-l-4 border-r-4 border-t-4 border-transparent border-t-border" />
+                                  </div>
+
+                                  <div className="w-full flex flex-col gap-2">
+                                    <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider text-left w-full">
+                                      Adjustments / Credits ({adjustments.length})
+                                    </span>
+                                    <div className="flex flex-col gap-3.5 w-full">
+                                      {adjustments.map((txn) => renderAdjustmentCard(txn))}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              {renderAllocationSummary(payment, invoices, adjustments)}
+
+                              {/* Bulk ERP Posting Action */}
+                              {invoices.some((inv) => inv.status !== "Resolved") && (
+                                <div className="w-full mt-3">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePostAllEligible(payment.id);
+                                    }}
+                                    className="w-full rounded-xl py-2.5 font-semibold transition-all hover:scale-[1.01] cursor-pointer text-xs flex items-center justify-center gap-2 text-white border-none shadow-sm hover:shadow-md interactive-card"
+                                    style={{
+                                      background: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)"
+                                    }}
+                                  >
+                                    <Sparkles size={11} />
+                                    <span>Post All Eligible to SAP ERP</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </ReconciliationCanvas>

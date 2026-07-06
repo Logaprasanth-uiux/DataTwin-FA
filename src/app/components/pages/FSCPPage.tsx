@@ -1932,6 +1932,27 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
     }
   };
 
+  const userClickedLoadMore = useRef(false);
+
+  const loadMoreRowRef = (el: HTMLTableRowElement | null) => {
+    if (el && userClickedLoadMore.current) {
+      userClickedLoadMore.current = false;
+      const container = document.getElementById("modal-scroll-container");
+      if (container) {
+        let offsetTop = 0;
+        let curr: HTMLElement | null = el;
+        while (curr && curr !== container) {
+          offsetTop += curr.offsetTop;
+          curr = curr.offsetParent as HTMLElement | null;
+        }
+        container.scrollTo({
+          top: Math.max(0, offsetTop - 50),
+          behavior: "smooth"
+        });
+      }
+    }
+  };
+
   useEffect(() => {
     console.log("FSCP Page initialized context");
     return IssueRepository.subscribe((updatedIssues) => {
@@ -3101,6 +3122,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                               return (
                                 <tr
                                   key={rIdx}
+                                  ref={rIdx === (modalPage - 1) * pageSize ? loadMoreRowRef : undefined}
                                   onClick={() => handleSelectStageRecord(row, stage)}
                                   className="border-b hover:bg-muted/20 cursor-pointer transition-colors"
                                   style={{ borderColor: "var(--border)", fontSize: 12 }}
@@ -3149,7 +3171,10 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                   {!isStageLoading && rows.length > 0 && modalPage * pageSize < filteredCount && (
                     <div className="flex justify-center items-center px-6 py-4 border-t flex-shrink-0 bg-muted/5 font-sans" style={{ borderColor: "var(--border)" }}>
                       <button
-                        onClick={() => setModalPage(p => p + 1)}
+                        onClick={() => {
+                          userClickedLoadMore.current = true;
+                          setModalPage(p => p + 1);
+                        }}
                         className="px-6 py-2 rounded-lg border text-xs font-bold hover:bg-muted/50 transition-colors cursor-pointer"
                         style={{
                           background: "var(--card)",
