@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, X, Upload } from "lucide-react";
 import { PanelContext, ActivityRecord, NotificationItem, sessionCache, initializeDefaultCache } from "./contexts";
 import { ActivityWorkspace } from "./components/ActivityWorkspace";
 import { Sidebar } from "./components/Sidebar";
@@ -97,6 +97,7 @@ export default function App() {
   const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
   const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);
+  const [fscpShowUploadModal, setFscpShowUploadModal] = useState(false);
   const [navContext, setNavContext] = useState<{
     previousModule: string | null;
     currentModule: string;
@@ -341,7 +342,7 @@ export default function App() {
       case "Approvals":
         return <ApprovalsPage />;
       case "FSCP":
-        return <FSCPPage />;
+        return <FSCPPage showUploadModal={fscpShowUploadModal} setShowUploadModal={setFscpShowUploadModal} />;
       case "Overview":
         return (
           <OverviewPage
@@ -425,7 +426,26 @@ export default function App() {
                   </>
                 )}
               </div>
-              <UserProfile size="md" />
+              <div className="flex items-center gap-4">
+                {active === "FSCP" && (
+                  <button
+                    onClick={() => setFscpShowUploadModal(true)}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      background: "var(--foreground)",
+                      color: "var(--background)",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Upload size={13} />
+                    Upload Documents
+                  </button>
+                )}
+                <UserProfile size="md" />
+              </div>
             </header>
           )}
 

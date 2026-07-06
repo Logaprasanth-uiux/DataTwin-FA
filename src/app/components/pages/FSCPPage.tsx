@@ -33,7 +33,10 @@ import {
   UserCheck,
   History,
   FileSpreadsheet,
-  SquareArrowOutUpRight
+  SquareArrowOutUpRight,
+  Upload,
+  Plus,
+  Paperclip
 } from "lucide-react";
 
 // Types
@@ -1863,14 +1866,124 @@ ${issue.suggestedAction.map((action, i) => `${i + 1}. ${action}`).join("\n")}
 }
 
 
-export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {}) {
+export interface FSCPPageProps {
+  workspaceIssueId?: string;
+  showUploadModal?: boolean;
+  setShowUploadModal?: (show: boolean) => void;
+}
+
+const MOCK_RECONCILIATION_RESULT = {
+  kpi: "Close Blocker" as const,
+  domain: "Core Finance",
+  process: "General Ledger"
+};
+
+export function FSCPPage({ 
+  workspaceIssueId,
+  showUploadModal = false,
+  setShowUploadModal = () => {}
+}: FSCPPageProps = {}) {
   const [issues, setIssues] = useState<FSCPIssue[]>(() => IssueRepository.loadIssues());
+
+  const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [activeProcess, setActiveProcess] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
+  const [selectedCompanyGroup, setSelectedCompanyGroup] = useState<string>("Global Holdings Group");
+  const [companySearch, setCompanySearch] = useState<string>("");
+  const [companyRegion, setCompanyRegion] = useState<string>("All Regions");
+  const [companyType, setCompanyType] = useState<string>("All Types");
+
+  // Modals state
+  const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
+  const [activeIssueForInvestigation, setActiveIssueForInvestigation] = useState<FSCPIssue | null>(null);
+  const [investigationPath, setInvestigationPath] = useState<Array<{ stageId: string; label: string; record: any }>>([]);
+  const [isStageLoading, setIsStageLoading] = useState(false);
+  const [modalPage, setModalPage] = useState(1);
+  const [modalSearch, setModalSearch] = useState("");
+  const [modalFilters, setModalFilters] = useState<Record<string, string>>({});
+  const [modalSortKey, setModalSortKey] = useState("");
+  const [modalSortDirection, setModalSortDirection] = useState<"asc" | "desc">("desc");
+
+  // Warnings context
+  const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  // Success toast message
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Upload Documents Modal States
+  const [uploadedDocs, setUploadedDocs] = useState<Array<{ id: string; name: string | null }>>([{ id: "1", name: null }]);
+  const [reconciliationState, setReconciliationState] = useState<"idle" | "processing" | "complete">("idle");
+  const [reconcileProgress, setReconcileProgress] = useState<number>(0);
+  const [processingMessage, setProcessingMessage] = useState<string>("Reading uploaded documents...");
+  const [handoffMessage, setHandoffMessage] = useState<string | null>(null);
+  const lastFocusedLauncherRef = useRef<HTMLElement | null>(null);
   
   const mainContainerRef = useRef<HTMLElement | null>(null);
+  const lastFocusedIssueRowRef = useRef<HTMLElement | null>(null);
+  const lastFocusedEmptyCardRef = useRef<HTMLElement | null>(null);
+
   const userClickedDomain = useRef(false);
   const userClickedProcess = useRef(false);
   const userClickedIssue = useRef(false);
   const userClickedStage = useRef(false);
+
+  const handleArrowNavigation = (e: React.KeyboardEvent<HTMLDivElement>, selectorClass: string) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+    const key = e.key;
+    if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown" && key !== "Enter" && key !== " ") return;
+
+    if (key === "Enter" || key === " ") {
+      e.preventDefault();
+      e.currentTarget.click();
+      return;
+    }
+
+    e.preventDefault();
+    const parent = e.currentTarget.parentElement;
+    if (!parent) return;
+    const cards = Array.from(parent.querySelectorAll(`.${selectorClass}`)) as HTMLElement[];
+    const index = cards.indexOf(e.currentTarget);
+    if (index === -1) return;
+
+    let targetIndex = index;
+    if (key === "ArrowLeft") {
+      targetIndex = (index - 1 + cards.length) % cards.length;
+    } else if (key === "ArrowRight") {
+      targetIndex = (index + 1) % cards.length;
+    } else if (key === "ArrowUp" || key === "ArrowDown") {
+      if (selectorClass === "company-group-card-nav") {
+        // Compute columns dynamically
+        let cols = 1;
+        const firstCardTop = cards[0]?.offsetTop;
+        for (let i = 1; i < cards.length; i++) {
+          if (cards[i].offsetTop === firstCardTop) {
+            cols++;
+          } else {
+            break;
+          }
+        }
+        if (key === "ArrowUp") {
+          targetIndex = index - cols;
+          if (targetIndex < 0) {
+            targetIndex = Math.max(0, cards.length + targetIndex);
+          }
+        } else {
+          targetIndex = index + cols;
+          if (targetIndex >= cards.length) {
+            targetIndex = targetIndex % cols;
+          }
+        }
+      }
+    }
+
+    cards[targetIndex]?.focus();
+  };
 
   const businessProcessRef = (el: HTMLDivElement | null) => {
     if (el && userClickedDomain.current && mainContainerRef.current) {
@@ -1954,20 +2067,129 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
   };
 
   useEffect(() => {
+    if (!noActiveIssuesContext && !activeIssueForInvestigation && !showUploadModal) {
+      return;
+    }
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // 1. ESCAPE handler
+      if (e.key === "Escape") {
+        if (noActiveIssuesContext) {
+          e.preventDefault();
+          setNoActiveIssuesContext(null);
+          setTimeout(() => {
+            lastFocusedEmptyCardRef.current?.focus();
+          }, 50);
+        } else if (activeIssueForInvestigation) {
+          e.preventDefault();
+          handleCloseInvestigationExplorer();
+          setTimeout(() => {
+            lastFocusedIssueRowRef.current?.focus();
+          }, 50);
+        } else if (showUploadModal && reconciliationState !== "processing" && !handoffMessage) {
+          e.preventDefault();
+          setShowUploadModal(false);
+          setUploadedDocs([{ id: "1", name: null }]);
+          setReconciliationState("idle");
+          setReconcileProgress(0);
+        }
+        return;
+      }
+
+      // 2. FOCUS TRAP handler
+      if (e.key === "Tab") {
+        let containerId = "";
+        if (noActiveIssuesContext) {
+          containerId = "no-active-issues-dialog";
+        } else if (activeIssueForInvestigation) {
+          containerId = "investigation-explorer-modal";
+        } else if (showUploadModal) {
+          containerId = "upload-documents-dialog";
+        }
+
+        if (!containerId) return;
+
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
+        const focusables = Array.from(container.querySelectorAll(focusableSelectors)) as HTMLElement[];
+        if (focusables.length === 0) return;
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            lastEl.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            firstEl.focus();
+            e.preventDefault();
+          }
+        }
+
+        // Keep focus strictly within container if activeElement wanders off
+        if (!container.contains(document.activeElement)) {
+          firstEl.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown, true);
+  }, [noActiveIssuesContext, activeIssueForInvestigation, showUploadModal, reconciliationState, handoffMessage, setShowUploadModal]);
+
+  // Auto-focus triggers when upload modal is opened
+  useEffect(() => {
+    if (showUploadModal) {
+      setTimeout(() => {
+        const container = document.getElementById("upload-documents-dialog");
+        if (container) {
+          const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
+          const firstFocusable = container.querySelector(focusableSelectors) as HTMLElement | null;
+          firstFocusable?.focus();
+        }
+      }, 80);
+    }
+  }, [showUploadModal]);
+  // Auto-focus triggers when modal or dialog is opened
+  useEffect(() => {
+    if (activeIssueForInvestigation) {
+      setTimeout(() => {
+        const container = document.getElementById("investigation-explorer-modal");
+        if (container) {
+          const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
+          const firstFocusable = container.querySelector(focusableSelectors) as HTMLElement | null;
+          firstFocusable?.focus();
+        }
+      }, 80);
+    }
+  }, [activeIssueForInvestigation]);
+
+  useEffect(() => {
+    if (noActiveIssuesContext) {
+      setTimeout(() => {
+        const container = document.getElementById("no-active-issues-dialog");
+        if (container) {
+          const closeButton = container.querySelector('button') as HTMLElement | null;
+          closeButton?.focus();
+        }
+      }, 80);
+    }
+  }, [noActiveIssuesContext]);
+
+  useEffect(() => {
     console.log("FSCP Page initialized context");
     return IssueRepository.subscribe((updatedIssues) => {
       setIssues(updatedIssues);
     });
   }, []);
 
-  const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
-  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-  const [activeProcess, setActiveProcess] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
-  const [selectedCompanyGroup, setSelectedCompanyGroup] = useState<string>("Global Holdings Group");
-  const [companySearch, setCompanySearch] = useState<string>("");
-  const [companyRegion, setCompanyRegion] = useState<string>("All Regions");
-  const [companyType, setCompanyType] = useState<string>("All Types");
+
 
   const handleClearCompanyFilters = () => {
     setCompanySearch("");
@@ -1999,16 +2221,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
     setActiveProcess(null);
   };
   
-  // Modals state
-  const [showDetails, setShowDetails] = useState<FSCPIssue | null>(null);
-  const [activeIssueForInvestigation, setActiveIssueForInvestigation] = useState<FSCPIssue | null>(null);
-  const [investigationPath, setInvestigationPath] = useState<Array<{ stageId: string; label: string; record: any }>>([]);
-  const [isStageLoading, setIsStageLoading] = useState(false);
-  const [modalPage, setModalPage] = useState(1);
-  const [modalSearch, setModalSearch] = useState("");
-  const [modalFilters, setModalFilters] = useState<Record<string, string>>({});
-  const [modalSortKey, setModalSortKey] = useState("");
-  const [modalSortDirection, setModalSortDirection] = useState<"asc" | "desc">("desc");
+
 
   const handleStartInvestigation = (issue: FSCPIssue) => {
     console.log("FSCP Page investigation started:", issue.id);
@@ -2107,13 +2320,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
     triggerToast(alertMsg);
   };
 
-  const [noActiveIssuesContext, setNoActiveIssuesContext] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
-  
-  // Success toast message
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -2259,6 +2466,51 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
     // View 2: Exceptions Only -> Only processes containing records with count > 0 for selected KPI
     return allProcesses.filter(process => getProcessCount(process, selectedKPI) > 0);
   };
+  const handleStartReconciliation = () => {
+    setReconciliationState("processing");
+    setReconcileProgress(0);
+    
+    const duration = 2000 + Math.random() * 2000;
+    const steps = 10;
+    const stepTime = duration / steps;
+    
+    const interval = setInterval(() => {
+      setReconcileProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setReconciliationState("complete");
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, stepTime);
+  };
+
+  const handleViewResults = () => {
+    setHandoffMessage("Opening Investigation Workspace...");
+    
+    setTimeout(() => {
+      // Simulate AI reconciliation routing dynamically
+      setSelectedKPI(MOCK_RECONCILIATION_RESULT.kpi);
+      setSelectedDomain(MOCK_RECONCILIATION_RESULT.domain);
+      setActiveProcess(MOCK_RECONCILIATION_RESULT.process);
+      userClickedProcess.current = true;
+
+      // Clear handoff message and close modal
+      setHandoffMessage(null);
+      setShowUploadModal(false);
+      
+      // Reset upload lists
+      setUploadedDocs([{ id: String(Date.now()), name: null }]);
+      setReconciliationState("idle");
+      setReconcileProgress(0);
+
+      // Restore focus
+      setTimeout(() => {
+        lastFocusedLauncherRef.current?.focus();
+      }, 50);
+    }, 600);
+  };
 
   return (
     <main ref={mainContainerRef} className="flex-1 overflow-y-auto px-8 py-6 relative" style={{ background: "var(--background)", color: "var(--foreground)" }}>
@@ -2287,7 +2539,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            Financial Statement Close Process
+            Financial Close Workspace
           </h1>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>
             Real-time Financial Close Command Center • P06 Closing Period
@@ -2326,8 +2578,15 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
             
             {/* Card: Close Blockers */}
             <div 
+              tabIndex={0}
               onClick={() => handleSelectKPI("Close Blocker")}
-              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer ${selectedKPI === "Close Blocker" ? "shadow-md" : ""}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSelectKPI("Close Blocker");
+                }
+              }}
+              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${selectedKPI === "Close Blocker" ? "shadow-md" : ""}`}
               style={{
                 background: "var(--card)",
                 border: selectedKPI === "Close Blocker" ? "1px solid #ef4444" : "1px solid var(--border)",
@@ -2346,8 +2605,15 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
  
             {/* Card: Moderate Issues */}
             <div 
+              tabIndex={0}
               onClick={() => handleSelectKPI("Moderate Issue")}
-              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer ${selectedKPI === "Moderate Issue" ? "shadow-md" : ""}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSelectKPI("Moderate Issue");
+                }
+              }}
+              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${selectedKPI === "Moderate Issue" ? "shadow-md" : ""}`}
               style={{
                 background: "var(--card)",
                 border: selectedKPI === "Moderate Issue" ? "1px solid #f59e0b" : "1px solid var(--border)",
@@ -2366,8 +2632,15 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
  
             {/* Card: No Issues */}
             <div 
+              tabIndex={0}
               onClick={() => handleSelectKPI("No Issue")}
-              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer ${selectedKPI === "No Issue" ? "shadow-md" : ""}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleSelectKPI("No Issue");
+                }
+              }}
+              className={`rounded-xl px-4 py-2.5 transition-all duration-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${selectedKPI === "No Issue" ? "shadow-md" : ""}`}
               style={{
                 background: "var(--card)",
                 border: selectedKPI === "No Issue" ? "1px solid #10b981" : "1px solid var(--border)",
@@ -2520,8 +2793,10 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                       return (
                         <div
                           key={group.id}
+                          tabIndex={0}
                           onClick={() => handleSelectCompanyGroup(group.name)}
-                          className={`rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none ${
+                          onKeyDown={(e) => handleArrowNavigation(e, "company-group-card-nav")}
+                          className={`company-group-card-nav rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${
                             isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
                           }`}
                           style={{
@@ -2597,8 +2872,10 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                   return (
                     <div
                       key={domain}
-                      onClick={() => {
+                      tabIndex={0}
+                      onClick={(e) => {
                         if (count === 0) {
+                          lastFocusedEmptyCardRef.current = e.currentTarget as HTMLElement;
                           let msg = "";
                           if (selectedKPI === "Close Blocker") {
                             msg = "No Close Blocker issues were identified for the selected finance domain during the current financial close cycle.";
@@ -2624,7 +2901,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                           userClickedDomain.current = true;
                         }
                       }}
-                      className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
+                      onKeyDown={(e) => handleArrowNavigation(e, "finance-domain-card-nav")}
+                      className={`finance-domain-card-nav p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1`}
                       style={{
                         position: "relative",
                         background: isActive ? "var(--secondary)" : "var(--card)",
@@ -2702,8 +2980,10 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                       return (
                         <div
                           key={process}
-                          onClick={() => {
+                          tabIndex={0}
+                          onClick={(e) => {
                             if (count === 0) {
+                              lastFocusedEmptyCardRef.current = e.currentTarget as HTMLElement;
                               let msg = "";
                               if (selectedKPI === "Close Blocker") {
                                 msg = `No Close Blocker issues were identified for the selected business process: ${process} during the current financial close cycle.`;
@@ -2727,7 +3007,8 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                               userClickedProcess.current = true;
                             }
                           }}
-                          className="p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn"
+                          onKeyDown={(e) => handleArrowNavigation(e, "business-process-card-nav")}
+                          className={`business-process-card-nav p-2.5 rounded-xl border cursor-pointer transition-all duration-200 animate-fadeIn focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1`}
                           style={{
                             position: "relative",
                             background: isSelected ? "var(--secondary)" : "var(--card)",
@@ -2851,8 +3132,19 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                             {filteredIssues.map((issue) => (
                               <tr 
                                 key={issue.id} 
-                                onClick={() => handleStartInvestigation(issue)}
-                                className="border-b hover:bg-muted/10 cursor-pointer transition-colors" 
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  lastFocusedIssueRowRef.current = e.currentTarget as HTMLElement;
+                                  handleStartInvestigation(issue);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    lastFocusedIssueRowRef.current = e.currentTarget as HTMLElement;
+                                    handleStartInvestigation(issue);
+                                  }
+                                }}
+                                className="border-b hover:bg-muted/10 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:bg-muted/10" 
                                 style={{ borderColor: "var(--border)", fontSize: 12 }}
                               >
                                 <td className="py-2.5 pr-4">
@@ -2907,6 +3199,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
       {activeIssueForInvestigation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
           <div 
+            id="investigation-explorer-modal"
             className="w-full max-w-5xl rounded-xl border flex flex-col h-[80vh] shadow-2xl overflow-hidden"
             style={{ background: "var(--card)", borderColor: "var(--border)" }}
           >
@@ -3123,8 +3416,15 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
                                 <tr
                                   key={rIdx}
                                   ref={rIdx === (modalPage - 1) * pageSize ? loadMoreRowRef : undefined}
+                                  tabIndex={0}
                                   onClick={() => handleSelectStageRecord(row, stage)}
-                                  className="border-b hover:bg-muted/20 cursor-pointer transition-colors"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleSelectStageRecord(row, stage);
+                                    }
+                                  }}
+                                  className="border-b hover:bg-muted/20 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/30 focus-visible:bg-muted/10"
                                   style={{ borderColor: "var(--border)", fontSize: 12 }}
                                 >
                                   {stage?.columns.map((col) => {
@@ -3198,6 +3498,7 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
       {noActiveIssuesContext && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
           <div 
+            id="no-active-issues-dialog"
             className="w-full max-w-md rounded-xl border p-6 flex flex-col items-center justify-center text-center shadow-2xl animate-fadeIn"
             style={{ background: "var(--card)", borderColor: "var(--border)" }}
           >
@@ -3220,6 +3521,238 @@ export function FSCPPage({ workspaceIssueId }: { workspaceIssueId?: string } = {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 6. Upload Documents Dialog Overlay ─── */}
+      {showUploadModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => {
+            if (reconciliationState !== "processing" && !handoffMessage) {
+              setShowUploadModal(false);
+              setUploadedDocs([{ id: String(Date.now()), name: null }]);
+              setReconciliationState("idle");
+              setReconcileProgress(0);
+            }
+          }}
+        >
+          <div 
+            id="upload-documents-dialog"
+            className="w-full max-w-md rounded-xl border flex flex-col max-h-[85vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            style={{ background: "var(--card)", borderColor: "var(--border)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Upload Documents</h3>
+                <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
+                  Upload one or more documents to begin the reconciliation process.
+                </p>
+              </div>
+              {reconciliationState !== "processing" && !handoffMessage && (
+                <button 
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadedDocs([{ id: String(Date.now()), name: null }]);
+                    setReconciliationState("idle");
+                    setReconcileProgress(0);
+                  }}
+                  className="p-1 rounded-lg hover:bg-muted/50 transition-colors border-none cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                  style={{ background: "none", color: "var(--muted-foreground)" }}
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 text-left" style={{ background: "var(--card)" }}>
+              {handoffMessage ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center gap-4 animate-fadeIn">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                    {handoffMessage}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {reconciliationState === "idle" && (
+                    <>
+                      <div className="flex flex-col gap-3">
+                        {uploadedDocs.map((doc, idx) => {
+                          if (doc.name) {
+                            return (
+                              <div 
+                                key={doc.id}
+                                className="flex items-center justify-between p-3 rounded-lg border text-xs font-semibold"
+                                style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)" }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle size={14} className="text-emerald-500" />
+                                  <span className="truncate max-w-[280px]">{doc.name}</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setUploadedDocs(prev => {
+                                      const filtered = prev.filter(d => d.id !== doc.id);
+                                      return filtered.length === 0 ? [{ id: String(Date.now()), name: null }] : filtered;
+                                    });
+                                  }}
+                                  className="text-xs border-none cursor-pointer p-1 rounded hover:bg-muted transition-colors flex items-center justify-center"
+                                  style={{ background: "none", color: "var(--destructive)" }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={doc.id} className="flex flex-col gap-1.5">
+                              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                Upload Document
+                              </label>
+                              <div
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                                    const file = e.dataTransfer.files[0];
+                                    setUploadedDocs(prev => prev.map(d => d.id === doc.id ? { ...d, name: file.name } : d));
+                                  }
+                                }}
+                                onClick={() => document.getElementById(`file-upload-input-${doc.id}`)?.click()}
+                                className="flex flex-col items-center justify-center p-6 rounded-xl border border-dashed text-center transition-all cursor-pointer hover:bg-muted/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                                style={{
+                                  background: "var(--secondary)",
+                                  borderColor: "var(--border)",
+                                  minHeight: 90
+                                }}
+                              >
+                                <input 
+                                  id={`file-upload-input-${doc.id}`}
+                                  type="file"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      const file = e.target.files[0];
+                                      setUploadedDocs(prev => prev.map(d => d.id === doc.id ? { ...d, name: file.name } : d));
+                                    }
+                                  }}
+                                />
+                                <Paperclip size={18} className="text-blue-500 mb-1.5" />
+                                <span className="text-xs font-semibold text-foreground">
+                                  Drag & Drop or Browse Files
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {uploadedDocs.some(d => d.name !== null) && !uploadedDocs.some(d => d.name === null) && (
+                        <button
+                          onClick={() => {
+                            setUploadedDocs(prev => [...prev, { id: String(Date.now()), name: null }]);
+                          }}
+                          className="flex items-center gap-1.5 self-start text-xs font-bold border-none cursor-pointer p-1.5 rounded transition-all text-blue-500 hover:bg-blue-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                          style={{ background: "none" }}
+                        >
+                          <Plus size={14} />
+                          Add Another Document
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {reconciliationState === "processing" && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center gap-4 animate-fadeIn">
+                      <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
+                      
+                      <div className="flex flex-col gap-1">
+                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                          {reconcileProgress < 35 
+                            ? "Reading uploaded documents..." 
+                            : reconcileProgress < 70 
+                            ? "Matching financial records..." 
+                            : "Detecting reconciliation exceptions..."}
+                        </p>
+                        <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                          Estimated processing time: 1–2 minutes
+                        </p>
+                      </div>
+
+                      <div className="w-full max-w-xs bg-muted rounded-full h-1.5 overflow-hidden mt-2" style={{ background: "var(--secondary)" }}>
+                        <div 
+                          className="bg-blue-500 h-full transition-all duration-300 rounded-full" 
+                          style={{ width: `${reconcileProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {reconciliationState === "complete" && (
+                    <div className="flex flex-col items-center justify-center py-6 text-center gap-3 animate-fadeIn">
+                      <div className="flex items-center justify-center rounded-full bg-emerald-500/10 p-2.5 text-emerald-500 mb-1">
+                        <CheckCircle size={24} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-base font-bold text-foreground">Reconciliation Complete</h4>
+                        <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                          Your reconciliation data is ready.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3 flex-shrink-0" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+              {reconciliationState === "idle" && !handoffMessage && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setUploadedDocs([{ id: String(Date.now()), name: null }]);
+                      setReconciliationState("idle");
+                      setReconcileProgress(0);
+                    }}
+                    className="px-4 py-2 rounded-lg text-xs font-bold border cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                    style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--foreground)" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={!uploadedDocs.some(d => d.name !== null)}
+                    onClick={handleStartReconciliation}
+                    className="px-4 py-2 rounded-lg text-xs font-bold border-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                    style={{
+                      background: uploadedDocs.some(d => d.name !== null) ? "var(--foreground)" : "var(--muted)",
+                      color: uploadedDocs.some(d => d.name !== null) ? "var(--background)" : "var(--muted-foreground)",
+                      cursor: uploadedDocs.some(d => d.name !== null) ? "pointer" : "not-allowed",
+                      opacity: uploadedDocs.some(d => d.name !== null) ? 1 : 0.5
+                    }}
+                  >
+                    Start Reconciliation
+                  </button>
+                </>
+              )}
+
+              {reconciliationState === "complete" && !handoffMessage && (
+                <button
+                  onClick={handleViewResults}
+                  className="px-5 py-2 rounded-lg text-xs font-bold border-none cursor-pointer w-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                  style={{ background: "var(--foreground)", color: "var(--background)" }}
+                >
+                  View Results
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
