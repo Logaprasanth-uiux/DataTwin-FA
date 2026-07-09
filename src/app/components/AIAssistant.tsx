@@ -1380,7 +1380,7 @@ function getPageConfig(page: string): PageConfig {
           { id: "cash_collection", label: "Cash collection summary", icon: "💰" },
         ]
       };
-    case "FSCP":
+    case "Cockpit":
       return {
         subtitle: "Financial Close Assistant",
         welcome: "Hi! I'm your Financial Close AI Copilot. I can help monitor close activities, reconciliation progress, journal entries, and outstanding tasks.",

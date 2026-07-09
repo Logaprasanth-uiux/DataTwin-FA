@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   RefreshCw,
   Activity,
+  History,
 } from "lucide-react";
 import { InboxItem, InboxItemType } from "./pages/InboxPage";
 
@@ -34,7 +35,11 @@ const documentsNav = [
 const operationsNav = [
   { icon: CheckCircle2, label: "Accounts Payable" },
   { icon: Activity, label: "Accounts Receivable" },
-  { icon: RefreshCw, label: "FSCP" },
+];
+
+const fscpNav = [
+  { icon: RefreshCw, label: "Cockpit" },
+  { icon: History, label: "Upload History" },
 ];
 
 interface SidebarProps {
@@ -197,6 +202,41 @@ export function Sidebar({ dark, onToggleDark, active, onSetActive, inboxItems, s
           </p>
         )}
         {operationsNav.map(({ icon: Icon, label }) => {
+          const isActive = active === label;
+          return (
+            <button
+              key={label}
+              onClick={() => onSetActive(label)}
+              className="flex items-center w-full rounded transition-colors"
+              title={isCollapsed ? label : undefined}
+              style={{
+                height: 34,
+                paddingLeft: isCollapsed ? 0 : 12,
+                paddingRight: isCollapsed ? 0 : 12,
+                justifyContent: isCollapsed ? "center" : "flex-start",
+                background: isActive ? "var(--sidebar-accent)" : "transparent",
+                color: isActive ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <Icon size={15} strokeWidth={isActive ? 2 : 1.5} className="flex-shrink-0" />
+              {!isCollapsed && (
+                <>
+                  <span style={{ fontSize: 13, fontWeight: isActive ? 500 : 400, marginLeft: 10 }}>{label}</span>
+                  {isActive && <ChevronRight size={13} className="ml-auto" style={{ opacity: 0.4 }} />}
+                </>
+              )}
+            </button>
+          );
+        })}
+
+        {!isCollapsed && (
+          <p style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.08em", padding: "16px 8px 6px" }}>
+            FSCP
+          </p>
+        )}
+        {fscpNav.map(({ icon: Icon, label }) => {
           const isActive = active === label;
           return (
             <button

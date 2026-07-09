@@ -16,6 +16,7 @@ import { ApprovalsPage } from "./components/pages/ApprovalsPage";
 import { OverviewPage } from "./components/pages/OverviewPage";
 import { LoginPage } from "./components/pages/LoginPage";
 import { FSCPPage } from "./components/pages/FSCPPage";
+import { FSCPUploadHistoryPage } from "./components/pages/fscp/FSCPUploadHistoryPage";
 import { UserProfile } from "./components/UserProfile";
 import { TransactionHubPage } from "./components/pages/TransactionHubPage";
 import { PODetailPage } from "./components/pages/PODetailPage";
@@ -71,7 +72,8 @@ const pageTitles: Record<string, string> = {
   Bill: "Bill",
   "Accounts Payable": "Accounts Payable",
   "Accounts Receivable": "Accounts Receivable",
-  FSCP: "Financial Statement Close Process",
+  Cockpit: "Financial Statement Close Process",
+  "Upload History": "Upload History",
 };
 
 const ALL_CARDS = [
@@ -100,6 +102,14 @@ export default function App() {
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
   const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);
   const [fscpShowUploadModal, setFscpShowUploadModal] = useState(false);
+  const [fscpInitialReconResult, setFscpInitialReconResult] = useState<{
+    company?: string;
+    financialPeriod?: string;
+    kpi?: string;
+    domain?: string;
+    process?: string;
+    issueId?: string;
+  } | null>(null);
   const [navContext, setNavContext] = useState<{
     previousModule: string | null;
     currentModule: string;
@@ -343,8 +353,26 @@ export default function App() {
         return <TransactionHubPage />;
       case "Approvals":
         return <ApprovalsPage />;
-      case "FSCP":
-        return <FSCPPage showUploadModal={fscpShowUploadModal} setShowUploadModal={setFscpShowUploadModal} />;
+      case "Cockpit":
+        return (
+          <FSCPPage
+            showUploadModal={fscpShowUploadModal}
+            setShowUploadModal={setFscpShowUploadModal}
+            initialReconResult={fscpInitialReconResult}
+            onResetInitialReconResult={() => setFscpInitialReconResult(null)}
+          />
+        );
+      case "Upload History":
+        return (
+          <FSCPUploadHistoryPage
+            showUploadModal={fscpShowUploadModal}
+            setShowUploadModal={setFscpShowUploadModal}
+            onNavigateToCockpit={(result) => {
+              setFscpInitialReconResult(result);
+              handleNavigate("Cockpit");
+            }}
+          />
+        );
       case "Overview":
         return (
           <OverviewPage
@@ -366,7 +394,7 @@ export default function App() {
         );
     }
   }
-  const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill"].includes(active);
+  const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill", "Upload History"].includes(active);
   const hasOwnHeader = active === "Accounts Receivable";
 
   return (
@@ -429,7 +457,7 @@ export default function App() {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                {active === "FSCP" && (
+                {active === "Cockpit" && (
                   <button
                     onClick={() => setFscpShowUploadModal(true)}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
