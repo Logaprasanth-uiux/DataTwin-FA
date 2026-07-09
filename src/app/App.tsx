@@ -110,6 +110,7 @@ export default function App() {
     process?: string;
     issueId?: string;
   } | null>(null);
+  const [headerAction, setHeaderAction] = useState<React.ReactNode>(null);
   const [navContext, setNavContext] = useState<{
     previousModule: string | null;
     currentModule: string;
@@ -414,7 +415,9 @@ export default function App() {
       navigationContext: navContext,
       setNavigationContext: setNavContext,
       activeDetailRecord,
-      setActiveDetailRecord
+      setActiveDetailRecord,
+      headerAction,
+      setHeaderAction,
     }}>
       <div
         className="flex h-screen w-full overflow-hidden"
@@ -439,54 +442,51 @@ export default function App() {
         />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Topbar — hidden for list pages and pages with their own header */}
-          {!isListPage && !hasOwnHeader && (
-            <header
-              className="flex items-center justify-between px-8"
-              style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
-            >
-              <div className="flex items-center gap-3">
-                <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-                  {pageTitles[active]}
-                </h1>
-                {(active === "Overview" || active === "Inbox" || active === "Accounts Receivable" || active === "Approvals") && (
-                  <>
-                    <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
-                    <CompanySwitch />
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-4">
-                {active === "Cockpit" && (
-                  <button
-                    onClick={() => setFscpShowUploadModal(true)}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      background: "var(--foreground)",
-                      color: "var(--background)",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Upload size={13} />
-                    Upload Documents
-                  </button>
-                )}
-                <UserProfile size="md" />
-              </div>
-            </header>
-          )}
+          <header
+            className="flex items-center justify-between px-8"
+            style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
+          >
+            <div className="flex items-center gap-3">
+              <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
+                {pageTitles[active]}
+              </h1>
+              {["Overview", "Inbox", "Accounts Receivable", "Approvals", "Vendor", "Purchase Order", "Bill"].includes(active) && (
+                <>
+                  <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
+                  <CompanySwitch />
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-4" style={{ width: 440, flexShrink: 0 }}>
+              {headerAction || (active === "Cockpit" && (
+                <button
+                  onClick={() => setFscpShowUploadModal(true)}
+                  className="page-header-action flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    background: "var(--foreground)",
+                    color: "var(--background)",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Upload size={13} />
+                  Upload Documents
+                </button>
+              ))}
+              <UserProfile size="md" />
+            </div>
+          </header>
 
 
           <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               {renderContent()}
             </div>
-            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={isListPage || hasOwnHeader} activePage={active} />
+            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={true} activePage={active} />
             {active !== "Accounts Receivable" && activePanel === "activity" && (
-              <ActivityWorkspace hasHeaderOffset={isListPage || hasOwnHeader} />
+              <ActivityWorkspace hasHeaderOffset={true} />
             )}
           </div>
         </div>

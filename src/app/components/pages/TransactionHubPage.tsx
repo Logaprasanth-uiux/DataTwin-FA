@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { CompanySwitch } from "../CompanySwitch";
 import { UserProfile } from "../UserProfile";
+import { useActivity } from "../../contexts";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -1003,6 +1004,7 @@ function parseNarration(narration: string) {
 }
 
 export function TransactionHubPage() {
+  const { setHeaderAction } = useActivity();
   const [queue, setQueue] = useState<EmailQueueItem[]>(() => {
     return [...INITIAL_QUEUE_DATA, ...generateExtraEmails(), ...MANUAL_UPLOAD_MOCKS];
   });
@@ -1039,6 +1041,33 @@ export function TransactionHubPage() {
 
   // Manual Upload States
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="page-header-action flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            background: "var(--foreground)",
+            color: "var(--background)",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Upload size={13} />
+          Upload Manually
+        </button>
+      );
+    }
+    return () => {
+      if (setHeaderAction) {
+        setHeaderAction(null);
+      }
+    };
+  }, [setHeaderAction]);
   const [uploadSourceType, setUploadSourceType] = useState<string>("Bank Statement");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadPeriodFrom, setUploadPeriodFrom] = useState<string>("");
@@ -2348,38 +2377,7 @@ Processed successfully.
 
   return (
     <div className="flex flex-col h-full w-full">
-      {/* 1. Page Header (styled consistently with ListPage, customized for Accounts Receivable) */}
-      <div
-        className="flex items-center justify-between px-8"
-        style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0, background: "var(--card)" }}
-      >
-        <div className="flex items-center gap-3">
-          <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
-            Accounts Receivable
-          </h1>
-          <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
-          <CompanySwitch />
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors"
-            style={{
-              fontSize: 12,
-              fontWeight: 500,
-              background: "var(--foreground)",
-              color: "var(--background)",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <Upload size={13} />
-            Upload Manually
-          </button>
-          <UserProfile size="md" />
-        </div>
-      </div>
+
 
       <main
         className="flex-1 flex flex-row h-full overflow-hidden w-full"

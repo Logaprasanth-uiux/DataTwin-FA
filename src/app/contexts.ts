@@ -66,6 +66,8 @@ export interface PanelContextType {
   setNavigationContext?: (ctx: { previousModule: string | null; currentModule: string; detailPageOrigin: string | null }) => void;
   activeDetailRecord?: { type: string; id: string; status?: string } | null;
   setActiveDetailRecord?: (record: { type: string; id: string; status?: string } | null) => void;
+  headerAction?: React.ReactNode;
+  setHeaderAction?: (action: React.ReactNode) => void;
 }
 
 export function getInitialMockData(id: string, type: string, status: string): RecordCollabData {

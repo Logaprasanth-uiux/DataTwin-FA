@@ -39,3 +39,12 @@
 .dark * {
   scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
+
+/* Page Header Action Buttons - Standardized Refinement */
+.page-header-action {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: auto !important;
+  flex-shrink: 0 !important;
+}

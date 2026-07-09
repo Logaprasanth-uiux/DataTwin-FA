@@ -4,7 +4,7 @@ import { DateRangeFilter } from "../../DateRangeFilter";
 import { FSCPAttachmentModal } from "./FSCPAttachmentModal";
 import { FSCPUploadDocumentsModal } from "./FSCPUploadDocumentsModal";
 import { initialUploadHistory, FSCPUploadRecord } from "./mockUploadHistory";
-import { CheckCircle, AlertCircle, FileSearch, FileDown, MoreHorizontal, X } from "lucide-react";
+import { CheckCircle, AlertCircle, FileSearch, FileDown, MoreHorizontal, Eye, X } from "lucide-react";
 
 interface FSCPUploadHistoryPageProps {
   showUploadModal: boolean;
@@ -145,17 +145,16 @@ export function FSCPUploadHistoryPage({ showUploadModal, setShowUploadModal, onN
                   issueId: "BLK-GEN-201",
                 })
               }
-              className="flex items-center gap-1 rounded px-2.5 py-1.5 transition-colors"
+              className="flex items-center justify-center rounded p-1.5 transition-colors hover:bg-accent border"
               style={{
-                fontSize: 11,
-                fontWeight: 500,
-                background: "var(--foreground)",
-                color: "var(--background)",
-                border: "none",
+                background: "var(--secondary)",
+                borderColor: "var(--border)",
                 cursor: "pointer",
+                color: "var(--foreground)",
               }}
+              title="View Results"
             >
-              View Results
+              <Eye size={12} />
             </button>
             <button
               onClick={() => alert(`Downloading Report for transaction: ${record.id}`)}
@@ -182,6 +181,7 @@ export function FSCPUploadHistoryPage({ showUploadModal, setShowUploadModal, onN
                   cursor: "pointer",
                   color: "var(--foreground)",
                 }}
+                title="More Actions"
               >
                 <MoreHorizontal size={12} />
               </button>

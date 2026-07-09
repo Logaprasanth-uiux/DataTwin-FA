@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare } from "lucide-react";
 import { useActivity } from "../../contexts";
 import { UserProfile } from "../UserProfile";
@@ -33,7 +33,34 @@ interface ListPageProps {
 const PAGE_SIZE = 10;
 
 export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highlightId, idKey = "id", titleSlot, filterSlot }: ListPageProps) {
-  const { openActivity } = useActivity();
+  const { openActivity, setHeaderAction } = useActivity();
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <button
+          onClick={onAdd}
+          className="page-header-action flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            background: "var(--foreground)",
+            color: "var(--background)",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={13} />
+          {addLabel}
+        </button>
+      );
+    }
+    return () => {
+      if (setHeaderAction) {
+        setHeaderAction(null);
+      }
+    };
+  }, [onAdd, addLabel, setHeaderAction]);
 
   // Determine actual columns to render
   let renderedColumns = [...columns];
@@ -98,35 +125,6 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
 
   return (
     <div className="flex flex-col h-full">
-      {/* Page header */}
-      <div
-        className="flex items-center justify-between px-8"
-        style={{ height: 56, borderBottom: "1px solid var(--border)", flexShrink: 0 }}
-      >
-        <div className="flex items-center gap-3">
-          <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>{title}</h1>
-          {titleSlot && <>{titleSlot}</>}
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors"
-            style={{
-              fontSize: 12,
-              fontWeight: 500,
-              background: "var(--foreground)",
-              color: "var(--background)",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <Plus size={13} />
-            {addLabel}
-          </button>
-          <UserProfile size="md" />
-        </div>
-      </div>
-
       <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
         {/* Filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
