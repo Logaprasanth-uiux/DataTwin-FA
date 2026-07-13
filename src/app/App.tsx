@@ -450,7 +450,7 @@ export default function App() {
               <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
                 {pageTitles[active]}
               </h1>
-              {["Overview", "Inbox", "Accounts Receivable", "Approvals", "Vendor", "Purchase Order", "Bill"].includes(active) && (
+              {["Overview", "Inbox", "Accounts Receivable", "Approvals", "Vendor", "Purchase Order", "Bill", "Cockpit", "Upload History"].includes(active) && (
                 <>
                   <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
                   <CompanySwitch />

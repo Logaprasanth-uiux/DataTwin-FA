@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare } from "lucide-react";
 import { useActivity } from "../../contexts";
 import { UserProfile } from "../UserProfile";
@@ -35,11 +35,16 @@ const PAGE_SIZE = 10;
 export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highlightId, idKey = "id", titleSlot, filterSlot }: ListPageProps) {
   const { openActivity, setHeaderAction } = useActivity();
 
+  const onAddRef = useRef(onAdd);
+  useEffect(() => {
+    onAddRef.current = onAdd;
+  }, [onAdd]);
+
   useEffect(() => {
     if (setHeaderAction) {
       setHeaderAction(
         <button
-          onClick={onAdd}
+          onClick={() => onAddRef.current?.()}
           className="page-header-action flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1"
           style={{
             fontSize: 12,
@@ -60,7 +65,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
         setHeaderAction(null);
       }
     };
-  }, [onAdd, addLabel, setHeaderAction]);
+  }, [addLabel, setHeaderAction]);
 
   // Determine actual columns to render
   let renderedColumns = [...columns];
@@ -111,6 +116,31 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
   const [shown, setShown] = useState(PAGE_SIZE);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
 
+  const userClickedLoadMore = useRef(false);
+  const previousShown = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const firstNewRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (userClickedLoadMore.current && firstNewRowRef.current) {
+      userClickedLoadMore.current = false;
+      const el = firstNewRowRef.current;
+      const container = scrollContainerRef.current;
+      if (container) {
+        let offsetTop = 0;
+        let curr: HTMLElement | null = el;
+        while (curr && curr !== container) {
+          offsetTop += curr.offsetTop;
+          curr = curr.offsetParent as HTMLElement | null;
+        }
+        container.scrollTo({
+          top: Math.max(0, offsetTop - 50),
+          behavior: "smooth"
+        });
+      }
+    }
+  }, [shown]);
+
   const filtered = rows.filter((row) => {
     const matchSearch = Object.values(row).some((v) =>
       String(v).toLowerCase().includes(search.toLowerCase())
@@ -125,7 +155,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
         {/* Filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
@@ -260,6 +290,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
                 visible.map((row, i) => (
                   <tr
                     key={i}
+                    ref={i === previousShown.current ? firstNewRowRef : undefined}
                     style={{
                       borderBottom: i < visible.length - 1 ? "1px solid var(--border)" : "none",
                       background: highlightId && row[idKey] === highlightId ? "rgba(107,140,255,0.08)" : "transparent",
@@ -291,7 +322,11 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
         {/* Load more */}
         {shown < filtered.length && (
           <button
-            onClick={() => setShown((s) => s + PAGE_SIZE)}
+            onClick={() => {
+              userClickedLoadMore.current = true;
+              previousShown.current = shown;
+              setShown((s) => s + PAGE_SIZE);
+            }}
             className="w-full rounded-lg py-2.5 transition-colors"
             style={{
               fontSize: 13,
