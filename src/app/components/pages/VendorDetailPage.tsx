@@ -559,8 +559,6 @@ export function VendorDetailPage({ vendorId, onClose, isNew = false, prefill }: 
               <Check size={13} /> Create Vendor
             </button>
           )}
-          {/* User avatar */}
-          <UserProfile size="md" />
         </div>
       </div>
 

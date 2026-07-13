@@ -1040,7 +1040,6 @@ export function PODetailPage({ poId, onClose, isNew = false, poStatus, prefill }
               <Lock size={12} /> Edit Disabled
             </div>
           )}
-          <UserProfile size="sm" />
         </div>
       </div>
 

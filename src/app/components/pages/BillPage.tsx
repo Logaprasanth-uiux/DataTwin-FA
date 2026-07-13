@@ -13,7 +13,7 @@ function currentMonthRange() {
 }
 
 const statusColor: Record<string, string> = {
-  Received: "#6b8cff", "In Progress": "#fbbf24", Validated: "#4ade80", Rejected: "#f87171",
+  Received: "#6b8cff", "In Progress": "#fbbf24", Validated: "#4ade80", Rejected: "#f87171", Draft: "#888896"
 };
 
 const rows = [
@@ -29,11 +29,12 @@ const rows = [
   { id: "INV-2026-010", vendorId: "VND-012", vendor: "FoodFirst Corp", date: "Jun 13, 2026", status: "Validated" },
   { id: "INV-2026-011", vendorId: "VND-011", vendor: "NextLevel IT", date: "Jun 14, 2026", status: "Received" },
   { id: "INV-2026-012", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 16, 2026", status: "Validated" },
+  { id: "INV-2026-013", vendorId: "VND-003", vendor: "CloudNet Solutions", date: "Jun 18, 2026", status: "Draft" },
 ];
 
 const filters = [
   { key: "vendor", label: "Vendor", options: ["TechSupply Co", "OfficeMax Pro", "CloudNet Solutions", "Green Facilities", "SafeLogistics", "SwiftCargo", "PrintHouse Ltd", "MediaBridge", "FoodFirst Corp", "NextLevel IT"] },
-  { key: "status", label: "Status", options: ["Received", "In Progress", "Validated", "Rejected"] },
+  { key: "status", label: "Status", options: ["Received", "In Progress", "Validated", "Rejected", "Draft"] },
 ];
 
 type View = "list" | "detail" | "new";

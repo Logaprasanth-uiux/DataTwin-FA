@@ -309,7 +309,6 @@ export function OrganizationEditPanel({ org, isNew = false, onClose, onSave }: P
               <Check size={13} /> Create Organization
             </button>
           )}
-          <UserProfile size="sm" />
         </div>
       </div>
 

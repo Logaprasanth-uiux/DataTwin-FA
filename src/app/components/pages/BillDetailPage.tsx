@@ -408,7 +408,7 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
   }, [prefill]);
 
   function handleSave(updated: BillData) { setData(updated); }
-  const isDraft = data.status === "Received" || isNew;
+  const isDraft = data.status === "Received" || data.status === "Draft" || isNew;
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--background)" }}>
@@ -444,7 +444,6 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
               <Check size={13} /> Create Bill
             </button>
           )}
-          <UserProfile size="sm" />
         </div>
       </div>
 
