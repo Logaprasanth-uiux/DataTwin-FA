@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare } from "lucide-react";
+import { Search, Plus, ChevronDown, SlidersHorizontal, BotMessageSquare, Upload } from "lucide-react";
 import { useActivity } from "../../contexts";
 import { UserProfile } from "../UserProfile";
 
@@ -42,6 +42,9 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
 
   useEffect(() => {
     if (setHeaderAction) {
+      const isUpload = addLabel.toLowerCase().includes("upload");
+      const Icon = isUpload ? Upload : Plus;
+
       setHeaderAction(
         <button
           onClick={() => onAddRef.current?.()}
@@ -55,7 +58,7 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
             cursor: "pointer",
           }}
         >
-          <Plus size={13} />
+          <Icon size={13} />
           {addLabel}
         </button>
       );
