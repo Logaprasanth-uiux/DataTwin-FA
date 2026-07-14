@@ -17,19 +17,19 @@ const statusColor: Record<string, string> = {
 };
 
 const rows = [
-  { id: "INV-2026-001", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 01, 2026", status: "Validated" },
-  { id: "INV-2026-002", vendorId: "VND-002", vendor: "OfficeMax Pro", date: "Jun 03, 2026", status: "In Progress" },
-  { id: "INV-2026-003", vendorId: "VND-003", vendor: "CloudNet Solutions", date: "Jun 04, 2026", status: "Received" },
-  { id: "INV-2026-004", vendorId: "VND-004", vendor: "Green Facilities", date: "Jun 05, 2026", status: "Validated" },
-  { id: "INV-2026-005", vendorId: "VND-005", vendor: "SafeLogistics", date: "Jun 07, 2026", status: "Rejected" },
-  { id: "INV-2026-006", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 08, 2026", status: "Validated" },
-  { id: "INV-2026-007", vendorId: "VND-010", vendor: "SwiftCargo", date: "Jun 09, 2026", status: "In Progress" },
-  { id: "INV-2026-008", vendorId: "VND-006", vendor: "PrintHouse Ltd", date: "Jun 10, 2026", status: "Received" },
-  { id: "INV-2026-009", vendorId: "VND-009", vendor: "MediaBridge", date: "Jun 12, 2026", status: "In Progress" },
-  { id: "INV-2026-010", vendorId: "VND-012", vendor: "FoodFirst Corp", date: "Jun 13, 2026", status: "Validated" },
-  { id: "INV-2026-011", vendorId: "VND-011", vendor: "NextLevel IT", date: "Jun 14, 2026", status: "Received" },
-  { id: "INV-2026-012", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 16, 2026", status: "Validated" },
-  { id: "INV-2026-013", vendorId: "VND-003", vendor: "CloudNet Solutions", date: "Jun 18, 2026", status: "Draft" },
+  { id: "INV-2026-001", interimId: "INT-2026-001", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 01, 2026", status: "Validated" },
+  { id: "INV-2026-002", interimId: "INT-2026-002", vendorId: "VND-002", vendor: "OfficeMax Pro", date: "Jun 03, 2026", status: "In Progress" },
+  { id: "INV-2026-003", interimId: "INT-2026-003", vendorId: "VND-003", vendor: "CloudNet Solutions", date: "Jun 04, 2026", status: "Received" },
+  { id: "INV-2026-004", interimId: "INT-2026-004", vendorId: "VND-004", vendor: "Green Facilities", date: "Jun 05, 2026", status: "Validated" },
+  { id: "INV-2026-005", interimId: "INT-2026-005", vendorId: "VND-005", vendor: "SafeLogistics", date: "Jun 07, 2026", status: "Rejected" },
+  { id: "INV-2026-006", interimId: "INT-2026-006", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 08, 2026", status: "Validated" },
+  { id: "INV-2026-007", interimId: "INT-2026-007", vendorId: "VND-010", vendor: "SwiftCargo", date: "Jun 09, 2026", status: "In Progress" },
+  { id: "INV-2026-008", interimId: "INT-2026-008", vendorId: "VND-006", vendor: "PrintHouse Ltd", date: "Jun 10, 2026", status: "Received" },
+  { id: "INV-2026-009", interimId: "INT-2026-009", vendorId: "VND-009", vendor: "MediaBridge", date: "Jun 12, 2026", status: "In Progress" },
+  { id: "INV-2026-010", interimId: "INT-2026-010", vendorId: "VND-012", vendor: "FoodFirst Corp", date: "Jun 13, 2026", status: "Validated" },
+  { id: "INV-2026-011", interimId: "INT-2026-011", vendorId: "VND-011", vendor: "NextLevel IT", date: "Jun 14, 2026", status: "Received" },
+  { id: "INV-2026-012", interimId: "INT-2026-012", vendorId: "VND-001", vendor: "TechSupply Co", date: "Jun 16, 2026", status: "Validated" },
+  { id: "INV-2026-013", interimId: "INT-2026-013", vendorId: "VND-003", vendor: "CloudNet Solutions", date: "Jun 18, 2026", status: "Draft" },
 ];
 
 const filters = [
@@ -91,7 +91,27 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
         </button>
       ),
     },
-    { key: "vendorId", label: "Vendor ID", mono: true },
+    {
+      key: "interimId", label: "Interim ID", mono: true
+    },
+    {
+      key: "vendorId", label: "Vendor ID", mono: true,
+      render: (val: unknown, row: Record<string, unknown>) => (
+        <button
+          onClick={() => {
+            setActiveDetailRecord?.({ type: "Vendor", id: String(val), status: "Active" });
+            setNavigationContext?.({
+              previousModule: navigationContext?.previousModule || null,
+              currentModule: "Bill",
+              detailPageOrigin: "Bill"
+            });
+          }}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-mono)", color: "#6b8cff", textDecoration: "none", padding: 0 }}
+        >
+          {String(val)}
+        </button>
+      ),
+    },
     { key: "vendor", label: "Vendor Name" },
     { key: "date", label: "Date", mono: true },
     {

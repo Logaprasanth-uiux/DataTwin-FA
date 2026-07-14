@@ -1900,7 +1900,7 @@ export function FSCPPage({
   const [selectedKPI, setSelectedKPI] = useState<FSCPIssueType | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [activeProcess, setActiveProcess] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<FSCPViewMode>("View 1");
+  const [viewMode, setViewMode] = useState<FSCPViewMode>("View 2");
   const [selectedCompanyGroup, setSelectedCompanyGroup] = useState<string>("Global Holdings Group");
   const [companySearch, setCompanySearch] = useState<string>("");
   const [companyRegion, setCompanyRegion] = useState<string>("All Regions");
@@ -2397,6 +2397,19 @@ export function FSCPPage({
 
   const activeKPIFilter = selectedKPI;
 
+  const getKPIThemeColors = (kpi: FSCPIssueType | null) => {
+    if (kpi === "Close Blocker") {
+      return { bg: "rgba(239, 68, 68, 0.1)", fg: "#ef4444" };
+    }
+    if (kpi === "Moderate Issue") {
+      return { bg: "rgba(245, 158, 11, 0.1)", fg: "#f59e0b" };
+    }
+    if (kpi === "No Issue") {
+      return { bg: "rgba(16, 185, 129, 0.1)", fg: "#10b981" };
+    }
+    return { bg: "rgba(107, 114, 128, 0.1)", fg: "#6b7280" };
+  };
+
   const renderIssueBadge = (count: number, overrideKPI?: FSCPIssueType) => {
     const kpi = overrideKPI || activeKPIFilter;
     let badgeBg = "#6b7280"; // neutral grey
@@ -2499,44 +2512,163 @@ export function FSCPPage({
         </div>
       )}
 
-      {/* Header Info with Segmented View Mode Toggle */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            Financial Close Workspace
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>
-            Real-time Financial Close Command Center • P06 Closing Period
-          </p>
-        </div>
-
-        {/* Segmented View Mode Toggle */}
-        <div 
-          className="p-1 rounded-lg flex items-center border"
-          style={{ 
-            background: "var(--secondary)", 
-            borderColor: "var(--border)"
-          }}
-        >
-          {(["View 1", "View 2"] as const).map((view) => (
-            <button
-              key={view}
-              onClick={() => setViewMode(view)}
-              className="px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 border-none cursor-pointer"
-              style={{
-                background: viewMode === view ? "var(--card)" : "transparent",
-                color: viewMode === view ? "var(--foreground)" : "var(--muted-foreground)",
-                boxShadow: viewMode === view ? "0 2px 8px rgba(0, 0, 0, 0.1)" : "none"
-              }}
-            >
-              {view}
-            </button>
-          ))}
-        </div>
+      {/* Header Info */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          Workspace
+        </h1>
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>
+          Real-time Financial Close Command Center • P06 Closing Period
+        </p>
       </div>
 
       {/* ─── View 1 and View 2 Layout ─── */}
       <>
+        {/* Choose Company / Group Context Selector (Rendered at the top for View 2) */}
+        {viewMode === "View 2" && (
+          <div className="rounded-xl border p-4 mb-6 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
+            <div className="mb-3">
+              <h2 className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                Choose Company / Group
+              </h2>
+            </div>
+
+            {/* Top Divider */}
+            <hr className="mb-3" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+            {/* Lightweight Filter Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-3 select-none">
+              {/* Search Company */}
+              <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+                <input
+                  type="text"
+                  placeholder="Search Company..."
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  className="w-full pl-2.5 pr-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  style={{
+                    background: "var(--card)",
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)"
+                  }}
+                />
+              </div>
+
+              {/* Right side: Dropdown filters and clear action */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Region Filter */}
+                <div className="min-w-[120px]">
+                  <select
+                    value={companyRegion}
+                    onChange={(e) => setCompanyRegion(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    style={{
+                      background: "var(--card)",
+                      borderColor: "var(--border)",
+                      color: "var(--foreground)"
+                    }}
+                  >
+                    <option value="All Regions">All Regions</option>
+                    <option value="Global">Global</option>
+                    <option value="North America">North America</option>
+                    <option value="APAC">APAC</option>
+                    <option value="Europe">Europe</option>
+                  </select>
+                </div>
+
+                {/* Group Type Filter */}
+                <div className="min-w-[120px]">
+                  <select
+                    value={companyType}
+                    onChange={(e) => setCompanyType(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    style={{
+                      background: "var(--card)",
+                      borderColor: "var(--border)",
+                      color: "var(--foreground)"
+                    }}
+                  >
+                    <option value="All Types">All Types</option>
+                    <option value="Global">Global</option>
+                    <option value="Regional">Regional</option>
+                    <option value="Shared Services">Shared Services</option>
+                    <option value="Operational">Operational</option>
+                  </select>
+                </div>
+
+                {/* Clear Filters Button */}
+                {(companySearch || companyRegion !== "All Regions" || companyType !== "All Types") && (
+                  <button
+                    onClick={handleClearCompanyFilters}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors cursor-pointer border"
+                    style={{
+                      background: "var(--card)",
+                      borderColor: "var(--border)",
+                      color: "var(--foreground)"
+                    }}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Divider */}
+            <hr className="mb-4" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
+
+            {filteredCompanyGroups.length === 0 ? (
+              <div className="text-center py-8 border border-dashed rounded-lg" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                  No companies or groups match the selected filters.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {filteredCompanyGroups.map((group) => {
+                  const isSelected = selectedCompanyGroup === group.name;
+                  return (
+                    <div
+                      key={group.id}
+                      tabIndex={0}
+                      onClick={() => handleSelectCompanyGroup(group.name)}
+                      onKeyDown={(e) => handleArrowNavigation(e, "company-group-card-nav")}
+                      className={`company-group-card-nav rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[84px] select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${
+                        isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
+                      }`}
+                      style={{
+                        borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                        boxShadow: isSelected ? "0 2px 10px rgba(59, 130, 246, 0.15)" : "none"
+                      }}
+                    >
+                      {/* Top Row: Code & Selection Indicator */}
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">
+                          {group.code}
+                        </span>
+                        
+                        {/* Selection Indicator Light */}
+                        <span 
+                          className="w-2.5 h-2.5 rounded-full border transition-all duration-200"
+                          style={{
+                            background: isSelected ? "#3b82f6" : "transparent",
+                            borderColor: isSelected ? "#3b82f6" : "var(--border)",
+                            boxShadow: isSelected ? "0 0 8px #3b82f6" : "none"
+                          }}
+                        />
+                      </div>
+
+                      {/* Middle Row: Name */}
+                      <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
+                        {group.name}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Executive Close Overview Dashboard (KPI Cards) */}
         <div className="grid grid-cols-4 gap-4 mb-8">
             
@@ -2653,167 +2785,16 @@ export function FSCPPage({
           {/* KPI Drilldown Section */}
           {selectedKPI && (
             <>
-              {/* ─── Company / Group Context Selector ─── */}
-              <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                <div className="mb-4">
-                  <h2 className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-1">
-                    Choose Company / Group
-                  </h2>
-                  <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                    Select the company or organizational group you want to investigate. All Finance Domains, KPIs, issues, and downstream data should be filtered based on this selection.
-                  </p>
-                </div>
-
-                {/* Lightweight Filter Toolbar */}
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-4 select-none">
-                  {/* Search Company / Group */}
-                  <div className="relative flex-1 min-w-[200px] max-w-[320px]">
-                    <input
-                      type="text"
-                      placeholder="Search Company / Group..."
-                      value={companySearch}
-                      onChange={(e) => setCompanySearch(e.target.value)}
-                      className="w-full pl-2.5 pr-2.5 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      style={{
-                        background: "var(--card)",
-                        borderColor: "var(--border)",
-                        color: "var(--foreground)"
-                      }}
-                    />
-                  </div>
-
-                  {/* Right side: Dropdown filters and clear action */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Region Filter */}
-                    <div className="min-w-[120px]">
-                      <select
-                        value={companyRegion}
-                        onChange={(e) => setCompanyRegion(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                        style={{
-                          background: "var(--card)",
-                          borderColor: "var(--border)",
-                          color: "var(--foreground)"
-                        }}
-                      >
-                        <option value="All Regions">All Regions</option>
-                        <option value="Global">Global</option>
-                        <option value="North America">North America</option>
-                        <option value="APAC">APAC</option>
-                        <option value="Europe">Europe</option>
-                      </select>
-                    </div>
-
-                    {/* Group Type Filter */}
-                    <div className="min-w-[120px]">
-                      <select
-                        value={companyType}
-                        onChange={(e) => setCompanyType(e.target.value)}
-                        className="w-full px-2 py-1.5 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                        style={{
-                          background: "var(--card)",
-                          borderColor: "var(--border)",
-                          color: "var(--foreground)"
-                        }}
-                      >
-                        <option value="All Types">All Types</option>
-                        <option value="Global">Global</option>
-                        <option value="Regional">Regional</option>
-                        <option value="Shared Services">Shared Services</option>
-                        <option value="Operational">Operational</option>
-                      </select>
-                    </div>
-
-                    {/* Clear Filters Button */}
-                    {(companySearch || companyRegion !== "All Regions" || companyType !== "All Types") && (
-                      <button
-                        onClick={handleClearCompanyFilters}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-muted transition-colors cursor-pointer border"
-                        style={{
-                          background: "var(--card)",
-                          borderColor: "var(--border)",
-                          color: "var(--foreground)"
-                        }}
-                      >
-                        Clear Filters
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bottom Divider */}
-                <hr className="mb-5" style={{ borderColor: "var(--border)", borderTopWidth: 1, borderBottomWidth: 0 }} />
-
-                {filteredCompanyGroups.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed rounded-lg" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-                    <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-                      No companies or groups match the selected filters.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {filteredCompanyGroups.map((group) => {
-                      const isSelected = selectedCompanyGroup === group.name;
-                      return (
-                        <div
-                          key={group.id}
-                          tabIndex={0}
-                          onClick={() => handleSelectCompanyGroup(group.name)}
-                          onKeyDown={(e) => handleArrowNavigation(e, "company-group-card-nav")}
-                          className={`company-group-card-nav rounded-lg p-3 transition-all duration-200 cursor-pointer relative border flex flex-col justify-between h-[100px] select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 focus-visible:outline-offset-1 ${
-                            isSelected ? "shadow-md bg-primary/5" : "hover:bg-muted/5 bg-secondary/10"
-                          }`}
-                          style={{
-                            borderColor: isSelected ? "#3b82f6" : "var(--border)",
-                            boxShadow: isSelected ? "0 2px 10px rgba(59, 130, 246, 0.15)" : "none"
-                          }}
-                        >
-                          {/* Top Row: Code & Selection Indicator */}
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">
-                              {group.code}
-                            </span>
-                            
-                            {/* Selection Indicator Light */}
-                            <span 
-                              className="w-2.5 h-2.5 rounded-full border transition-all duration-200"
-                              style={{
-                                background: isSelected ? "#3b82f6" : "transparent",
-                                borderColor: isSelected ? "#3b82f6" : "var(--border)",
-                                boxShadow: isSelected ? "0 0 8px #3b82f6" : "none"
-                              }}
-                            />
-                          </div>
-
-                          {/* Middle Row: Name */}
-                          <div className="text-[13px] font-bold text-foreground leading-snug line-clamp-2">
-                            {group.name}
-                          </div>
-
-                          {/* Bottom Row: Type / Domains */}
-                          <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                            <span>{group.type}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/20 font-mono">
-                              {group.domainsCount} domains
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
               <div className="rounded-xl border p-5 mb-8 animate-fadeIn" style={{ background: "var(--card)", borderColor: "var(--border)" }}>
                 <div className="flex items-center justify-between mb-5">
                 <h2 className="text-sm font-bold tracking-wider text-slate-400 uppercase">
-                  Domain Breakdown: {selectedKPI} List ({viewMode})
+                  Domain Breakdown: {selectedKPI} List
                 </h2>
                 <span 
                   className="text-xs px-2.5 py-1 rounded-full font-semibold"
                   style={{
-                    background: selectedKPI === "Close Blocker" ? "rgba(239, 68, 68, 0.1)" : selectedKPI === "Moderate Issue" ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)",
-                    color: selectedKPI === "Close Blocker" ? "#ef4444" : selectedKPI === "Moderate Issue" ? "#f59e0b" : "#10b981"
+                    background: getKPIThemeColors(selectedKPI).bg,
+                    color: getKPIThemeColors(selectedKPI).fg
                   }}
                 >
                   Active Filter: {selectedKPI}s
@@ -2885,22 +2866,25 @@ export function FSCPPage({
                         if (!isActive) e.currentTarget.style.borderColor = "var(--border)";
                       }}
                     >
-                      {/* Overlapping badge */}
-                      {renderIssueBadge(count)}
-
-                      {/* Centered icon */}
-                      <div 
-                        className="p-1.5 rounded-lg mb-2" 
-                        style={{ 
-                          background: isActive ? "rgba(59, 130, 246, 0.1)" : "var(--border)", 
-                          color: isActive ? "#3b82f6" : "var(--muted-foreground)",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center"
-                        }}
-                      >
-                        <IconComponent size={16} />
-                      </div>
+                      {/* Centered count pill or spacer if zero */}
+                      {count > 0 ? (
+                        <div 
+                          className="px-3 py-0.5 rounded-full mb-2 font-extrabold text-[13px]" 
+                          style={{ 
+                            background: getKPIThemeColors(selectedKPI).bg, 
+                            color: getKPIThemeColors(selectedKPI).fg,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: "32px",
+                            height: "22px"
+                          }}
+                        >
+                          {count}
+                        </div>
+                      ) : (
+                        <div className="h-[22px] mb-2" />
+                      )}
 
                       {/* Title below */}
                       <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--foreground)", lineHeight: "1.1", wordBreak: "break-word" }}>
@@ -2991,22 +2975,25 @@ export function FSCPPage({
                             if (!isSelected) e.currentTarget.style.borderColor = "var(--border)";
                           }}
                         >
-                          {/* Overlapping badge */}
-                          {renderIssueBadge(count)}
-
-                          {/* Icon at top */}
-                          <div 
-                            className="p-1.5 rounded-lg mb-2" 
-                            style={{ 
-                              background: isSelected ? "rgba(59, 130, 246, 0.1)" : "var(--border)", 
-                              color: isSelected ? "#3b82f6" : "var(--muted-foreground)",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center"
-                            }}
-                          >
-                            <ProcessIcon size={16} />
-                          </div>
+                          {/* Centered count pill or spacer if zero */}
+                          {count > 0 ? (
+                            <div 
+                              className="px-3 py-0.5 rounded-full mb-2 font-extrabold text-[13px]" 
+                              style={{ 
+                                background: getKPIThemeColors(selectedKPI).bg, 
+                                color: getKPIThemeColors(selectedKPI).fg,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minWidth: "32px",
+                                height: "22px"
+                              }}
+                            >
+                               {count}
+                            </div>
+                          ) : (
+                            <div className="h-[22px] mb-2" />
+                          )}
 
                           {/* Title below */}
                           <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--foreground)", lineHeight: "1.1", wordBreak: "break-word" }}>
