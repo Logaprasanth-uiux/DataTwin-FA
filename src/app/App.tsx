@@ -320,6 +320,45 @@ export default function App() {
               onSave={handleClose}
             />
           );
+        case "Goods Receipt Note":
+          return (
+            <div className="flex flex-col justify-between p-6 bg-card border border-border rounded-xl h-full max-w-[600px] mx-auto my-8">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between border-b pb-3 border-border">
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>
+                    Goods Receipt Note (GRN) Detail
+                  </h3>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary px-2 py-0.5 rounded border border-border">
+                    Mock Route
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 p-4 rounded-lg bg-indigo-500/5 border border-indigo-500/10 text-xs">
+                  <p className="font-semibold text-foreground">Navigation Structure Initialized</p>
+                  <p className="text-muted-foreground leading-relaxed">
+                    This GRN Detail module is not yet implemented. The application's navigation structure has been prepared to handle transitions for GRN ID: <span className="font-mono font-bold text-indigo-400">{id}</span> without affecting existing workflows.
+                  </p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }} className="mt-2">
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.07em", display: "block" }}>GRN NUMBER</span>
+                    <span className="font-mono text-sm text-foreground">{id}</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.07em", display: "block" }}>STATUS</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] bg-emerald-500/10 text-emerald-400 font-medium">
+                      <span className="rounded-full bg-emerald-400" style={{ width: 5, height: 5 }} /> Verified
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={handleClose} 
+                className="w-full mt-6 px-4 py-2 bg-secondary border border-border text-foreground hover:bg-accent rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Return to Bill Detail
+              </button>
+            </div>
+          );
       }
     }
 

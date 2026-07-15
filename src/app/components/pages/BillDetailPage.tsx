@@ -25,11 +25,42 @@ const statusColor: Record<string, string> = {
   Reject: "#f87171"
 };
 
+const matchingStatusColors: Record<string, string> = {
+  Matched: "#4ade80",
+  "Variance Found": "#f87171"
+};
+
 function ViewField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.07em" }}>{label.toUpperCase()}</span>
       <span style={{ fontSize: 13, color: value ? "var(--foreground)" : "var(--muted-foreground)", fontFamily: mono ? "var(--font-mono)" : undefined, lineHeight: 1.5 }}>{value || "—"}</span>
+    </div>
+  );
+}
+
+function ViewFieldLink({ label, value, onClick, mono }: { label: string; value: string; onClick: () => void; mono?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.07em" }}>{label.toUpperCase()}</span>
+      <button
+        onClick={onClick}
+        className="hover:opacity-80 transition-opacity focus:outline-none"
+        style={{ 
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontSize: 13,
+          fontFamily: mono ? "var(--font-mono)" : undefined, 
+          color: "#6b8cff",
+          textDecoration: "none",
+          padding: 0,
+          textAlign: "left",
+          lineHeight: 1.5
+        }}
+      >
+        {value}
+      </button>
     </div>
   );
 }
@@ -592,9 +623,7 @@ const mockBillingLines: BillingLineItem[] = [
   }
 ];
 
-interface MatchingRecord {
-  poIpNumber: string;
-  itemId: string;
+interface FieldComparison {
   field: string;
   balanceInPoIp: string;
   referencePoint: string;
@@ -602,78 +631,389 @@ interface MatchingRecord {
   difference: string;
 }
 
+interface MatchingRecord {
+  poIpNumber: string;
+  itemId: string;
+  itemName: string;
+  matchingType: "2-Way" | "3-Way";
+  comparedDocs: {
+    bill: string;
+    po: string;
+    grn?: string;
+  };
+  overallStatus: "Matched" | "Variance Found" | "Review Required";
+  varianceCount: number;
+  aiRecommendation: string;
+  aiExplanation: string;
+  fields: FieldComparison[];
+}
+
 const mockMatchingRecords: MatchingRecord[] = [
   {
     poIpNumber: "PO-2026-001",
     itemId: "MS-365-E5",
-    field: "Quantity",
-    balanceInPoIp: "120 Units",
-    referencePoint: "Good Receipt Note #GRN-392",
-    bill: "120 Units",
-    difference: "0 Units"
-  },
-  {
-    poIpNumber: "PO-2026-001",
-    itemId: "AWS-EC2-OPS",
-    field: "Base Value",
-    balanceInPoIp: "₹1,85,000.00",
-    referencePoint: "Vendor Statement #VS-928",
-    bill: "₹1,85,000.00",
-    difference: "₹0.00"
-  },
-  {
-    poIpNumber: "PO-2026-002",
-    itemId: "AZ-SQL-DB",
-    field: "Base Value",
-    balanceInPoIp: "₹90,000.00",
-    referencePoint: "Database Usage Sheet #DB-392",
-    bill: "₹90,000.00",
-    difference: "₹0.00"
-  },
-  {
-    poIpNumber: "PO-2026-002",
-    itemId: "SAP-ERP-MAIN",
-    field: "Tax Code",
-    balanceInPoIp: "GST-18",
-    referencePoint: "Master Tax Registry",
-    bill: "GST-18",
-    difference: "None"
-  },
-  {
-    poIpNumber: "PO-2026-003",
-    itemId: "ORA-DB-PRO",
-    field: "Quantity",
-    balanceInPoIp: "1 Year",
-    referencePoint: "Support Contract SLA #SLA-ORA",
-    bill: "1 Year",
-    difference: "0"
-  },
-  {
-    poIpNumber: "PO-2026-003",
-    itemId: "CON-FIN-ADVISORY",
-    field: "Base Value",
-    balanceInPoIp: "₹4,80,000.00",
-    referencePoint: "Timesheet Sheet #TS-MACK-2026",
-    bill: "₹4,80,000.00",
-    difference: "₹0.00"
+    itemName: "Microsoft 365 E5 License",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-891", po: "PO-2026-001", grn: "GRN-2026-042" },
+    overallStatus: "Matched",
+    varianceCount: 0,
+    aiRecommendation: "No Action Required",
+    aiExplanation: "All matching parameters were successfully validated.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "120 Units",
+        referencePoint: "Good Receipt Note #GRN-2026-042",
+        bill: "120 Units",
+        difference: "0 Units"
+      },
+      {
+        field: "Rate",
+        balanceInPoIp: "₹4,200.00",
+        referencePoint: "Good Receipt Note #GRN-2026-042",
+        bill: "₹4,200.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹5,04,000.00",
+        referencePoint: "Good Receipt Note #GRN-2026-042",
+        bill: "₹5,04,000.00",
+        difference: "₹0.00"
+      }
+    ]
   },
   {
     poIpNumber: "PO-2026-004",
     itemId: "HW-DELL-L5540",
-    field: "Quantity",
-    balanceInPoIp: "10 Units",
-    referencePoint: "Gate Entry #GE-2921",
-    bill: "10 Units",
-    difference: "0 Units"
+    itemName: "Dell Latitude 5540 Laptops",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-904", po: "PO-2026-004", grn: "GRN-2026-081" },
+    overallStatus: "Variance Found",
+    varianceCount: 2,
+    aiRecommendation: "Review Quantity Difference",
+    aiExplanation: "The billed quantity exceeds the Purchase Order quantity by 2 units.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "10 Units",
+        referencePoint: "Gate Entry #GE-2921 (GRN-2026-081)",
+        bill: "12 Units",
+        difference: "+2 Units"
+      },
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹7,50,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-4",
+        bill: "₹9,00,000.00",
+        difference: "+₹1,50,000.00"
+      },
+      {
+        field: "Tax Value",
+        balanceInPoIp: "₹1,35,000.00",
+        referencePoint: "Master Tax Registry",
+        bill: "₹1,62,000.00",
+        difference: "+₹27,000.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-001",
+    itemId: "AWS-EC2-OPS",
+    itemName: "AWS EC2 Cloud Hosting - Ops",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-891", po: "PO-2026-001" },
+    overallStatus: "Matched",
+    varianceCount: 0,
+    aiRecommendation: "No Action Required",
+    aiExplanation: "All matching parameters were successfully validated.",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹1,85,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-1",
+        bill: "₹1,85,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Tax Percentage",
+        balanceInPoIp: "18%",
+        referencePoint: "Master Tax Registry",
+        bill: "18%",
+        difference: "0%"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-002",
+    itemId: "AZ-SQL-DB",
+    itemName: "Azure SQL Database Instance",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-895", po: "PO-2026-002" },
+    overallStatus: "Variance Found",
+    varianceCount: 2,
+    aiRecommendation: "Review Tax Variance",
+    aiExplanation: "Tax rate difference of -6% detected, resulting in a tax value variance of -₹5,400.00.",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹90,000.00",
+        referencePoint: "Database Usage Sheet #DB-392",
+        bill: "₹90,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Tax Percentage",
+        balanceInPoIp: "18%",
+        referencePoint: "Master Tax Registry",
+        bill: "12%",
+        difference: "-6%"
+      },
+      {
+        field: "Tax Value",
+        balanceInPoIp: "₹16,200.00",
+        referencePoint: "Master Tax Registry",
+        bill: "₹10,800.00",
+        difference: "-₹5,400.00"
+      }
+    ]
   },
   {
     poIpNumber: "PO-2026-004",
     itemId: "CISC-9300-24T",
-    field: "Base Value",
-    balanceInPoIp: "₹2,90,000.00",
-    referencePoint: "Purchase Order Schedule #PO-SCH-4",
-    bill: "₹2,90,000.00",
-    difference: "₹0.00"
+    itemName: "Cisco Catalyst 9300 Switch",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-904", po: "PO-2026-004", grn: "GRN-2026-082" },
+    overallStatus: "Variance Found",
+    varianceCount: 1,
+    aiRecommendation: "Review Additional Charge Difference",
+    aiExplanation: "An additional delivery charge of ₹4,500.00 is present on the bill but missing from the Purchase Order.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "1 Unit",
+        referencePoint: "Gate Entry #GE-2922 (GRN-2026-082)",
+        bill: "1 Unit",
+        difference: "0 Units"
+      },
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹2,90,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-4",
+        bill: "₹2,90,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Additional Charge (Delivery)",
+        balanceInPoIp: "₹0.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-4",
+        bill: "₹4,500.00",
+        difference: "+₹4,500.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-003",
+    itemId: "CON-FIN-ADVISORY",
+    itemName: "Financial Advisory Services",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-898", po: "PO-2026-003", grn: "TS-2026-MACK" },
+    overallStatus: "Variance Found",
+    varianceCount: 1,
+    aiRecommendation: "Review Discount Difference",
+    aiExplanation: "A discount of ₹24,000.00 specified in the Purchase Order was not applied on the bill.",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹4,80,000.00",
+        referencePoint: "Timesheet Sheet #TS-2026-MACK",
+        bill: "₹4,80,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Discount Amount",
+        balanceInPoIp: "₹24,000.00",
+        referencePoint: "Support Contract SLA #SLA-ORA",
+        bill: "₹0.00",
+        difference: "-₹24,000.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-002",
+    itemId: "SAP-ERP-MAIN",
+    itemName: "SAP S/4HANA License Support",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-895", po: "PO-2026-002", grn: "GRN-2026-061" },
+    overallStatus: "Matched",
+    varianceCount: 0,
+    aiRecommendation: "No Action Required",
+    aiExplanation: "All matching parameters were successfully validated.",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹12,50,000.00",
+        referencePoint: "Gate Entry #GE-2891 (GRN-2026-061)",
+        bill: "₹12,50,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Tax Value",
+        balanceInPoIp: "₹2,25,000.00",
+        referencePoint: "Master Tax Registry",
+        bill: "₹2,25,000.00",
+        difference: "₹0.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-003",
+    itemId: "ORA-DB-PRO",
+    itemName: "Oracle Database Enterprise Support",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-898", po: "PO-2026-003" },
+    overallStatus: "Variance Found",
+    varianceCount: 1,
+    aiRecommendation: "Review Exchange Rate Variance",
+    aiExplanation: "Base value mismatch due to exchange rate difference (USD @ 82.0 vs expected 80.0).",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹6,40,000.00",
+        referencePoint: "Support Contract SLA #SLA-ORA (USD 8k @ 80)",
+        bill: "₹6,56,000.00",
+        difference: "+₹16,000.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-005",
+    itemId: "MIME-SEC-EMAIL",
+    itemName: "Mimecast Email Security Services",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-910", po: "PO-2026-005" },
+    overallStatus: "Matched",
+    varianceCount: 0,
+    aiRecommendation: "No Action Required",
+    aiExplanation: "All matching parameters were successfully validated.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "450 Users",
+        referencePoint: "Purchase Order Schedule #PO-SCH-5",
+        bill: "450 Users",
+        difference: "0 Users"
+      },
+      {
+        field: "Rate",
+        balanceInPoIp: "₹180.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-5",
+        bill: "₹180.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹81,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-5",
+        bill: "₹81,000.00",
+        difference: "₹0.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-006",
+    itemId: "OFF-CHAIR-ERG",
+    itemName: "Ergonomic Office Chairs",
+    matchingType: "3-Way",
+    comparedDocs: { bill: "INV-2026-920", po: "PO-2026-006", grn: "GRN-2026-112" },
+    overallStatus: "Variance Found",
+    varianceCount: 3,
+    aiRecommendation: "Review Quantity Difference",
+    aiExplanation: "Only 40 units were received at the gate (GRN), but the bill expects payment for 50 units.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "50 Units",
+        referencePoint: "Gate Entry #GE-3102 (GRN-2026-112)",
+        bill: "50 Units",
+        difference: "0 Units"
+      },
+      {
+        field: "Received Quantity",
+        balanceInPoIp: "50 Units",
+        referencePoint: "Gate Entry #GE-3102 (GRN-2026-112)",
+        bill: "40 Units",
+        difference: "-10 Units"
+      },
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹4,00,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-6",
+        bill: "₹4,00,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Tax Value",
+        balanceInPoIp: "₹72,000.00",
+        referencePoint: "Master Tax Registry",
+        bill: "₹72,000.00",
+        difference: "₹0.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-007",
+    itemId: "SFDC-CRM-ENT",
+    itemName: "Salesforce CRM Enterprise Suite",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-932", po: "PO-2026-007" },
+    overallStatus: "Matched",
+    varianceCount: 0,
+    aiRecommendation: "No Action Required",
+    aiExplanation: "All matching parameters were successfully validated.",
+    fields: [
+      {
+        field: "Base Value",
+        balanceInPoIp: "₹18,20,000.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-7",
+        bill: "₹18,20,000.00",
+        difference: "₹0.00"
+      },
+      {
+        field: "Tax Value",
+        balanceInPoIp: "₹3,27,600.00",
+        referencePoint: "Master Tax Registry",
+        bill: "₹3,27,600.00",
+        difference: "₹0.00"
+      }
+    ]
+  },
+  {
+    poIpNumber: "PO-2026-007",
+    itemId: "ZM-BUS-ACC",
+    itemName: "Zoom Business Subscription",
+    matchingType: "2-Way",
+    comparedDocs: { bill: "INV-2026-932", po: "PO-2026-007" },
+    overallStatus: "Variance Found",
+    varianceCount: 1,
+    aiRecommendation: "Review Quantity Difference",
+    aiExplanation: "Billed quantity (215 Licences) exceeds the Purchase Order quantity (200 Licences) by 15.",
+    fields: [
+      {
+        field: "Quantity",
+        balanceInPoIp: "200 Licences",
+        referencePoint: "Purchase Order Schedule #PO-SCH-7",
+        bill: "215 Licences",
+        difference: "+15 Licences"
+      },
+      {
+        field: "Rate",
+        balanceInPoIp: "₹950.00",
+        referencePoint: "Purchase Order Schedule #PO-SCH-7",
+        bill: "₹950.00",
+        difference: "₹0.00"
+      }
+    ]
   }
 ];
 
@@ -1439,7 +1779,7 @@ interface Props {
 }
 
 export function BillDetailPage({ billId, onClose, isNew = false, billStatus, prefill }: Props) {
-  const { openActivity, setActiveDetailRecord, setNavigationContext, navigationContext } = useActivity();
+  const { openActivity, setActiveDetailRecord, setNavigationContext, navigationContext, navigateToRecord } = useActivity();
   const [activeTab, setActiveTab] = useState("Bill Information");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedLines, setExpandedLines] = useState<string[]>([]);
@@ -1527,8 +1867,13 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
     return (
       rec.poIpNumber.toLowerCase().includes(q) ||
       rec.itemId.toLowerCase().includes(q) ||
-      rec.field.toLowerCase().includes(q) ||
-      rec.referencePoint.toLowerCase().includes(q)
+      rec.itemName.toLowerCase().includes(q) ||
+      rec.matchingType.toLowerCase().includes(q) ||
+      rec.overallStatus.toLowerCase().includes(q) ||
+      rec.fields.some(f =>
+        f.field.toLowerCase().includes(q) ||
+        f.referencePoint.toLowerCase().includes(q)
+      )
     );
   });
 
@@ -2555,7 +2900,7 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
                     >
                       {/* Collapsed Header Bar */}
                       <button 
-                        className="w-full flex items-center justify-between px-5 py-3 text-left focus:outline-none select-none transition-colors"
+                        className="w-full flex items-center justify-between px-5 py-3.5 text-left focus:outline-none select-none transition-colors"
                         style={{ background: "none", border: "none", cursor: "pointer" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "var(--secondary)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}
@@ -2584,31 +2929,45 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
                           </span>
                           <div className="flex flex-col min-w-0">
                             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {rec.itemId}
+                              {rec.itemName} <span style={{ fontSize: 10, fontWeight: 400, color: "var(--muted-foreground)" }}>({rec.itemId})</span>
                             </span>
-                            <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                              Field: {rec.field}
+                            <span style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <span style={{ fontWeight: 600, color: "var(--foreground)" }}>{rec.matchingType} Matching</span>
+                              <span>•</span>
+                              <span>
+                                {rec.matchingType === "3-Way" 
+                                  ? "Bill ↔ Goods Receipt Note ↔ Purchase Order" 
+                                  : "Bill ↔ Purchase Order"}
+                              </span>
                             </span>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-8 flex-shrink-0">
+                        <div className="flex items-center gap-6 flex-shrink-0">
+                          {/* Variance Summary */}
                           <div className="flex flex-col items-end">
-                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>BALANCE</span>
-                            <span style={{ fontSize: 12, color: "var(--foreground)", fontWeight: 500 }}>{rec.balanceInPoIp}</span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>DIFFERENCE</span>
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em" }}>VARIANCE SUMMARY</span>
                             <span 
                               style={{ 
                                 fontSize: 12, 
                                 fontWeight: 600,
-                                color: rec.difference === "0 Units" || rec.difference === "₹0.00" || rec.difference === "None" || rec.difference === "0" ? "#4ade80" : "#f87171"
+                                color: rec.varianceCount === 0 ? "#4ade80" : "#f87171"
                               }}
                             >
-                              {rec.difference}
+                              {rec.varianceCount} {rec.varianceCount === 1 ? "Variance" : "Variances"}
                             </span>
                           </div>
+
+                          {/* Overall Status Badge */}
+                          <div className="flex flex-col items-end min-w-[120px]">
+                            <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em", marginBottom: 3 }}>STATUS</span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5"
+                              style={{ fontSize: 11, fontWeight: 500, background: "var(--secondary)", color: matchingStatusColors[rec.overallStatus] }}>
+                              <span className="rounded-full" style={{ width: 5, height: 5, background: matchingStatusColors[rec.overallStatus], display: "inline-block" }} />
+                              {rec.overallStatus}
+                            </span>
+                          </div>
+
                           <span style={{ color: "var(--muted-foreground)", width: 16, display: "flex", justifySelf: "center" }}>
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </span>
@@ -2617,16 +2976,151 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
 
                       {/* Expanded Content Section */}
                       {isExpanded && (
-                        <div className="px-5 pb-5 pt-4 flex flex-col gap-4 border-t" style={{ borderColor: "var(--border)", background: "var(--secondary)/5" }}>
-                          <Grid3>
-                            <ViewField label="Item ID" value={rec.itemId} mono />
-                            <ViewField label="PO/IP Number" value={rec.poIpNumber} mono />
-                            <ViewField label="Field" value={rec.field} />
-                            <ViewField label="Balance in PO/IP" value={rec.balanceInPoIp} mono />
-                            <ViewField label="Reference Point" value={rec.referencePoint} />
-                            <ViewField label="Bill Value" value={rec.bill} mono />
-                            <ViewField label="Difference" value={rec.difference} mono />
-                          </Grid3>
+                        <div className="px-5 pb-6 pt-4 flex flex-col gap-6 border-t" style={{ borderColor: "var(--border)", background: "var(--secondary)/5" }}>
+                          
+                          {/* Section 1: AI Validation Summary */}
+                          <div className="flex flex-col gap-1.5">
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em" }}>
+                              1. AI VALIDATION SUMMARY
+                            </span>
+                            <div className="rounded-xl p-3.5 bg-indigo-50/20 dark:bg-indigo-950/10 border border-indigo-500/15 flex flex-col gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em", display: "block", marginBottom: 2 }}>RECOMMENDATION</span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: "#818cf8" }}>
+                                    {rec.aiRecommendation}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em", display: "block", marginBottom: 2 }}>REASON / EXPLANATION</span>
+                                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)", lineHeight: 1.5 }}>
+                                    {rec.aiExplanation}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Section 2: Documents Compared */}
+                          <div className="flex flex-col gap-2">
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em" }}>
+                              2. DOCUMENTS COMPARED
+                            </span>
+                            <div style={{ background: "var(--secondary)", padding: "12px 16px", borderRadius: 8, border: "1px solid var(--border)" }}>
+                              {rec.matchingType === "3-Way" ? (
+                                <Grid3>
+                                  <ViewField label="Bill" value={rec.comparedDocs.bill} mono />
+                                  <ViewFieldLink 
+                                    label="Purchase Order" 
+                                    value={rec.comparedDocs.po} 
+                                    onClick={() => navigateToRecord?.("Purchase Order", rec.comparedDocs.po)} 
+                                    mono 
+                                  />
+                                  {rec.comparedDocs.grn && (
+                                    <ViewFieldLink 
+                                      label="Goods Receipt Note" 
+                                      value={rec.comparedDocs.grn} 
+                                      onClick={() => navigateToRecord?.("Goods Receipt Note", rec.comparedDocs.grn!)} 
+                                      mono 
+                                    />
+                                  )}
+                                </Grid3>
+                              ) : (
+                                <Grid2>
+                                  <ViewField label="Bill" value={rec.comparedDocs.bill} mono />
+                                  <ViewFieldLink 
+                                    label="Purchase Order" 
+                                    value={rec.comparedDocs.po} 
+                                    onClick={() => navigateToRecord?.("Purchase Order", rec.comparedDocs.po)} 
+                                    mono 
+                                  />
+                                </Grid2>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Section 3: Field Comparison Table */}
+                          <div className="flex flex-col gap-2">
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em" }}>
+                              3. FIELD COMPARISON TABLE
+                            </span>
+                            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--card)" }}>
+                              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--secondary)" }}>
+                                    {[
+                                      "Item ID / Code",
+                                      "PO / Contract Number",
+                                      "Comparison Parameter",
+                                      "Expected Value (PO)",
+                                      "Verification Source (GRN/Contract)",
+                                      "Actual Value (Bill)",
+                                      "Variance / Difference"
+                                    ].map(h => (
+                                      <th
+                                        key={h}
+                                        style={{
+                                          padding: "8px 12px",
+                                          textAlign: "left",
+                                          fontSize: 10,
+                                          fontWeight: 600,
+                                          color: "var(--muted-foreground)",
+                                          letterSpacing: "0.05em",
+                                        }}
+                                      >
+                                        {h}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rec.fields.map((f, idx) => {
+                                    const hasVariance = f.difference !== "0 Units" && f.difference !== "₹0.00" && f.difference !== "None" && f.difference !== "0" && f.difference !== "0%" && f.difference !== "0 Users";
+                                    return (
+                                      <tr
+                                        key={idx}
+                                        style={{
+                                          borderBottom: idx < rec.fields.length - 1 ? "1px solid var(--border)" : "none",
+                                          background: hasVariance ? "rgba(248, 113, 113, 0.03)" : "none"
+                                        }}
+                                      >
+                                        <td style={{ padding: "10px 12px", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--foreground)" }}>
+                                          {rec.itemId}
+                                        </td>
+                                        <td style={{ padding: "10px 12px", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--foreground)" }}>
+                                          {rec.poIpNumber}
+                                        </td>
+                                        <td style={{ padding: "10px 12px", fontSize: 11, fontWeight: 500, color: "var(--foreground)" }}>
+                                          {f.field}
+                                        </td>
+                                        <td style={{ padding: "10px 12px", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--foreground)" }}>
+                                          {f.balanceInPoIp}
+                                        </td>
+                                        <td style={{ padding: "10px 12px", fontSize: 11, color: "var(--muted-foreground)" }}>
+                                          {f.referencePoint}
+                                        </td>
+                                        <td style={{ padding: "10px 12px", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--foreground)" }}>
+                                          {f.bill}
+                                        </td>
+                                        <td 
+                                          style={{ 
+                                            padding: "10px 12px", 
+                                            fontSize: 11, 
+                                            fontWeight: 600, 
+                                            fontFamily: "var(--font-mono)",
+                                            color: hasVariance ? "#f87171" : "#4ade80" 
+                                          }}
+                                        >
+                                          {f.difference}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
                         </div>
                       )}
                     </div>
