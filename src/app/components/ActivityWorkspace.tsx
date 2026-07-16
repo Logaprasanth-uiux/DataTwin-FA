@@ -28,6 +28,7 @@ import {
 
 interface ActivityWorkspaceProps {
   hasHeaderOffset?: boolean;
+  isEmbedded?: boolean;
 }
 
 interface Participant {
@@ -188,7 +189,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspaceProps) {
+export function ActivityWorkspace({ hasHeaderOffset = false, isEmbedded = false }: ActivityWorkspaceProps) {
   const { activeRecord, closeActivity, refreshNotifications, navigateToRecord } = useActivity();
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [hoveredParticipant, setHoveredParticipant] = useState<Participant | null>(null);
@@ -613,58 +614,47 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
 
   // Legacy scroll stubs removed — stepper uses windowed navigation now
 
-  return (
-    <div
-      className="flex flex-col h-full relative"
-      style={{
-        width: 360,
-        height: hasHeaderOffset ? "calc(100% - 56px)" : "100%",
-        marginTop: hasHeaderOffset ? 56 : 0,
-        background: "var(--card)",
-        borderLeft: "1px solid var(--border)",
-        flexShrink: 0,
-        zIndex: 20,
-        overflow: "hidden",
-        boxShadow: "-4px 0 24px rgba(0,0,0,0.04)",
-      }}
-    >
+  const innerContent = (
+    <>
       {/* ─── DRAWER HEADER ─── */}
-      <div
-        className="flex items-center gap-2.5 px-4 py-3"
-        style={{ borderBottom: "1px solid var(--border)", flexShrink: 0 }}
-      >
+      {!isEmbedded && (
         <div
-          className="flex items-center justify-center rounded-full"
-          style={{ width: 28, height: 28, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+          className="flex items-center gap-2.5 px-4 py-3"
+          style={{ borderBottom: "1px solid var(--border)", flexShrink: 0 }}
         >
-          <BotMessageSquare size={14} />
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{ width: 28, height: 28, background: "rgba(107,140,255,0.12)", color: "#6b8cff" }}
+          >
+            <BotMessageSquare size={14} />
+          </div>
+          <div className="flex flex-col">
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>Activity Workspace</div>
+            <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{id}</div>
+          </div>
+          <button
+            onClick={closeActivity}
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 8,
+              width: 24,
+              height: 24,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--muted-foreground)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--secondary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            title="Close Workspace"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <div className="flex flex-col">
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>Activity Workspace</div>
-          <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{id}</div>
-        </div>
-        <button
-          onClick={closeActivity}
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: 8,
-            width: 24,
-            height: 24,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--muted-foreground)",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--secondary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-          title="Close Workspace"
-        >
-          <X size={16} />
-        </button>
-      </div>
+      )}
 
       {/* ─── SCROLLABLE BODY ─── */}
       <div className="flex-1 overflow-y-auto px-4 pt-5 pb-24 flex flex-col gap-5">
@@ -1801,6 +1791,33 @@ export function ActivityWorkspace({ hasHeaderOffset = false }: ActivityWorkspace
           />
         </div>
       )}
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden bg-card relative">
+        {innerContent}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col h-full relative"
+      style={{
+        width: 360,
+        height: hasHeaderOffset ? "calc(100% - 56px)" : "100%",
+        marginTop: hasHeaderOffset ? 56 : 0,
+        background: "var(--card)",
+        borderLeft: "1px solid var(--border)",
+        flexShrink: 0,
+        zIndex: 20,
+        overflow: "hidden",
+        boxShadow: "-4px 0 24px rgba(0,0,0,0.04)",
+      }}
+    >
+      {innerContent}
     </div>
   );
 }

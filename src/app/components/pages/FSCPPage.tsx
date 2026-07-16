@@ -408,7 +408,9 @@ const generateMockIssues = (): FSCPIssue[] => {
       types.forEach((type, typeIdx) => {
         for (let i = 1; i <= numIssues; i++) {
           const details = getProcessDetails(process, i, type);
-          const codeIdx = (i + typeIdx) % companyCodes.length;
+          const typeOffset = type === "Close Blocker" ? 1 : type === "Moderate Issue" ? 3 : 0;
+          const processSalt = process.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const codeIdx = (i + typeOffset + processSalt) % companyCodes.length;
 
           list.push({
             id: `${type === "Close Blocker" ? "BLK" : type === "Moderate Issue" ? "MOD" : "OK"}-${process.substring(0, 3).toUpperCase()}-2026-${type.substring(0, 2).toUpperCase()}-${String(i).padStart(2, '0')}`,
@@ -2378,9 +2380,9 @@ export function FSCPPage({
 
   // Calculations
   const counts = {
-    "No Issue": issues.filter(i => i.type === "No Issue").length,
-    "Moderate Issue": issues.filter(i => i.type === "Moderate Issue").length,
-    "Close Blocker": issues.filter(i => i.type === "Close Blocker").length,
+    "No Issue": filteredCompanyIssues.filter(i => i.type === "No Issue").length,
+    "Moderate Issue": filteredCompanyIssues.filter(i => i.type === "Moderate Issue").length,
+    "Close Blocker": filteredCompanyIssues.filter(i => i.type === "Close Blocker").length,
     "Total": 0
   };
   counts.Total = counts["No Issue"] + counts["Moderate Issue"] + counts["Close Blocker"];

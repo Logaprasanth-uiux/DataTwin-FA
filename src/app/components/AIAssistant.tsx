@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useContext } from "react";
-import { PanelContext } from "../contexts";
+import { PanelContext, WorkspaceContextInfo, FinanceMetric, AttentionItem } from "../contexts";
 import { Sparkles, X, Send, ArrowRight, CheckCircle, AlertCircle, Edit3, ChevronDown, ChevronUp, Mic, MicOff } from "lucide-react";
 
 // Inject pulse keyframe once
@@ -1330,10 +1330,9 @@ function getPageConfig(page: string): PageConfig {
         subtitle: "Vendor Intelligence • AI Assistant",
         welcome: "Hi! I'm your Vendor Intelligence AI Copilot. Ask about finding/creating vendors, payment histories, or risk summaries.",
         suggestions: [
-          { id: "find_vendor", label: "Find vendor", icon: "🤝" },
-          { id: "create_vendor", label: "Create vendor", icon: "➕" },
-          { id: "vendor_history", label: "Vendor payment history", icon: "📜" },
-          { id: "vendor_risk", label: "Vendor risk summary", icon: "⚠️" },
+          { id: "show_vendor_profile", label: "Show vendor profile", icon: "🤝" },
+          { id: "review_vendor_bank", label: "Review bank information", icon: "🏦" },
+          { id: "explain_vendor_onboarding", label: "Explain onboarding checklist", icon: "📋" },
         ]
       };
     case "Purchase Order":
@@ -1341,10 +1340,10 @@ function getPageConfig(page: string): PageConfig {
         subtitle: "Semantic Extraction • Purchase Order Assistant",
         welcome: "Hi! I'm your Purchase Order AI Copilot. I can help create POs, search purchase orders, explain statuses, and answer procurement questions.",
         suggestions: [
-          { id: "raise_po", label: "Raise Purchase Order", icon: "📦" },
-          { id: "find_po", label: "Find Purchase Order", icon: "🔍" },
-          { id: "po_status", label: "Check PO Status", icon: "✅" },
-          { id: "add_invoice", label: "Add Invoice", icon: "🧾" },
+          { id: "explain_po", label: "Explain this Purchase Order", icon: "📋" },
+          { id: "review_po_lines", label: "Review line items", icon: "🛒" },
+          { id: "check_matching_history", label: "Check matching history", icon: "📜" },
+          { id: "explain_po_approval", label: "Explain approval flow", icon: "⏳" },
         ]
       };
     case "Bill":
@@ -1352,10 +1351,12 @@ function getPageConfig(page: string): PageConfig {
         subtitle: "Bills • AI Assistant",
         welcome: "Hi! I'm your Bills AI Copilot. I can help create bills, search invoices, match POs, or summarize payment due info.",
         suggestions: [
-          { id: "create_bill", label: "Create Bill", icon: "💵" },
-          { id: "find_bill", label: "Find Bill", icon: "🔍" },
-          { id: "match_bill", label: "Match Bill with PO", icon: "🧩" },
-          { id: "due_summary", label: "Payment Due Summary", icon: "📊" },
+          { id: "explain_bill", label: "Explain this Bill", icon: "📋" },
+          { id: "summarize_discrepancies", label: "Summarize discrepancies", icon: "🔍" },
+          { id: "show_matching", label: "Show matching issues", icon: "🔄" },
+          { id: "explain_approval", label: "Explain approval status", icon: "⏳" },
+          { id: "review_tax", label: "Review tax information", icon: "💵" },
+          { id: "generate_journal_exp", label: "Generate journal explanation", icon: "✍️" },
         ]
       };
     case "Accounts Payable":
@@ -1425,15 +1426,246 @@ const suggestions = [
   { id: "check_invoice", label: "Check Invoice Status", icon: "✅" },
 ];
 
+export function ContextSummaryCard({ context }: { context: WorkspaceContextInfo }) {
+  let statusColor = "#6b8cff";
+  let statusBg = "rgba(107,140,255,0.08)";
+  
+  const status = context.status.toLowerCase();
+  if (status === "approved" || status === "validated" || status === "active" || status === "matched") {
+    statusColor = "#4ade80";
+    statusBg = "rgba(74,222,128,0.08)";
+  } else if (status === "in progress" || status === "received" || status === "review required" || status === "variance found") {
+    statusColor = "#fbbf24";
+    statusBg = "rgba(251,191,36,0.08)";
+  } else if (status === "rejected" || status === "failed") {
+    statusColor = "#f87171";
+    statusBg = "rgba(248,113,113,0.08)";
+  }
+
+  return (
+    <div 
+      className="rounded-xl p-3.5 border transition-all duration-200"
+      style={{
+        background: "rgba(107,140,255,0.03)",
+        borderColor: "rgba(107,140,255,0.1)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col min-w-0">
+          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {context.type}
+          </span>
+          <span className="font-mono text-sm font-semibold text-foreground truncate block mt-0.5">
+            {context.id}
+          </span>
+        </div>
+        <span 
+          className="inline-flex items-center gap-1 rounded px-2.5 py-0.5 text-[10px] font-bold"
+          style={{ background: statusBg, color: statusColor, flexShrink: 0 }}
+        >
+          <span className="rounded-full" style={{ width: 4, height: 4, background: statusColor }} />
+          {context.status.toUpperCase()}
+        </span>
+      </div>
+
+      {context.metadata.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2, opacity: 0.9 }}>
+          {context.metadata.map((item, idx) => (
+            <div key={idx} className={item.label.toLowerCase() === "due date" || item.label.toLowerCase() === "expected date" ? "col-span-full" : undefined}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: "var(--muted-foreground)", letterSpacing: "0.06em", display: "block", textTransform: "uppercase" }}>
+                {item.label}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: item.label === "Amount" ? 650 : 500, color: "var(--foreground)" }} className="truncate block mt-0.5">
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SuggestedActionGrid({ 
+  suggestions, 
+  onActionClick 
+}: { 
+  suggestions: { id: string; label: string; icon: string }[]; 
+  onActionClick: (id: string) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+      {suggestions.map((s) => (
+        <button
+          key={s.id}
+          onClick={() => onActionClick(s.id)}
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left hover:opacity-90 transition-opacity"
+          style={{
+            background: "var(--secondary)",
+            border: "1px solid var(--border)",
+            cursor: "pointer",
+            color: "var(--foreground)",
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        >
+          <span style={{ fontSize: 13, flexShrink: 0 }}>{s.icon}</span>
+          <span className="truncate">{s.label}</span>
+          <ArrowRight size={12} className="ml-auto flex-shrink-0" style={{ opacity: 0.4 }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function FinanceMetricCard({ metric }: { metric: FinanceMetric }) {
+  let color = "var(--foreground)";
+  let bg = "var(--secondary)";
+  
+  if (metric.severity === "success") {
+    color = "#22c55e"; // soft emerald/green
+    bg = "rgba(34, 197, 94, 0.08)";
+  } else if (metric.severity === "warning") {
+    color = "#f59e0b"; // amber
+    bg = "rgba(245, 158, 11, 0.08)";
+  } else if (metric.severity === "error") {
+    color = "#ef4444"; // red
+    bg = "rgba(239, 68, 68, 0.08)";
+  } else if (metric.severity === "info") {
+    color = "#3b82f6"; // soft blue
+    bg = "rgba(59, 130, 246, 0.08)";
+  }
+
+  return (
+    <div 
+      className="rounded-lg p-2 flex items-center gap-2 border transition-all duration-200"
+      style={{
+        background: bg,
+        borderColor: metric.severity ? "transparent" : "var(--border)",
+      }}
+    >
+      <span style={{ fontSize: 14, flexShrink: 0 }}>{metric.icon}</span>
+      <div className="flex flex-col min-w-0">
+        <span style={{ fontSize: 8, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          {metric.title}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: metric.severity ? color : "var(--foreground)" }} className="truncate">
+          {metric.value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function AIHighlightsWidget({ metrics }: { metrics: FinanceMetric[] }) {
+  if (!metrics || metrics.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        AI Highlights
+      </span>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        {metrics.map((metric, idx) => (
+          <FinanceMetricCard key={idx} metric={metric} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AttentionWidget({ items, onActionClick }: { items: AttentionItem[]; onActionClick?: (id: string) => void }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        Requires Attention
+      </span>
+      <div className="flex flex-col gap-2">
+        {items.map((item, idx) => {
+          let color = "#3b82f6";
+          let bg = "rgba(59, 130, 246, 0.04)";
+          let border = "rgba(59, 130, 246, 0.15)";
+          let badgeIcon = "ℹ️";
+
+          if (item.severity === "warning") {
+            color = "#f59e0b";
+            bg = "rgba(245, 158, 11, 0.04)";
+            border = "rgba(245, 158, 11, 0.15)";
+            badgeIcon = "⚠️";
+          } else if (item.severity === "error") {
+            color = "#ef4444";
+            bg = "rgba(239, 68, 68, 0.04)";
+            border = "rgba(239, 68, 68, 0.15)";
+            badgeIcon = "🚨";
+          }
+
+          return (
+            <div 
+              key={idx}
+              className="rounded-lg p-2.5 border flex gap-2 items-start"
+              style={{
+                background: bg,
+                borderColor: border,
+              }}
+            >
+              <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{badgeIcon}</span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>
+                  {item.title}
+                </span>
+                <span style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 2, lineHeight: 1.4 }}>
+                  {item.description}
+                </span>
+                {item.suggestedAction && onActionClick && (
+                  <button
+                    onClick={() => {
+                      const samples: Record<string, string> = {
+                        "Show matching issues": "show_matching",
+                        "Explain approval status": "explain_approval",
+                        "Explain onboarding checklist": "explain_vendor_onboarding",
+                      };
+                      const actionId = samples[item.suggestedAction] || item.suggestedAction;
+                      onActionClick(actionId);
+                    }}
+                    className="mt-2 text-left font-bold transition-opacity hover:opacity-80"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      color: color,
+                      fontSize: 10,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Action: {item.suggestedAction} →
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+
 interface AIAssistantProps {
   onNavigate: NavFn;
   hasHeaderOffset?: boolean;
   activePage?: string;
+  isEmbedded?: boolean;
+  currentContext?: WorkspaceContextInfo | null;
 }
 
-export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }: AIAssistantProps) {
+export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, isEmbedded = false, currentContext = null }: AIAssistantProps) {
   const panelCtx = useContext(PanelContext);
-  const open = panelCtx ? panelCtx.activePanel === "ai" : true;
+  const open = isEmbedded ? true : (panelCtx ? panelCtx.activePanel === "ai" : true);
   const setOpen = (val: boolean) => {
     if (panelCtx) {
       panelCtx.setActivePanel(val ? "ai" : null);
@@ -1487,23 +1719,7 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
     }
   }, [activePage, copilot.active, copilot.step]);
 
-  useEffect(() => {
-    if (!activePage) return;
-    const config = getPageConfig(activePage);
-    const title = getContextTitle(activePage);
-    
-    setMessages(prev => {
-      const last = prev[prev.length - 1];
-      if (last && last.role === "context" && last.text === title) {
-        return prev;
-      }
-      return [
-        ...prev,
-        { role: "context", text: title },
-        { role: "ai", text: config.welcome }
-      ];
-    });
-  }, [activePage]);
+
 
   function addMessage(role: "ai" | "user", text: string, reviewCard?: ExtractedDataModel) {
     try {
@@ -2054,6 +2270,23 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
       add_invoice:   { type: "create_invoice", category: "create_record",  text: "Create invoice INV-2026-099 from TechSupply Co for ₹80000, dated Jun 25 2026, due Jul 25 2026" },
       find_po:       { type: "search_po",      category: "search_record",  text: "Find all purchase orders" },
       check_invoice: { type: "status_invoice", category: "status_lookup",  text: "Check status of Invoice INV-2026-001" },
+      
+      // Contextual suggested actions mapped as general question intents
+      explain_bill:            { type: "general_question", category: "general_question", text: "Explain this Bill" },
+      summarize_discrepancies: { type: "general_question", category: "general_question", text: "Summarize discrepancies" },
+      show_matching:           { type: "general_question", category: "general_question", text: "Show matching issues" },
+      explain_approval:        { type: "general_question", category: "general_question", text: "Explain approval status" },
+      review_tax:              { type: "general_question", category: "general_question", text: "Review tax information" },
+      generate_journal_exp:    { type: "general_question", category: "general_question", text: "Generate journal explanation" },
+      
+      explain_po:              { type: "general_question", category: "general_question", text: "Explain this Purchase Order" },
+      review_po_lines:         { type: "general_question", category: "general_question", text: "Review line items" },
+      check_matching_history:  { type: "general_question", category: "general_question", text: "Check matching history" },
+      explain_po_approval:     { type: "general_question", category: "general_question", text: "Explain approval flow" },
+      
+      show_vendor_profile:     { type: "general_question", category: "general_question", text: "Show vendor profile" },
+      review_vendor_bank:      { type: "general_question", category: "general_question", text: "Review bank information" },
+      explain_vendor_onboarding: { type: "general_question", category: "general_question", text: "Explain onboarding checklist" }
     };
     const sample = samples[id];
     if (sample) {
@@ -2076,7 +2309,7 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
   }
 
   // ── Closed state ──────────────────────────────────────────────────────────
-  if (!open) {
+  if (!isEmbedded && !open) {
     return (
       <div
         className="flex flex-col items-center"
@@ -2113,38 +2346,29 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
     );
   }
 
-  return (
-    <div
-      className="flex flex-col"
-      style={{
-        width: 360,
-        height: hasHeaderOffset ? "calc(100% - 56px)" : "100%",
-        marginTop: hasHeaderOffset ? 56 : 0,
-        background: "var(--card)",
-        borderLeft: "1px solid var(--border)",
-        flexShrink: 0,
-        zIndex: 10,
-      }}
-    >
+  const innerContent = (
+    <>
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-        <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: "var(--foreground)" }}>
-          <Sparkles size={13} style={{ color: "var(--background)" }} />
+      {!isEmbedded && (
+        <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+          <div className="flex items-center justify-center rounded-full" style={{ width: 28, height: 28, background: "var(--foreground)" }}>
+            <Sparkles size={13} style={{ color: "var(--background)" }} />
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>DataTwin Copilot</p>
+            <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{getPageConfig(activePage || "Overview").subtitle}</p>
+          </div>
+          <button
+            onClick={() => setOpen(false)}
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--secondary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+            title="Minimize Copilot"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>DataTwin Copilot</p>
-          <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{getPageConfig(activePage || "Overview").subtitle}</p>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          style={{ marginLeft: "auto", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, width: 28, height: 28, background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--secondary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-          title="Minimize Copilot"
-        >
-          <X size={16} />
-        </button>
-      </div>
+      )}
 
       {/* Copilot Pipeline Panel */}
       {copilot.active && copilot.category && (
@@ -2248,131 +2472,124 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
-        {messages.map((msg, i) => {
-          if (msg.role === "context") {
-            return (
-              <div key={i} className="flex flex-col items-center justify-center my-3 w-full border-b border-border/30 pb-2">
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)" }}>
-                  Current Context
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", marginTop: 1 }}>
-                  {msg.text}
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div key={i} className="flex flex-col" style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-              <div
-                className="rounded-xl px-3 py-2"
-                style={{
-                  maxWidth: "90%",
-                  background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
-                  color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                }}
-              >
-                <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
+      {/* Primary Scroll Container (holds both Widget Region and Conversation) */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
+        
+        {/* Widget Region */}
+        <div className="flex flex-col gap-4 flex-shrink-0">
+          {currentContext ? (
+            <>
+              {/* Widget 1: Context Summary */}
+              <ContextSummaryCard context={currentContext} />
 
-                {/* View Record button */}
-                {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
-                  <button
-                    onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
-                    className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
-                    style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
-                  >
-                    View Details: {copilot.createdId} →
-                  </button>
+              {/* Widget 2: AI Highlights */}
+              {currentContext.highlights && currentContext.highlights.length > 0 && (
+                <AIHighlightsWidget metrics={currentContext.highlights} />
+              )}
+
+              {/* Widget 3: Priority Attention Alert */}
+              {currentContext.attentionItems && currentContext.attentionItems.length > 0 && (
+                <AttentionWidget items={currentContext.attentionItems} onActionClick={handleSuggestion} />
+              )}
+            </>
+          ) : (
+            /* Empty State guidance */
+            <div className="rounded-xl p-3.5 border text-center transition-all duration-200" style={{ background: "var(--secondary)", borderColor: "var(--border)" }}>
+              <div style={{ fontSize: 12, fontWeight: 650, color: "var(--foreground)", marginBottom: 4 }}>
+                No record selected
+              </div>
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                Select a business record to begin reviewing, or ask AI a finance-related question below.
+              </div>
+            </div>
+          )}
+
+          {/* Widget 4: Suggested Business Actions */}
+          {!copilot.active && !messages.some(m => m.role === "user") && (
+            <SuggestedActionGrid 
+              suggestions={getPageConfig(currentContext?.type || activePage || "Overview").suggestions} 
+              onActionClick={handleSuggestion}
+            />
+          )}
+        </div>
+
+        {/* Conversation List */}
+        <div className="flex flex-col gap-3 flex-1">
+          {messages.map((msg, i) => {
+            if (msg.role === "context") return null;
+            return (
+              <div key={i} className="flex flex-col" style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                <div
+                  className="rounded-xl px-3 py-2"
+                  style={{
+                    maxWidth: "90%",
+                    background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
+                    color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
+
+                  {/* View Record button */}
+                  {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
+                    <button
+                      onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
+                      className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
+                      style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
+                    >
+                      View Details: {copilot.createdId} →
+                    </button>
+                  )}
+                </div>
+
+                {/* Result Cards — rendered below the last AI message carrying a result */}
+                {msg.role === "ai" && copilot.resultPayload && i === messages.length - 1 && (
+                  <div style={{ width: "100%", marginTop: 8 }}>
+                    {copilot.resultPayload.type === "status" && (
+                      <StatusCard
+                        intentType={copilot.resultPayload.intentType}
+                        query={copilot.resultPayload.query}
+                        onNavigate={onNavigate}
+                      />
+                    )}
+                    {copilot.resultPayload.type === "search" && (
+                      <SearchResultsCard
+                        intentType={copilot.resultPayload.intentType}
+                        onNavigate={onNavigate}
+                      />
+                    )}
+                    {copilot.resultPayload.type === "approval" && (
+                      <ApprovalCard
+                        intentType={copilot.resultPayload.intentType}
+                        query={copilot.resultPayload.query}
+                        onAction={handleApprovalAction}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Review Card — rendered below AI message */}
+                {msg.role === "ai" && msg.reviewCard && (
+                  <div style={{ width: "100%", marginTop: 8 }}>
+                    <ReviewCard
+                      model={msg.reviewCard}
+                      onConfirm={handleReviewConfirm}
+                      onEdit={(key, val) => {
+                        // Update pending model
+                        setPendingReviewModel(prev => prev ? {
+                          ...prev,
+                          [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
+                        } : prev);
+                      }}
+                      onCancel={handleReviewCancel}
+                    />
+                  </div>
                 )}
               </div>
-
-              {/* Result Cards — rendered below the last AI message carrying a result */}
-              {msg.role === "ai" && copilot.resultPayload && i === messages.length - 1 && (
-                <div style={{ width: "100%", marginTop: 8 }}>
-                  {copilot.resultPayload.type === "status" && (
-                    <StatusCard
-                      intentType={copilot.resultPayload.intentType}
-                      query={copilot.resultPayload.query}
-                      onNavigate={onNavigate}
-                    />
-                  )}
-                  {copilot.resultPayload.type === "search" && (
-                    <SearchResultsCard
-                      intentType={copilot.resultPayload.intentType}
-                      onNavigate={onNavigate}
-                    />
-                  )}
-                  {copilot.resultPayload.type === "approval" && (
-                    <ApprovalCard
-                      intentType={copilot.resultPayload.intentType}
-                      query={copilot.resultPayload.query}
-                      onAction={handleApprovalAction}
-                    />
-                  )}
-                </div>
-              )}
-
-              {/* Review Card — rendered below AI message */}
-              {msg.role === "ai" && msg.reviewCard && (
-                <div style={{ width: "100%", marginTop: 8 }}>
-                  <ReviewCard
-                    model={msg.reviewCard}
-                    onConfirm={handleReviewConfirm}
-                    onEdit={(key, val) => {
-                      // Update pending model
-                      setPendingReviewModel(prev => prev ? {
-                        ...prev,
-                        [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
-                      } : prev);
-                    }}
-                    onCancel={handleReviewCancel}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Initial suggestions */}
-        {!copilot.active && !messages.some(m => m.role === "user") && (
-          <div className="flex flex-col gap-1.5 mt-1">
-            {getPageConfig(activePage || "Overview").suggestions.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleSuggestion(s.id)}
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors text-left"
-                style={{ background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--foreground)", fontSize: 13 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--secondary)")}
-              >
-                <span>{s.icon}</span>
-                <span>{s.label}</span>
-                <ArrowRight size={12} className="ml-auto" style={{ opacity: 0.4 }} />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Post-conversation suggestions */}
-        {!copilot.active && messages.some(m => m.role === "user") && (
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {getPageConfig(activePage || "Overview").suggestions.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleSuggestion(s.id)}
-                className="rounded-full px-3 py-1 transition-colors"
-                style={{ fontSize: 12, background: "var(--secondary)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--foreground)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--secondary)")}
-              >
-                {s.icon} {s.label}
-              </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         <div ref={bottomRef} />
       </div>
@@ -2459,6 +2676,31 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage }:
           <Send size={14} />
         </button>
       </div>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 h-full overflow-hidden bg-card">
+        {innerContent}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col"
+      style={{
+        width: 360,
+        height: hasHeaderOffset ? "calc(100% - 56px)" : "100%",
+        marginTop: hasHeaderOffset ? 56 : 0,
+        background: "var(--card)",
+        borderLeft: "1px solid var(--border)",
+        flexShrink: 0,
+        zIndex: 10,
+      }}
+    >
+      {innerContent}
     </div>
   );
 }

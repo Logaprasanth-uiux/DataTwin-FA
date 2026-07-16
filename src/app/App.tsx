@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AlertCircle, X, Upload } from "lucide-react";
 import { PanelContext, ActivityRecord, NotificationItem, sessionCache, initializeDefaultCache } from "./contexts";
-import { ActivityWorkspace } from "./components/ActivityWorkspace";
 import { Sidebar } from "./components/Sidebar";
 import { StatusCard } from "./components/StatusCard";
 import { CompanySwitch } from "./components/CompanySwitch";
 import { DateRangeFilter } from "./components/DateRangeFilter";
-import { AIAssistant } from "./components/AIAssistant";
+import { AIWorkspace } from "./components/AIWorkspace";
 import { OrganizationPage } from "./components/pages/OrganizationPage";
 import { VendorPage } from "./components/pages/VendorPage";
 import { PurchaseOrderPage } from "./components/pages/PurchaseOrderPage";
@@ -523,9 +522,8 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               {renderContent()}
             </div>
-            <AIAssistant onNavigate={handleNavigate} hasHeaderOffset={true} activePage={active} />
-            {active !== "Accounts Receivable" && activePanel === "activity" && (
-              <ActivityWorkspace hasHeaderOffset={true} />
+            {active !== "Accounts Receivable" && (
+              <AIWorkspace onNavigate={handleNavigate} hasHeaderOffset={true} activePage={active} />
             )}
           </div>
         </div>

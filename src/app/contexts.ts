@@ -9,6 +9,29 @@ export interface ActivityRecord {
   completion?: number;
 }
 
+export interface FinanceMetric {
+  icon: string;
+  title: string;
+  value: string;
+  severity?: "success" | "warning" | "error" | "info" | "neutral";
+}
+
+export interface AttentionItem {
+  severity: "warning" | "error" | "info";
+  title: string;
+  description: string;
+  suggestedAction?: string;
+}
+
+export interface WorkspaceContextInfo {
+  type: string;
+  id: string;
+  status: string;
+  metadata: { label: string; value: string }[];
+  highlights?: FinanceMetric[];
+  attentionItems?: AttentionItem[];
+}
+
 export interface CollaborationEntry {
   id: string;
   actionId: string;
