@@ -98,6 +98,7 @@ export default function App() {
   }
 
   const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
+  const [currentUser, setCurrentUser] = useState<string>("Alex Johnson");
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
   const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);
   const [fscpShowUploadModal, setFscpShowUploadModal] = useState(false);
@@ -456,6 +457,8 @@ export default function App() {
       setActiveDetailRecord,
       headerAction,
       setHeaderAction,
+      currentUser,
+      setCurrentUser,
     }}>
       <div
         className="flex h-screen w-full overflow-hidden"

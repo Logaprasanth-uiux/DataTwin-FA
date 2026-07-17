@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
-import { PanelContext, WorkspaceContextInfo, FinanceMetric, AttentionItem } from "../contexts";
-import { Sparkles, X, Send, ArrowRight, CheckCircle, AlertCircle, Edit3, ChevronDown, ChevronUp, Mic, MicOff } from "lucide-react";
+import { PanelContext, WorkspaceContextInfo, FinanceMetric, AttentionItem, useActivity, sessionCache, getInitialMockData, CollaborationEntry, RecordCollabData } from "../contexts";
+import { Sparkles, X, Send, ArrowRight, CheckCircle, AlertCircle, Edit3, ChevronDown, ChevronUp, Mic, MicOff, CheckCircle2, Circle, Clock, Plus, HelpCircle, ShieldCheck, FileText, User, Building, Receipt, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Inject pulse keyframe once
 if (typeof document !== "undefined" && !document.getElementById("__mic_pulse_style")) {
@@ -39,6 +39,211 @@ interface Message {
   role: "ai" | "user" | "context";
   text: string;
   reviewCard?: ExtractedDataModel;
+  timestamp?: Date;
+}
+
+interface Participant {
+  initials: string;
+  name: string;
+  role: string;
+  team: string;
+}
+
+interface UnifiedFeedItem {
+  kind: "ai_message" | "collab" | "audit";
+  timestamp: Date;
+  _ts: number;
+  message?: Message;
+  entry?: CollaborationEntry;
+  log?: { text: string; timestamp: Date; stage: string; actor: string };
+}
+
+const getRecordParticipants = (type: string): Participant[] => {
+  if (type === "Purchase Order") {
+    return [
+      { initials: "LO", name: "Loga", role: "Procurement Lead", team: "Procurement" },
+      { initials: "KU", name: "Kunal", role: "Finance Controller", team: "Finance" },
+      { initials: "PR", name: "Priya", role: "Legal Counsel", team: "Legal" },
+      { initials: "FI", name: "Finance Team", role: "Operations Group", team: "Finance" },
+    ];
+  } else if (type === "Bill" || type === "Invoice") {
+    return [
+      { initials: "KU", name: "Kunal", role: "Finance Controller", team: "Finance" },
+      { initials: "OP", name: "Operations", role: "Fulfillment Team", team: "Operations" },
+      { initials: "FI", name: "Finance Team", role: "Operations Group", team: "Finance" },
+    ];
+  } else if (type === "Vendor") {
+    return [
+      { initials: "LO", name: "Loga", role: "Procurement Lead", team: "Procurement" },
+      { initials: "PR", name: "Priya", role: "Legal Counsel", team: "Legal" },
+      { initials: "OP", name: "Operations", role: "Fulfillment Team", team: "Operations" },
+    ];
+  } else {
+    return [
+      { initials: "PR", name: "Priya", role: "Legal Counsel", team: "Legal" },
+      { initials: "KU", name: "Kunal", role: "Finance Controller", team: "Finance" },
+      { initials: "AJ", name: "Alex Johnson", role: "Admin", team: "Management" },
+    ];
+  }
+};
+
+const getInitials = (name: string): string => {
+  if (name.includes("Loga")) return "LO";
+  if (name.includes("Kumar") || name.includes("Kunal")) return "KU";
+  if (name.includes("Priya")) return "PR";
+  if (name.includes("System")) return "SY";
+  if (name.includes("AI Agent") || name === "AI") return "AI";
+  if (name.includes("Alex Johnson")) return "AJ";
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+const getAvatarColor = (name: string) => {
+  if (name.includes("Loga")) {
+    return { bg: "rgba(74,222,128,0.12)", text: "#16a34a" };
+  }
+  if (name.includes("Kumar") || name.includes("Kunal")) {
+    return { bg: "rgba(251,191,36,0.12)", text: "#d97706" };
+  }
+  if (name.includes("Priya")) {
+    return { bg: "rgba(192,132,252,0.12)", text: "#9333ea" };
+  }
+  if (name.includes("System")) {
+    return { bg: "rgba(107,140,255,0.12)", text: "#2563eb" };
+  }
+  if (name.includes("AI Agent") || name === "AI") {
+    return { bg: "rgba(139,92,246,0.12)", text: "#7c3aed" };
+  }
+  if (name.includes("Alex Johnson")) {
+    return { bg: "rgba(239,68,68,0.12)", text: "#ef4444" };
+  }
+  return { bg: "var(--secondary)", text: "var(--muted-foreground)" };
+};
+
+const formatTimestamp = (dateInput: Date | string) => {
+  const date = new Date(dateInput);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  
+  if (diffDays <= 1 && now.getDate() === date.getDate()) {
+    return `Today at ${timeStr}`;
+  } else if (diffDays <= 2) {
+    return `Yesterday at ${timeStr}`;
+  } else {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ` at ${timeStr}`;
+  }
+};
+
+const ActionTypeBadge = ({ type }: { type: string }) => {
+  let label = "";
+  let color = "var(--muted-foreground)";
+  let bg = "var(--secondary)";
+  
+  if (type === "task") {
+    label = "Task Assigned";
+    color = "#f97316";
+    bg = "rgba(249,115,22,0.08)";
+  } else if (type === "info_request") {
+    label = "Information Request";
+    color = "#3b82f6";
+    bg = "rgba(59,130,246,0.08)";
+  } else if (type === "approval_request") {
+    label = "Approval Request";
+    color = "#8b5cf6";
+    bg = "rgba(139,92,246,0.08)";
+  } else if (type === "discussion") {
+    label = "Discussion";
+    color = "var(--muted-foreground)";
+    bg = "var(--secondary)";
+  } else if (type === "system_event") {
+    label = "System Event";
+    color = "#2563eb";
+    bg = "rgba(37,99,235,0.08)";
+  } else if (type === "ai_analysis") {
+    label = "AI Analysis";
+    color = "#7c3aed";
+    bg = "rgba(124,58,237,0.08)";
+  } else if (type === "workflow_update") {
+    label = "Workflow Update";
+    color = "#0891b2";
+    bg = "rgba(8,145,178,0.08)";
+  }
+
+  if (!label) return null;
+
+  return (
+    <span
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[8.5px] font-bold border"
+      style={{ borderColor: color, color, background: bg }}
+    >
+      {label}
+    </span>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  let color = "var(--muted-foreground)";
+  let bg = "var(--secondary)";
+  
+  const norm = status.toLowerCase();
+  
+  if (norm === "open") {
+    color = "#3b82f6";
+    bg = "rgba(59,130,246,0.08)";
+  } else if (norm === "in_progress") {
+    color = "#6b8cff";
+    bg = "rgba(107,140,255,0.08)";
+  } else if (norm === "waiting") {
+    color = "#eab308";
+    bg = "rgba(234,179,8,0.08)";
+  } else if (norm === "completed" || norm === "approved") {
+    color = "#10b981";
+    bg = "rgba(16,185,129,0.08)";
+  } else if (norm === "cancelled" || norm === "rejected") {
+    color = "#ef4444";
+    bg = "rgba(239,68,68,0.08)";
+  }
+
+  const label = norm === "approved" || norm === "completed" ? "COMPLETED" :
+                norm === "rejected" || norm === "cancelled" ? "CANCELLED" : norm.toUpperCase();
+
+  return (
+    <span
+      className="inline-flex items-center rounded px-1.5 py-0.5 text-[8.5px] font-bold"
+      style={{ background: bg, color }}
+    >
+      {label}
+    </span>
+  );
+};
+
+function groupFeedByDay(feed: UnifiedFeedItem[]) {
+  const groups: Record<string, UnifiedFeedItem[]> = {
+    "Today": [],
+    "Yesterday": [],
+    "Earlier": []
+  };
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+
+  feed.forEach(item => {
+    const ts = item._ts;
+    if (ts >= todayStart) {
+      groups["Today"].push(item);
+    } else if (ts >= yesterdayStart) {
+      groups["Yesterday"].push(item);
+    } else {
+      groups["Earlier"].push(item);
+    }
+  });
+
+  return groups;
 }
 
 interface TimelineItem {
@@ -1655,6 +1860,8 @@ export function AttentionWidget({ items, onActionClick }: { items: AttentionItem
 
 
 
+const chatSessionCache: Record<string, Message[]> = {};
+
 interface AIAssistantProps {
   onNavigate: NavFn;
   hasHeaderOffset?: boolean;
@@ -1671,7 +1878,49 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
       panelCtx.setActivePanel(val ? "ai" : null);
     }
   };
-  const [messages, setMessages] = useState<Message[]>([]);
+
+  const activeRecord = useActivity().activeRecord;
+  const id = activeRecord?.id || "default";
+  const type = activeRecord?.type || "Bill";
+  const status = activeRecord?.status || "Draft";
+
+  const [collabData, setCollabData] = useState<RecordCollabData>(() => {
+    if (sessionCache[id]) return sessionCache[id];
+    return getInitialMockData(id, type, status);
+  });
+
+  useEffect(() => {
+    setCollabData(sessionCache[id] || getInitialMockData(id, type, status));
+  }, [id, type, status]);
+
+  const updateCollabData = (updater: (prev: RecordCollabData) => RecordCollabData) => {
+    setCollabData(prev => {
+      const next = updater(prev);
+      sessionCache[id] = next;
+      if (panelCtx?.refreshNotifications) {
+        setTimeout(() => panelCtx.refreshNotifications?.(), 50);
+      }
+      return next;
+    });
+  };
+
+  const recordId = currentContext?.id || "default";
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (chatSessionCache[recordId]) return chatSessionCache[recordId];
+    return [];
+  });
+
+  // Sync messages when recordId changes
+  useEffect(() => {
+    setMessages(chatSessionCache[recordId] || []);
+  }, [recordId]);
+
+  // Save to cache when messages change
+  useEffect(() => {
+    chatSessionCache[recordId] = messages;
+  }, [messages, recordId]);
+
   const [input, setInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -1679,6 +1928,24 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
   const inputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+
+  // Mention menu states
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [selectedMentionUser, setSelectedMentionUser] = useState<Participant | null>(null);
+  const [pendingResolution, setPendingResolution] = useState<{ entryId: string; type: "complete" | "approve" | "reject" | "info" } | null>(null);
+  const [resolutionNote, setResponseNote] = useState("");
+
+  const [activeModal, setActiveModal] = useState<"task" | "info" | "approval" | null>(null);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskSection, setTaskSection] = useState("Vendor Information");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [infoSection, setInfoSection] = useState("Vendor Information");
+  const [infoCustomNote, setInfoCustomNote] = useState("");
+  const [approvalCategory, setApprovalCategory] = useState("Vendor Approval");
+  const [approvalCustomNote, setApprovalCustomNote] = useState("");
+
+  const participants = getRecordParticipants(type);
+
 
   const [copilot, setCopilot] = useState<CopilotState>({
     active: false,
@@ -1727,7 +1994,7 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
         console.warn("[Copilot] addMessage called with invalid text", text);
         return;
       }
-      setMessages(m => [...m, { role, text: text.trim() || "…", reviewCard }]);
+      setMessages(m => [...m, { role, text: text.trim() || "…", reviewCard, timestamp: new Date() }]);
     } catch (err) {
       console.error("[Copilot] addMessage error:", err);
     }
@@ -1954,6 +2221,101 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
       setGlobalError(null);
       setTimeout(() => inputRef.current?.focus(), 50);
 
+      // Match a mention at the start of the message, e.g., "@Kunal Please update..."
+      const matchesMention = val.match(/^@([a-zA-Z\s\-]+)\s+(.*)$/i);
+      
+      if (matchesMention) {
+        const ownerName = matchesMention[1].trim();
+        const actionContent = matchesMention[2].trim();
+
+        // Resolve participant matching the ownerName
+        const matchedParticipant = participants.find(
+          p => p.name.toLowerCase().includes(ownerName.toLowerCase()) || 
+               ownerName.toLowerCase().includes(p.name.toLowerCase())
+        ) || { name: ownerName, role: "Contributor", avatar: "" };
+
+        // Simple mock/demo intent recognition based on keywords
+        const contentLower = actionContent.toLowerCase();
+        let collabType: "task" | "info_request" | "approval_request" | "comment" = "comment";
+
+        if (
+          contentLower.includes("approve") ||
+          contentLower.includes("approval") ||
+          contentLower.includes("review and approve")
+        ) {
+          collabType = "approval_request";
+        } else if (
+          contentLower.includes("explain") ||
+          contentLower.includes("variance") ||
+          contentLower.includes("why") ||
+          contentLower.includes("provide") ||
+          contentLower.includes("could you") ||
+          contentLower.includes("what is") ||
+          contentLower.includes("information") ||
+          contentLower.includes("doc") ||
+          contentLower.includes("document")
+        ) {
+          collabType = "info_request";
+        } else if (
+          contentLower.includes("update") ||
+          contentLower.includes("complete") ||
+          contentLower.includes("fix") ||
+          contentLower.includes("fill") ||
+          contentLower.includes("upload") ||
+          contentLower.includes("do this") ||
+          contentLower.includes("task") ||
+          contentLower.includes("assign")
+        ) {
+          collabType = "task";
+        } else {
+          collabType = "comment"; // normal Collaboration Comment
+        }
+
+        setSelectedMentionUser(matchedParticipant);
+
+        if (collabType === "task") {
+          setTaskTitle(actionContent);
+          setActiveModal("task");
+        } else if (collabType === "info_request") {
+          setInfoCustomNote(actionContent);
+          setActiveModal("info");
+        } else if (collabType === "approval_request") {
+          setApprovalCustomNote(actionContent);
+          setActiveModal("approval");
+        } else {
+          // Directly create comment
+          const timestamp = new Date();
+          const uniqueId = `action-${Date.now()}`;
+          const typeCount = collabData.entries.filter(e => e.type === "comment").length + 1;
+          
+          const newEntry: CollaborationEntry = {
+            id: uniqueId,
+            actionId: `CMT-${String(typeCount).padStart(4, "0")}`,
+            type: "comment",
+            author: currentUser,
+            owner: matchedParticipant.name,
+            timestamp: timestamp,
+            content: actionContent,
+            priority: "medium",
+            status: "completed"
+          };
+
+          updateCollabData(prev => ({
+            ...prev,
+            entries: [...prev.entries, newEntry]
+          }));
+
+          setInput("");
+          setSelectedMentionUser(null);
+          if (panelCtx?.refreshNotifications) {
+            setTimeout(() => panelCtx.refreshNotifications?.(), 50);
+          }
+        }
+        return;
+      }
+
+
+
       // ── Classify FIRST — before any workflow UI loads ──
       const detected = safeRun(() => classifyIntent(val), null, "classifyIntent");
       if (detected) {
@@ -1969,6 +2331,186 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
       setGlobalError("Unable to process your request right now. Please try again.");
     }
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    if (val.endsWith("@")) {
+      setShowMentionList(true);
+    } else if (!val.includes("@") || val.endsWith(" ")) {
+      setShowMentionList(false);
+    }
+  };
+
+  const handleSelectMention = (p: Participant) => {
+    setInput(prev => prev.slice(0, prev.lastIndexOf("@")) + `@${p.name} `);
+    setSelectedMentionUser(p);
+    setShowMentionList(false);
+  };
+
+  const handleActionSubmit = (actionType: "task" | "info" | "approval") => {
+    if (!selectedMentionUser) return;
+
+    const collabType = 
+      actionType === "task" ? "task" : 
+      actionType === "approval" ? "approval_request" : "info_request";
+
+    const content = 
+      actionType === "task" ? taskTitle :
+      actionType === "approval" ? approvalCustomNote : infoCustomNote;
+
+    const timestamp = new Date();
+    const uniqueId = `action-${Date.now()}`;
+    const typeCount = collabData.entries.filter(e => e.type === collabType).length + 1;
+    const typePrefix = collabType === "task" ? "TSK" : collabType === "approval_request" ? "APR" : "INF";
+
+    const initialStatus = collabType === "task" ? "open" : "waiting";
+
+    const newEntry: CollaborationEntry = {
+      id: uniqueId,
+      actionId: `${typePrefix}-${String(typeCount).padStart(4, "0")}`,
+      type: collabType as any,
+      author: currentUser,
+      owner: selectedMentionUser.name,
+      timestamp: timestamp,
+      content: content,
+      priority: "medium",
+      status: initialStatus as any,
+      dueDate: actionType === "task" && taskDueDate ? taskDueDate : undefined
+    };
+
+    updateCollabData(prev => {
+      const newEntries = [...prev.entries, newEntry];
+      
+      // System workflow progression transition message
+      const stageNames = ["Draft", "Data Collection", "Review", "Verification", "Approval", "Issued", "Completed"];
+      const openTasksVal = newEntries.filter(e => e.type === "task" && (e.status === "open" || e.status === "waiting" || e.status === "in_progress"));
+      const pendingApprovalsVal = newEntries.filter(e => e.type === "approval_request" && e.status === "waiting");
+      const openInfoRequestsVal = newEntries.filter(e => e.type === "info_request" && e.status === "waiting");
+
+      const getDerivedWorkflowStageVal = () => {
+        if (currentContext?.status === "Draft") return 1;
+        if (openTasksVal.length > 0) return 2;
+        if (openInfoRequestsVal.length > 0) return 3;
+        if (openInfoRequestsVal.length === 0 && openTasksVal.length === 0 && pendingApprovalsVal.length > 0) return 5;
+        if (pendingApprovalsVal.length === 0 && openTasksVal.length === 0 && openInfoRequestsVal.length === 0) return 7;
+        return 4;
+      };
+      const transitionStage = getDerivedWorkflowStageVal();
+      const stageName = stageNames[transitionStage - 1];
+
+      const newSysLog = {
+        text: `System: Action ${newEntry.actionId} of type ${collabType.toUpperCase()} created by ${currentUser}. Workflow derived status updated to ${stageName}.`,
+        timestamp: new Date(),
+        stage: stageName,
+        actor: "System"
+      };
+
+      return {
+        entries: newEntries,
+        systemLogs: [...prev.systemLogs, newSysLog]
+      };
+    });
+
+    setInput("");
+    setSelectedMentionUser(null);
+    setActiveModal(null);
+    setTaskTitle("");
+    setTaskDueDate("");
+    setInfoCustomNote("");
+    setApprovalCustomNote("");
+
+    if (panelCtx?.refreshNotifications) {
+      setTimeout(() => panelCtx.refreshNotifications?.(), 50);
+    }
+  };
+
+  const handleResponseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingResolution) return;
+
+    const { entryId, type } = pendingResolution;
+
+    updateCollabData(prev => {
+      let resolvedActionId = "";
+      let resolvedActionType = "";
+      let resolvedOwner = "";
+
+      const updatedEntries = prev.entries.map(entry => {
+        if (entry.id !== entryId) return entry;
+
+        resolvedActionId = entry.actionId;
+        resolvedActionType = entry.type;
+        resolvedOwner = entry.owner;
+
+        let targetStatus: CollaborationEntry["status"] = entry.status;
+        let actionString = "";
+
+        if (type === "complete") {
+          targetStatus = "completed";
+          actionString = `Completed Task`;
+        } else if (type === "approve") {
+          targetStatus = "completed";
+          actionString = `Approved Request`;
+        } else if (type === "reject") {
+          targetStatus = "cancelled";
+          actionString = `Rejected Request`;
+        } else if (type === "info") {
+          targetStatus = "completed";
+          actionString = `Submitted Information details`;
+        }
+
+        const newLog = {
+          user: currentUser,
+          action: actionString,
+          timestamp: new Date(),
+          note: resolutionNote || undefined
+        };
+
+        return {
+          ...entry,
+          status: targetStatus,
+          historyLog: [...(entry.historyLog || []), newLog]
+        };
+      });
+
+      // System workflow progression transition message
+      const openTasksVal = updatedEntries.filter(e => e.type === "task" && (e.status === "open" || e.status === "waiting" || e.status === "in_progress"));
+      const pendingApprovalsVal = updatedEntries.filter(e => e.type === "approval_request" && e.status === "waiting");
+      const openInfoRequestsVal = updatedEntries.filter(e => e.type === "info_request" && e.status === "waiting");
+
+      const getDerivedWorkflowStageVal = () => {
+        if (currentContext?.status === "Draft") return 1;
+        if (openTasksVal.length > 0) return 2;
+        if (openInfoRequestsVal.length > 0) return 3;
+        if (openInfoRequestsVal.length === 0 && openTasksVal.length === 0 && pendingApprovalsVal.length > 0) return 5;
+        if (pendingApprovalsVal.length === 0 && openTasksVal.length === 0 && openInfoRequestsVal.length === 0) return 7;
+        return 4;
+      };
+
+      const transitionStage = getDerivedWorkflowStageVal();
+      const stageNames = ["Draft", "Data Collection", "Review", "Verification", "Approval", "Issued", "Completed"];
+      const stageName = stageNames[transitionStage - 1];
+
+      const newSysLog = {
+        text: `System: Action ${resolvedActionId} resolved by ${currentUser}. Workflow derived status updated to ${stageName}.`,
+        timestamp: new Date(),
+        stage: stageName,
+        actor: "System"
+      };
+
+      return {
+        entries: updatedEntries,
+        systemLogs: [...prev.systemLogs, newSysLog]
+      };
+    });
+
+    setResponseNote("");
+    setPendingResolution(null);
+    if (refreshNotifications) {
+      setTimeout(() => refreshNotifications(), 50);
+    }
+  };
 
   function handleMicToggle() {
     try {
@@ -2346,6 +2888,189 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
     );
   }
 
+  const { currentUser = "Alex Johnson", setCurrentUser } = useActivity();
+
+  const mockUsers = [
+    { name: "Alex Johnson", role: "Finance Manager" },
+    { name: "Kunal", role: "Finance Controller" },
+    { name: "Priya", role: "AP Analyst" }
+  ];
+
+  const getPersonalizedGreeting = () => {
+    if (currentUser.includes("Alex")) {
+      return {
+        greeting: "Good morning Alex.",
+        highlight: "One invoice is waiting for your approval. Kunal completed the requested finance updates."
+      };
+    }
+    if (currentUser.includes("Kunal")) {
+      return {
+        greeting: "Good morning Kunal.",
+        highlight: "You have one outstanding finance task assigned by Alex."
+      };
+    }
+    return {
+      greeting: "Good morning Priya.",
+      highlight: "Additional supporting information has been requested."
+    };
+  };
+
+  const personalGreeting = getPersonalizedGreeting();
+
+  const getMyWorkCards = () => {
+    if (currentUser.includes("Alex")) {
+      return [
+        {
+          title: "Waiting for your approval",
+          status: "Action Required",
+          statusType: "error",
+          desc: "Approve payment override for matching variance.",
+          stage: "Approval"
+        },
+        {
+          title: "Waiting for another participant",
+          status: "Waiting",
+          statusType: "warning",
+          desc: "Waiting for Kunal to verify matching PO invoice mismatch.",
+          stage: "Review"
+        }
+      ];
+    }
+    if (currentUser.includes("Kunal")) {
+      return [
+        {
+          title: "Tasks assigned to you",
+          status: "Action Required",
+          statusType: "error",
+          desc: "Verify the price variance found between PO and invoice.",
+          stage: "Data Collection"
+        },
+        {
+          title: "Information requested from you",
+          status: "Action Required",
+          statusType: "error",
+          desc: "Provide tax allocation code details.",
+          stage: "Review"
+        }
+      ];
+    }
+    return [
+      {
+        title: "Information requested from you",
+        status: "Action Required",
+        statusType: "error",
+        desc: "Upload verified shipping confirmation receipts.",
+        stage: "Data Collection"
+      },
+      {
+        title: "Recently completed work",
+        status: "Completed",
+        statusType: "success",
+        desc: "Scanned and parsed invoice headers.",
+        stage: "Draft"
+      }
+    ];
+  };
+
+  const myWorkCards = getMyWorkCards();
+
+  const getPendingActions = () => {
+    if (currentUser.includes("Alex")) {
+      return [
+        { label: "Approve Payment Override", actionId: "APR-0001" }
+      ];
+    }
+    if (currentUser.includes("Kunal")) {
+      return [
+        { label: "Review Matching Variance", actionId: "TSK-0001" },
+        { label: "Provide Requested Information", actionId: "INF-0001" }
+      ];
+    }
+    return [
+      { label: "Provide Requested Information", actionId: "INF-0001" }
+    ];
+  };
+
+  const pendingActions = getPendingActions();
+
+  const getRecommendedNextStep = () => {
+    if (currentUser.includes("Alex")) {
+      return "Review matching variance before approving payment.";
+    }
+    if (currentUser.includes("Kunal")) {
+      return "Verify newly uploaded supporting document.";
+    }
+    return "Approval can now be completed.";
+  };
+
+  const recommendedNextStep = getRecommendedNextStep();
+
+  const getCollabOwnershipText = (entry: any) => {
+    const isOwner = entry.owner === currentUser;
+    if (entry.type === "task") {
+      if (entry.status === "completed") {
+        return isOwner ? "Completed by You" : `Completed by ${entry.owner}`;
+      }
+      return isOwner ? "Assigned to You" : `Assigned to ${entry.owner}`;
+    }
+    if (entry.type === "info_request") {
+      if (entry.status === "completed") {
+        return isOwner ? "Completed by You" : `Completed by ${entry.owner}`;
+      }
+      return isOwner ? "Requested from You" : `Requested from ${entry.owner}`;
+    }
+    if (entry.type === "approval_request") {
+      if (entry.status === "approved") {
+        return isOwner ? "Approved by You" : `Approved by ${entry.owner}`;
+      }
+      if (entry.status === "rejected") {
+        return isOwner ? "Rejected by You" : `Rejected by ${entry.owner}`;
+      }
+      return isOwner ? "Waiting for Your Approval" : `Waiting for ${entry.owner}`;
+    }
+    return `Assigned to ${entry.owner || "Everyone"}`;
+  };
+
+  const navigateToTimelineItem = (actionId: string) => {
+    const el = document.getElementById(`collab-entry-${actionId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const origBorder = el.style.borderColor;
+      el.style.borderColor = "#6b8cff";
+      el.style.boxShadow = "0 0 12px rgba(107,140,255,0.4)";
+      setTimeout(() => {
+        el.style.borderColor = origBorder || "var(--border)";
+        el.style.boxShadow = "none";
+      }, 1500);
+    } else {
+      alert(`Navigating to related item in feed (Action ID: ${actionId})`);
+    }
+  };
+
+  // ─── CHRONOLOGICAL MERGED FEED ASSEMBLY ───
+  const unifiedFeed: UnifiedFeedItem[] = [
+    ...messages.map((msg, idx) => ({
+      kind: "ai_message" as const,
+      message: msg,
+      timestamp: msg.timestamp || new Date(new Date().getTime() - (messages.length - idx) * 60000),
+      _ts: (msg.timestamp || new Date(new Date().getTime() - (messages.length - idx) * 60000)).getTime(),
+    })),
+    ...collabData.entries.map(entry => ({
+      kind: "collab" as const,
+      entry,
+      timestamp: new Date(entry.timestamp),
+      _ts: new Date(entry.timestamp).getTime(),
+    })),
+    ...collabData.systemLogs.map(log => ({
+      kind: "audit" as const,
+      log,
+      timestamp: new Date(log.timestamp),
+      _ts: new Date(log.timestamp).getTime(),
+    })),
+  ].sort((a, b) => a._ts - b._ts);
+
+  const feedGroups = groupFeedByDay(unifiedFeed);
+
   const innerContent = (
     <>
       {/* Header */}
@@ -2482,6 +3207,110 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
               {/* Widget 1: Context Summary */}
               <ContextSummaryCard context={currentContext} />
 
+              {/* Demo Persona Switcher & Personalized Greeting */}
+              <div className="flex flex-col gap-3.5 p-3.5 rounded-xl border border-dashed text-left animate-fade-in" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+                <div className="flex flex-col gap-1.5">
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Demo Persona Switcher (Phase 5.1)
+                  </span>
+                  <div className="flex gap-2">
+                    {mockUsers.map(u => {
+                      const isSel = currentUser === u.name;
+                      return (
+                        <button
+                          key={u.name}
+                          onClick={() => setCurrentUser?.(u.name)}
+                          className="flex-1 flex flex-col items-center p-1.5 rounded-lg border text-center transition-all cursor-pointer hover:opacity-90"
+                          style={{
+                            background: isSel ? "rgba(107,140,255,0.08)" : "var(--secondary)",
+                            borderColor: isSel ? "#6b8cff" : "var(--border)",
+                          }}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 700, color: isSel ? "#6b8cff" : "var(--foreground)" }}>{u.name.split(" ")[0]}</span>
+                          <span style={{ fontSize: 7.5, color: "var(--muted-foreground)" }}>{u.role}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1 pt-2 border-t border-dashed" style={{ borderColor: "var(--border)" }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 750, color: "var(--foreground)", lineHeight: 1.4 }}>
+                    {personalGreeting.greeting}
+                  </h3>
+                  <p style={{ fontSize: 11, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                    {personalGreeting.highlight}
+                  </p>
+                </div>
+              </div>
+
+              {/* My Work Section */}
+              <div className="flex flex-col gap-2">
+                <span style={{ fontSize: 10, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  My Work
+                </span>
+                <div className="flex flex-col gap-2">
+                  {myWorkCards.map((card, idx) => (
+                    <div key={idx} className="flex flex-col gap-1.5 p-3 rounded-xl bg-card border" style={{ borderColor: "var(--border)" }}>
+                      <div className="flex justify-between items-center">
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--foreground)" }}>{card.title}</span>
+                        <span
+                          className="rounded-full px-2 py-0.5"
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 650,
+                            background: card.statusType === "error" ? "rgba(239,68,68,0.12)" : card.statusType === "warning" ? "rgba(251,191,36,0.12)" : "rgba(74,222,128,0.12)",
+                            color: card.statusType === "error" ? "#f87171" : card.statusType === "warning" ? "#fbbf24" : "#4ade80"
+                          }}
+                        >
+                          {card.status}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{card.desc}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span style={{ fontSize: 8, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.03em" }}>Stage:</span>
+                        <span className="rounded px-1.5 py-0.5" style={{ fontSize: 8, fontWeight: 650, background: "var(--secondary)", color: "var(--foreground)" }}>{card.stage}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* My Pending Actions Section */}
+              <div className="flex flex-col gap-2">
+                <span style={{ fontSize: 10, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  My Pending Actions
+                </span>
+                <div className="flex flex-col gap-2">
+                  {pendingActions.map((act, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => navigateToTimelineItem(act.actionId)}
+                      className="flex justify-between items-center p-3 rounded-xl bg-card border text-left transition-all hover:bg-accent cursor-pointer"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 650, color: "#6b8cff" }}>{act.label}</span>
+                      <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Go to feed →</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Recommendations Section */}
+              <div className="flex flex-col gap-2">
+                <span style={{ fontSize: 10, fontWeight: 750, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Recommended Next Step
+                </span>
+                <div className="p-3 rounded-xl bg-card border flex items-start gap-2.5" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center justify-center rounded-full flex-shrink-0" style={{ width: 18, height: 18, background: "rgba(107,140,255,0.12)" }}>
+                    <Sparkles size={10} style={{ color: "#6b8cff" }} />
+                  </div>
+                  <p style={{ fontSize: 11, color: "var(--foreground)", lineHeight: 1.5 }}>
+                    {recommendedNextStep}
+                  </p>
+                </div>
+              </div>
+
               {/* Widget 2: AI Highlights */}
               {currentContext.highlights && currentContext.highlights.length > 0 && (
                 <AIHighlightsWidget metrics={currentContext.highlights} />
@@ -2513,79 +3342,326 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
           )}
         </div>
 
-        {/* Conversation List */}
-        <div className="flex flex-col gap-3 flex-1">
-          {messages.map((msg, i) => {
-            if (msg.role === "context") return null;
-            return (
-              <div key={i} className="flex flex-col" style={{ alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-                <div
-                  className="rounded-xl px-3 py-2"
-                  style={{
-                    maxWidth: "90%",
-                    background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
-                    color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
+        {/* Unified Timeline / Chat feed */}
+        <div className="flex flex-col gap-5 flex-grow">
+          {["Earlier", "Yesterday", "Today"].map((groupName) => {
+            const items = feedGroups[groupName];
+            if (!items || items.length === 0) return null;
 
-                  {/* View Record button */}
-                  {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
-                    <button
-                      onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
-                      className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
-                      style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
-                    >
-                      View Details: {copilot.createdId} →
-                    </button>
-                  )}
+            return (
+              <div key={groupName} className="flex flex-col gap-3">
+                {/* Day Header Divider */}
+                <div className="flex items-center gap-2.5 my-2">
+                  <div className="flex-grow h-px bg-border" style={{ opacity: 0.5 }} />
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    {groupName}
+                  </span>
+                  <div className="flex-grow h-px bg-border" style={{ opacity: 0.5 }} />
                 </div>
 
-                {/* Result Cards — rendered below the last AI message carrying a result */}
-                {msg.role === "ai" && copilot.resultPayload && i === messages.length - 1 && (
-                  <div style={{ width: "100%", marginTop: 8 }}>
-                    {copilot.resultPayload.type === "status" && (
-                      <StatusCard
-                        intentType={copilot.resultPayload.intentType}
-                        query={copilot.resultPayload.query}
-                        onNavigate={onNavigate}
-                      />
-                    )}
-                    {copilot.resultPayload.type === "search" && (
-                      <SearchResultsCard
-                        intentType={copilot.resultPayload.intentType}
-                        onNavigate={onNavigate}
-                      />
-                    )}
-                    {copilot.resultPayload.type === "approval" && (
-                      <ApprovalCard
-                        intentType={copilot.resultPayload.intentType}
-                        query={copilot.resultPayload.query}
-                        onAction={handleApprovalAction}
-                      />
-                    )}
-                  </div>
-                )}
+                {/* Group items */}
+                <div className="flex flex-col gap-3.5">
+                   {items.map((item, idx) => {
+                    const isLast = idx === items.length - 1;
+                    const isFirst = idx === 0;
 
-                {/* Review Card — rendered below AI message */}
-                {msg.role === "ai" && msg.reviewCard && (
-                  <div style={{ width: "100%", marginTop: 8 }}>
-                    <ReviewCard
-                      model={msg.reviewCard}
-                      onConfirm={handleReviewConfirm}
-                      onEdit={(key, val) => {
-                        // Update pending model
-                        setPendingReviewModel(prev => prev ? {
-                          ...prev,
-                          [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
-                        } : prev);
-                      }}
-                      onCancel={handleReviewCancel}
-                    />
-                  </div>
-                )}
+                    if (item.kind === "ai_message") {
+                      const msg = item.message!;
+                      if (msg.role === "context") return null;
+
+                      const initials = msg.role === "user" ? "AJ" : "AI";
+                      const avatarColor = msg.role === "user" ? { bg: "rgba(239,68,68,0.12)", text: "#ef4444" } : { bg: "rgba(139,92,246,0.12)", text: "#7c3aed" };
+
+                      return (
+                        <div key={`msg-${idx}`} className="flex items-start gap-4 relative text-left">
+                          {!isLast && (
+                            <div className="absolute w-0.5" style={{ left: 11, top: 24, bottom: -14, background: "var(--border)", opacity: 0.6, zIndex: 0 }} />
+                          )}
+                          <div
+                            className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                            style={{ width: 24, height: 24, background: avatarColor.bg, border: "1px solid var(--border)", fontSize: 9, color: avatarColor.text }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-baseline gap-1.5">
+                              <strong style={{ fontSize: 11.5, fontWeight: 700, color: "var(--foreground)" }}>
+                                {msg.role === "user" ? "Alex Johnson" : "AI Assistant"}
+                              </strong>
+                              <span style={{ fontSize: 8.5, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
+                                {formatTimestamp(item.timestamp)}
+                              </span>
+                              <span>·</span>
+                              <span
+                                className="rounded px-1.5 py-0.5"
+                                style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  background: msg.role === "ai" ? "rgba(139,92,246,0.12)" : "rgba(107,140,255,0.12)",
+                                  color: msg.role === "ai" ? "#7c3aed" : "#6b8cff"
+                                }}
+                              >
+                                {msg.role === "ai" ? "AI Generated" : "User Generated"}
+                              </span>
+                            </div>
+                            
+                            <div
+                              className="rounded-xl px-3 py-2 mt-1"
+                              style={{
+                                maxWidth: "90%",
+                                background: msg.role === "user" ? "var(--foreground)" : "var(--secondary)",
+                                color: msg.role === "user" ? "var(--background)" : "var(--foreground)",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <div style={{ whiteSpace: "pre-line" }}>{msg.text}</div>
+
+                              {/* View Record button */}
+                              {msg.role === "ai" && msg.text.includes("Successfully!") && copilot.createdId && (
+                                <button
+                                  onClick={() => { onNavigate(copilot.createdPage!, copilot.createdId!); setCopilot(c => ({ ...c, active: false })); }}
+                                  className="flex items-center gap-1.5 mt-2 rounded-lg px-2.5 py-1.5"
+                                  style={{ background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}
+                                >
+                                  View Details: {copilot.createdId} →
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Result Cards */}
+                            {msg.role === "ai" && copilot.resultPayload && isLast && groupName === "Today" && (
+                              <div style={{ width: "100%", marginTop: 8 }}>
+                                {copilot.resultPayload.type === "status" && (
+                                  <StatusCard
+                                    intentType={copilot.resultPayload.intentType}
+                                    query={copilot.resultPayload.query}
+                                    onNavigate={onNavigate}
+                                  />
+                                )}
+                                {copilot.resultPayload.type === "search" && (
+                                  <SearchResultsCard
+                                    intentType={copilot.resultPayload.intentType}
+                                    onNavigate={onNavigate}
+                                  />
+                                )}
+                                {copilot.resultPayload.type === "approval" && (
+                                  <ApprovalCard
+                                    intentType={copilot.resultPayload.intentType}
+                                    query={copilot.resultPayload.query}
+                                    onAction={handleApprovalAction}
+                                  />
+                                )}
+                              </div>
+                            )}
+
+                            {/* Review Card */}
+                            {msg.role === "ai" && msg.reviewCard && (
+                              <div style={{ width: "100%", marginTop: 8 }}>
+                                <ReviewCard
+                                  model={msg.reviewCard}
+                                  onConfirm={handleReviewConfirm}
+                                  onEdit={(key, val) => {
+                                    setPendingReviewModel(prev => prev ? {
+                                      ...prev,
+                                      [key]: { ...(prev[key as keyof ExtractedDataModel] as ExtractedField), value: val, confidence: "high" as ConfidenceLevel, needsConfirmation: false }
+                                    } : prev);
+                                  }}
+                                  onCancel={handleReviewCancel}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (item.kind === "audit") {
+                      const log = item.log!;
+                      const initials = getInitials(log.actor);
+                      const avatarColor = getAvatarColor(log.actor);
+                      
+                      let badgeType = "system_event";
+                      if (log.actor === "AI Agent" || log.text.startsWith("AI Analysis")) badgeType = "ai_analysis";
+                      if (log.text.includes("Workflow") || log.text.includes("moved from")) badgeType = "workflow_update";
+
+                      return (
+                        <div key={`audit-${idx}`} className="flex items-start gap-4 relative text-left">
+                          {!isLast && (
+                            <div className="absolute w-0.5" style={{ left: 11, top: 24, bottom: -14, background: "var(--border)", opacity: 0.6, zIndex: 0 }} />
+                          )}
+                          <div
+                            className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                            style={{ width: 24, height: 24, background: avatarColor.bg, border: "1px solid var(--border)", fontSize: 9, color: avatarColor.text }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span style={{ fontSize: 11.5, color: "var(--foreground)", lineHeight: 1.4 }} className="opacity-80">
+                              <strong style={{ fontWeight: 700 }}>
+                                {log.actor === "AI Agent" || log.actor === "AI" ? "🤖 AI" : log.actor === "System" ? "⚙ System" : `👤 ${log.actor}`}
+                              </strong> {log.text}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5" style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
+                              <span style={{ fontFamily: "var(--font-mono)" }}>{formatTimestamp(log.timestamp)}</span>
+                              <span>·</span>
+                              <ActionTypeBadge type={badgeType} />
+                              <span>·</span>
+                              <span
+                                className="rounded px-1.5 py-0.5"
+                                style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  background: "var(--secondary)",
+                                  color: "var(--muted-foreground)"
+                                }}
+                              >
+                                {log.actor === "AI Agent" ? "AI Generated" : "System Generated"}
+                              </span>
+                              {log.stage && (
+                                <>
+                                  <span>·</span>
+                                  <span>Stage: {log.stage}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Collaboration entry (Task, Approval request, Info Request, Comment)
+                    const entry = item.entry!;
+                    const initials = getInitials(entry.author);
+                    const isResolved = ["completed", "approved", "rejected"].includes(entry.status);
+                    const avatarColor = getAvatarColor(entry.author);
+
+                    let actionText = "";
+                    if (entry.type === "task") {
+                      actionText = `assigned a task to ${entry.owner}: "${entry.content}"`;
+                    } else if (entry.type === "info_request") {
+                      actionText = `requested information from ${entry.owner}: "${entry.content}"`;
+                    } else if (entry.type === "approval_request") {
+                      actionText = `requested approval from ${entry.owner}: "${entry.content}"`;
+                    } else {
+                      actionText = `posted: "${entry.content}"`;
+                    }
+
+                    return (
+                      <div key={`collab-${entry.id}`} id={`collab-entry-${entry.actionId}`} className="flex items-start gap-4 relative text-left">
+                        {!isLast && (
+                          <div className="absolute w-0.5" style={{ left: 11, top: 24, bottom: -14, background: "var(--border)", opacity: 0.6, zIndex: 0 }} />
+                        )}
+                        <div
+                          className="flex items-center justify-center rounded-full flex-shrink-0 z-10 font-bold"
+                          style={{ width: 24, height: 24, background: avatarColor.bg, border: "1px solid var(--border)", fontSize: 9, color: avatarColor.text }}
+                        >
+                          {initials}
+                        </div>
+                        
+                        <div className="flex flex-col flex-1 min-w-0 p-3.5 rounded-xl border bg-card/40 hover:bg-card/75 transition-all duration-300" style={{ borderColor: "var(--border)" }}>
+                            <span style={{ fontSize: 11.5, color: "var(--foreground)", lineHeight: 1.45 }}>
+                              <strong style={{ fontWeight: 700 }}>
+                                {entry.author === "AI Agent" || entry.author === "AI" ? "🤖 AI" : entry.author === "System" ? "⚙ System" : `👤 ${entry.author}`}
+                              </strong> {actionText}
+                            </span>
+                            
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1" style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
+                              <span style={{ fontFamily: "var(--font-mono)" }}>{formatTimestamp(entry.timestamp)}</span>
+                              <span>·</span>
+                              <ActionTypeBadge type={entry.type} />
+                              <StatusBadge status={entry.status} />
+                              <span>·</span>
+                              <span
+                                className="rounded px-1.5 py-0.5 animate-fade-in"
+                                style={{
+                                  fontSize: 8,
+                                  fontWeight: 700,
+                                  background: entry.owner === currentUser ? "rgba(107,140,255,0.12)" : "var(--secondary)",
+                                  color: entry.owner === currentUser ? "#6b8cff" : "var(--foreground)"
+                                }}
+                              >
+                                {getCollabOwnershipText(entry)}
+                              </span>
+                              {entry.type === "task" && entry.dueDate && (
+                                <>
+                                  <span>·</span>
+                                  <span className="font-mono text-[9px]">Due: {entry.dueDate}</span>
+                                </>
+                              )}
+                            </div>
+
+                            {!isResolved && (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                {(entry.type === "task" || entry.type === "info_request" || entry.type === "approval_request") && (
+                                  <button
+                                    onClick={() => onNavigate(type, id)}
+                                    className="rounded-lg px-2 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                                  >
+                                    View Details
+                                  </button>
+                                )}
+                                {entry.type === "task" && (
+                                  <button
+                                    onClick={() => setPendingResolution({ entryId: entry.id, type: "complete" })}
+                                    className="rounded-lg px-2 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                                  >
+                                    Mark Complete
+                                  </button>
+                                )}
+                                {entry.type === "info_request" && (
+                                  <button
+                                    onClick={() => setPendingResolution({ entryId: entry.id, type: "info" })}
+                                    className="rounded-lg px-2 py-1 bg-secondary hover:bg-accent border border-border text-[9.5px] font-semibold text-foreground cursor-pointer transition-colors"
+                                  >
+                                    Provide Info
+                                  </button>
+                                )}
+                                {entry.type === "approval_request" && (
+                                  <>
+                                    <button
+                                      onClick={() => setPendingResolution({ entryId: entry.id, type: "approve" })}
+                                      className="rounded-lg px-2 py-1 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-[9.5px] font-semibold text-emerald-600 cursor-pointer transition-colors"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => setPendingResolution({ entryId: entry.id, type: "reject" })}
+                                      className="rounded-lg px-2 py-1 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-[9.5px] font-semibold text-red-500 cursor-pointer transition-colors"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {/* Threaded Replies / Progression History */}
+                            {entry.historyLog && entry.historyLog.length > 0 && (
+                              <div className="mt-3 pt-2.5 border-t border-border/60 flex flex-col gap-2">
+                                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.03em" }}>COLLABORATION PROGRESS</span>
+                                <div className="flex flex-col gap-1.5 pl-1">
+                                  {entry.historyLog.map((log, lIdx) => {
+                                    return (
+                                      <div key={lIdx} className="flex items-center gap-2 text-left" style={{ fontSize: 10.5 }}>
+                                        <span style={{ color: "var(--muted-foreground)", fontSize: 8 }}>✦</span>
+                                        <span style={{ color: "var(--foreground)" }}>
+                                          <strong style={{ fontWeight: 600 }}>{log.user}</strong> {log.action}
+                                          {log.note && <span style={{ fontStyle: "italic", color: "var(--muted-foreground)" }}> — &quot;{log.note}&quot;</span>}
+                                        </span>
+                                        <span style={{ fontSize: 8, color: "var(--muted-foreground)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
+                                          {formatTimestamp(log.timestamp)}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -2593,6 +3669,371 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
 
         <div ref={bottomRef} />
       </div>
+
+      {/* ─── ACTION TRIGGER FLOATING MODALS ─── */}
+      {activeModal === "task" && selectedMentionUser && (
+        <div
+          onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(2px)",
+            zIndex: 160,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12
+            }}
+          >
+            <div className="flex justify-between items-center border-b border-border pb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>Assign Task</span>
+              <button type="button" onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)" }}>TASK DESCRIPTION</label>
+              <textarea
+                value={taskTitle}
+                onChange={e => setTaskTitle(e.target.value)}
+                rows={2}
+                style={{
+                  background: "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  resize: "none"
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)" }}>DUE DATE</label>
+              <input
+                type="date"
+                value={taskDueDate}
+                onChange={e => setTaskDueDate(e.target.value)}
+                style={{
+                  height: 32,
+                  background: "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "0 8px",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  cursor: "pointer"
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
+              <button
+                type="button"
+                onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+                className="rounded px-3 py-1.5 bg-secondary hover:bg-accent border border-border cursor-pointer transition-colors"
+                style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleActionSubmit("task")}
+                className="rounded px-3 py-1.5 transition-colors cursor-pointer"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 650,
+                  background: "var(--foreground)",
+                  color: "var(--background)",
+                  border: "none"
+                }}
+              >
+                Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === "info" && selectedMentionUser && (
+        <div
+          onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(2px)",
+            zIndex: 160,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12
+            }}
+          >
+            <div className="flex justify-between items-center border-b border-border pb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>Request Information</span>
+              <button type="button" onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)" }}>DETAILS REQUESTED</label>
+              <textarea
+                value={infoCustomNote}
+                onChange={e => setInfoCustomNote(e.target.value)}
+                rows={2}
+                style={{
+                  background: "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  resize: "none"
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
+              <button
+                type="button"
+                onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+                className="rounded px-3 py-1.5 bg-secondary hover:bg-accent border border-border cursor-pointer transition-colors"
+                style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleActionSubmit("info")}
+                className="rounded px-3 py-1.5 transition-colors cursor-pointer"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 650,
+                  background: "var(--foreground)",
+                  color: "var(--background)",
+                  border: "none"
+                }}
+              >
+                Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === "approval" && selectedMentionUser && (
+        <div
+          onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(2px)",
+            zIndex: 160,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12
+            }}
+          >
+            <div className="flex justify-between items-center border-b border-border pb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>Request Approval</span>
+              <button type="button" onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)" }}>APPROVAL DETAILS</label>
+              <textarea
+                value={approvalCustomNote}
+                onChange={e => setApprovalCustomNote(e.target.value)}
+                rows={2}
+                style={{
+                  background: "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  resize: "none"
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
+              <button
+                type="button"
+                onClick={() => { setActiveModal(null); setSelectedMentionUser(null); }}
+                className="rounded px-3 py-1.5 bg-secondary hover:bg-accent border border-border cursor-pointer transition-colors"
+                style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleActionSubmit("approval")}
+                className="rounded px-3 py-1.5 transition-colors cursor-pointer"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 650,
+                  background: "var(--foreground)",
+                  color: "var(--background)",
+                  border: "none"
+                }}
+              >
+                Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enriched Card Response Notes Popup */}
+      {pendingResolution && (
+        <div
+          onClick={() => setPendingResolution(null)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.3)",
+            backdropFilter: "blur(2px)",
+            zIndex: 180,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16
+          }}
+        >
+          <form
+            onSubmit={handleResponseSubmit}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12
+            }}
+          >
+            <div className="flex justify-between items-center border-b border-border pb-2">
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>
+                {pendingResolution.type === "complete" && "Complete Task"}
+                {pendingResolution.type === "approve" && "Approve Request"}
+                {pendingResolution.type === "reject" && "Reject Request"}
+                {pendingResolution.type === "info" && "Submit Response"}
+              </span>
+              <button type="button" onClick={() => setPendingResolution(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label style={{ fontSize: 9.5, fontWeight: 700, color: "var(--muted-foreground)" }}>AUDIT NOTES</label>
+              <textarea
+                required={pendingResolution.type === "info"}
+                value={resolutionNote}
+                onChange={e => setResponseNote(e.target.value)}
+                placeholder="Enter audit logs details..."
+                rows={2}
+                style={{
+                  background: "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  outline: "none",
+                  resize: "none"
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setPendingResolution(null)}
+                className="rounded px-3 py-1.5 bg-secondary hover:bg-accent border border-border cursor-pointer transition-colors"
+                style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="rounded px-3 py-1.5 transition-colors cursor-pointer"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 650,
+                  border: "none",
+                  background: pendingResolution.type === "reject" ? "#ef4444" : "var(--foreground)",
+                  color: "var(--background)"
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Voice transcript bar */}
       {isListening && (
@@ -2628,53 +4069,94 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
         </div>
       )}
 
-      {/* Input */}
-      <div className="flex items-center gap-2 px-3 py-3" style={{ borderTop: isListening ? "none" : "1px solid var(--border)", flexShrink: 0 }}>
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder={isListening ? "Listening…" : "Describe what you want to do..."}
-          className="flex-1 rounded-lg px-3 py-2"
-          style={{
-            background: isListening ? "rgba(239,68,68,0.04)" : "var(--secondary)",
-            border: isListening ? "1px solid rgba(239,68,68,0.3)" : "1px solid var(--border)",
-            outline: "none",
-            fontSize: 13,
-            color: "var(--foreground)",
-            transition: "border-color 0.2s, background 0.2s",
-          }}
-        />
+      {/* Input container */}
+      <div className="relative p-3" style={{ borderTop: isListening ? "none" : "1px solid var(--border)", flexShrink: 0 }}>
+        
+        {/* Floating Mentions suggestions Dropdown list */}
+        {showMentionList && (
+          <div
+            className="absolute rounded-lg border border-border overflow-hidden bg-popover shadow-lg flex flex-col"
+            style={{
+              bottom: "calc(100% - 4px)",
+              left: 12,
+              right: 12,
+              maxHeight: 160,
+              overflowY: "auto",
+              zIndex: 100
+            }}
+          >
+            <div className="px-3 py-1.5 text-[9px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border bg-card">
+              Mentions Participants Group
+            </div>
+            {participants.map((p) => (
+              <button
+                key={p.initials}
+                onClick={() => handleSelectMention(p)}
+                className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent transition-colors border-none cursor-pointer"
+                style={{ background: "transparent" }}
+              >
+                <div
+                  className="flex items-center justify-center rounded-full flex-shrink-0"
+                  style={{ width: 18, height: 18, background: "var(--accent)", fontSize: 8.5, fontWeight: 700, color: "var(--foreground)" }}
+                >
+                  {p.initials}
+                </div>
+                <div className="flex flex-col">
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}>{p.name}</span>
+                  <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>{p.role}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Mic Button */}
-        <button
-          onClick={handleMicToggle}
-          title={isListening ? "Stop listening" : "Speak to Copilot"}
-          className={`flex items-center justify-center rounded-lg transition-colors ${isListening ? "mic-listening" : ""}`}
-          style={{
-            width: 34,
-            height: 34,
-            background: isListening ? "#ef4444" : "var(--secondary)",
-            color: isListening ? "#fff" : "var(--muted-foreground)",
-            border: isListening ? "none" : "1px solid var(--border)",
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => { if (!isListening) e.currentTarget.style.background = "var(--accent)"; }}
-          onMouseLeave={(e) => { if (!isListening) e.currentTarget.style.background = "var(--secondary)"; }}
-        >
-          {isListening ? <MicOff size={14} /> : <Mic size={14} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder={isListening ? "Listening…" : "Describe what you want to do..."}
+            className="flex-1 rounded-lg px-3 py-2"
+            style={{
+              background: isListening ? "rgba(239,68,68,0.04)" : "var(--secondary)",
+              border: isListening ? "1px solid rgba(239,68,68,0.3)" : "1px solid var(--border)",
+              outline: "none",
+              fontSize: 13,
+              color: "var(--foreground)",
+              transition: "border-color 0.2s, background 0.2s",
+            }}
+          />
 
-        {/* Send Button */}
-        <button
-          onClick={() => handleSend()}
-          className="flex items-center justify-center rounded-lg"
-          style={{ width: 34, height: 34, background: "var(--foreground)", color: "var(--background)", border: "none", cursor: "pointer", flexShrink: 0 }}
-        >
-          <Send size={14} />
-        </button>
+          {/* Mic Button */}
+          <button
+            onClick={handleMicToggle}
+            title={isListening ? "Stop listening" : "Speak to Copilot"}
+            className={`flex items-center justify-center rounded-lg transition-colors ${isListening ? "mic-listening" : ""}`}
+            style={{
+              width: 34,
+              height: 34,
+              background: isListening ? "#ef4444" : "var(--secondary)",
+              color: isListening ? "#fff" : "var(--muted-foreground)",
+              border: isListening ? "none" : "1px solid var(--border)",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { if (!isListening) e.currentTarget.style.background = "var(--accent)"; }}
+            onMouseLeave={(e) => { if (!isListening) e.currentTarget.style.background = "var(--secondary)"; }}
+          >
+            {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+
+          {/* Send Button */}
+          <button
+            onClick={() => handleSend()}
+            className="flex items-center justify-center rounded-lg"
+            style={{ width: 34, height: 34, background: "var(--foreground)", color: "var(--background)", border: "none", cursor: "pointer", flexShrink: 0 }}
+          >
+            <Send size={14} />
+          </button>
+        </div>
       </div>
     </>
   );

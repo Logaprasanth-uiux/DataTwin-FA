@@ -91,6 +91,8 @@ export interface PanelContextType {
   setActiveDetailRecord?: (record: { type: string; id: string; status?: string } | null) => void;
   headerAction?: React.ReactNode;
   setHeaderAction?: (action: React.ReactNode) => void;
+  currentUser?: string;
+  setCurrentUser?: (user: string) => void;
 }
 
 export function getInitialMockData(id: string, type: string, status: string): RecordCollabData {
@@ -203,6 +205,35 @@ export function getInitialMockData(id: string, type: string, status: string): Re
     );
   } else if (type === "Bill" || type === "Invoice") {
     entries.push(
+      {
+        id: "scen2-task",
+        actionId: "TSK-0002",
+        type: "task",
+        author: "Alex Johnson",
+        owner: "Kunal",
+        timestamp: new Date(now.getTime() - 3 * oneDay),
+        content: "Please update the GST Number on the vendor record.",
+        priority: "medium",
+        status: "completed",
+        historyLog: [
+          { user: "Kunal", action: "Completed Task", timestamp: new Date(now.getTime() - 2.8 * oneDay), note: "GSTIN updated to 27AAACD1234F1ZP." },
+          { user: "Alex Johnson", action: "Approved Request", timestamp: new Date(now.getTime() - 2.5 * oneDay), note: "Looks good, verified matching." }
+        ]
+      },
+      {
+        id: "scen3-info",
+        actionId: "INF-0002",
+        type: "info_request",
+        author: "Alex Johnson",
+        owner: "Priya",
+        timestamp: new Date(now.getTime() - 2 * oneDay),
+        content: "Could you explain the quantity variance (+2.5%) in line item #4?",
+        priority: "high",
+        status: "completed",
+        historyLog: [
+          { user: "Priya", action: "Submitted Information details", timestamp: new Date(now.getTime() - 1.8 * oneDay), note: "Extra items shipped due to partial pack size requirements." }
+        ]
+      },
       {
         id: "tsk-1",
         actionId: "TSK-0001",

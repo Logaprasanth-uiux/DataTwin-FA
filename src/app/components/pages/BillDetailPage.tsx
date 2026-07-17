@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, Edit3, Check, Lock, AlertCircle, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { X, Edit3, Check, Lock, AlertCircle, ChevronDown, ChevronUp, Search, ChevronLeft, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 import { AIBillScanner, type ScannedBillData } from "../AIBillScanner";
-import { useActivity } from "../../contexts";
+import { useActivity, sessionCache, getInitialMockData } from "../../contexts";
 
 const tabs = [
   "Bill Information",
@@ -4225,6 +4225,197 @@ export function BillDetailPage({ billId, onClose, isNew = false, billStatus, pre
           </div>
         )}
 
+      </div>
+
+      {/* Workflow Progress persistent Footer */}
+      {!isNew && (
+        <WorkflowProgressFooter billId={billId} billStatus={data.status} />
+      )}
+    </div>
+  );
+}
+
+interface WorkflowProgressFooterProps {
+  billId: string;
+  billStatus: string;
+}
+
+function WorkflowProgressFooter({ billId, billStatus }: WorkflowProgressFooterProps) {
+  const [stepperWindowStart, setStepperWindowStart] = useState(0);
+  const { currentUser = "Alex Johnson" } = useActivity();
+
+  const collabData = sessionCache[billId] || getInitialMockData(billId, "Bill", billStatus || "Draft");
+
+  const allWorkflowSteps = [
+    { label: "Draft", stepId: 1 },
+    { label: "Data Collection", stepId: 2 },
+    { label: "Review", stepId: 3 },
+    { label: "Verification", stepId: 4 },
+    { label: "Approval", stepId: 5 },
+    { label: "Issued", stepId: 6 },
+    { label: "Completed", stepId: 7 }
+  ];
+  const VISIBLE_STEPS = 5;
+  const visibleSteps = allWorkflowSteps.slice(stepperWindowStart, stepperWindowStart + VISIBLE_STEPS);
+  const canScrollLeft = stepperWindowStart > 0;
+  const canScrollRight = stepperWindowStart + VISIBLE_STEPS < allWorkflowSteps.length;
+
+  const scrollStepperLeft = () => setStepperWindowStart(prev => Math.max(0, prev - 1));
+  const scrollStepperRight = () => setStepperWindowStart(prev => Math.min(allWorkflowSteps.length - VISIBLE_STEPS, prev + 1));
+
+  // Derived progress values
+  const openTasks = collabData.entries.filter(e => e.type === "task" && (e.status === "open" || e.status === "waiting"));
+  const pendingApprovals = collabData.entries.filter(e => e.type === "approval_request" && e.status === "waiting");
+  const openInfoRequests = collabData.entries.filter(e => e.type === "info_request" && e.status === "waiting");
+
+  const getDerivedWorkflowStage = () => {
+    if (billStatus === "Draft") return 1;
+    if (openTasks.length > 0) return 2;
+    if (openInfoRequests.length > 0) return 3;
+    if (openInfoRequests.length === 0 && openTasks.length === 0 && pendingApprovals.length > 0) return 5;
+    if (pendingApprovals.length === 0 && openTasks.length === 0 && openInfoRequests.length === 0) return 7;
+    return 4;
+  };
+
+  const derivedStage = getDerivedWorkflowStage();
+
+  const getStepPerspective = (stepId: number) => {
+    const isCurrent = derivedStage === stepId;
+    if (!isCurrent) return null;
+
+    if (currentUser.includes("Alex")) {
+      if (stepId === 2) return { label: "Waiting for Kunal", type: "waiting" };
+      if (stepId === 3) return { label: "Waiting for Priya", type: "waiting" };
+      if (stepId === 5) return { label: "Action Required", type: "action" };
+    } else if (currentUser.includes("Kunal")) {
+      if (stepId === 2) return { label: "Action Required", type: "action" };
+      if (stepId === 3) return { label: "Action Required", type: "action" };
+      if (stepId === 5) return { label: "Waiting for Alex", type: "waiting" };
+    } else if (currentUser.includes("Priya")) {
+      if (stepId === 2) return { label: "Action Required", type: "action" };
+      if (stepId === 3) return { label: "Action Required", type: "action" };
+      if (stepId === 5) return { label: "Waiting for Alex", type: "waiting" };
+    }
+    return null;
+  };
+
+  return (
+    <div
+      className="flex flex-col gap-2 px-8 py-3 bg-card animate-fade-in"
+      style={{
+        borderTop: "1px solid var(--border)",
+        flexShrink: 0,
+        zIndex: 5
+      }}
+    >
+      <div className="flex justify-between items-center">
+        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Workflow Progress
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={scrollStepperLeft}
+            disabled={!canScrollLeft}
+            style={{ background: "none", border: "none", cursor: canScrollLeft ? "pointer" : "default", color: canScrollLeft ? "var(--foreground)" : "var(--border)", padding: 2 }}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            onClick={scrollStepperRight}
+            disabled={!canScrollRight}
+            style={{ background: "none", border: "none", cursor: canScrollRight ? "pointer" : "default", color: canScrollRight ? "var(--foreground)" : "var(--border)", padding: 2 }}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative w-full overflow-hidden px-1">
+        {/* Background line connecting visible steps */}
+        <div
+          className="absolute left-4 right-4 h-0.5"
+          style={{ top: 8, background: "var(--border)", zIndex: 0 }}
+        />
+        {/* Active/Completed filled line */}
+        {(() => {
+          const firstVisible = visibleSteps[0].stepId;
+          const lastVisible = visibleSteps[visibleSteps.length - 1].stepId;
+          const clampedStage = Math.max(firstVisible, Math.min(derivedStage, lastVisible));
+          const filledFraction = (clampedStage - firstVisible) / (lastVisible - firstVisible);
+          return (
+            <div
+              className="absolute left-4 h-0.5 transition-all duration-300"
+              style={{
+                top: 8,
+                width: `${Math.max(0, filledFraction) * 100}%`,
+                background: "#4ade80",
+                zIndex: 0,
+                maxWidth: "calc(100% - 32px)"
+              }}
+            />
+          );
+        })()}
+
+        <div className="relative flex justify-between items-start w-full z-10">
+          {visibleSteps.map((step) => {
+            const isDone = derivedStage > step.stepId;
+            const isActive = derivedStage === step.stepId;
+
+            return (
+              <div key={step.stepId} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                {isDone ? (
+                  <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#4ade80", color: "#fff", flexShrink: 0 }}>
+                    <CheckCircle2 size={11} strokeWidth={3} />
+                  </div>
+                ) : isActive ? (
+                  <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "#6b8cff", color: "#fff", flexShrink: 0 }}>
+                    <Circle size={10} fill="#fff" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center rounded-full" style={{ width: 16, height: 16, background: "var(--card)", border: "1.5px solid var(--border)", color: "var(--muted-foreground)", flexShrink: 0 }}>
+                    <span style={{ fontSize: 8, fontWeight: 750 }}>{step.stepId}</span>
+                  </div>
+                )}
+                <span
+                  style={{
+                    fontSize: 8.5,
+                    color: isDone || isActive ? "var(--foreground)" : "var(--muted-foreground)",
+                    fontWeight: isDone || isActive ? 700 : 500,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    width: "100%",
+                    textAlign: "center"
+                  }}
+                  title={step.label}
+                >
+                  {step.label}
+                </span>
+                {(() => {
+                  const perspective = getStepPerspective(step.stepId);
+                  if (!perspective) return null;
+                  const color = perspective.type === "action" ? "#ef4444" : "#fbbf24";
+                  return (
+                    <span
+                      style={{
+                        fontSize: 8,
+                        fontWeight: 700,
+                        color: color,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        marginTop: 1
+                      }}
+                    >
+                      <span className="rounded-full animate-pulse" style={{ width: 4, height: 4, background: color }} />
+                      {perspective.label}
+                    </span>
+                  );
+                })()}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
