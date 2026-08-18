@@ -1880,9 +1880,28 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
   };
 
   const activeRecord = useActivity().activeRecord;
+  const hasRecord = !!activeRecord;
   const id = activeRecord?.id || "default";
   const type = activeRecord?.type || "Bill";
   const status = activeRecord?.status || "Draft";
+
+  let emptyStateMessage = "Select an item to view its AI workspace, or enter an identifier or name below to continue.";
+  let emptyStateExamples: string[] = [];
+
+  const normalizedPage = activePage?.toLowerCase() || "";
+  if (normalizedPage === "vendor") {
+    emptyStateMessage = "Select a vendor to view its AI workspace, or enter a Vendor ID or vendor name to continue.";
+    emptyStateExamples = ["VND-001", "TechSupply Co"];
+  } else if (normalizedPage === "organization") {
+    emptyStateMessage = "Select an organization to view its AI workspace, or enter an Organization ID or organization name to continue.";
+    emptyStateExamples = ["ORG-001", "Acme Corp"];
+  } else if (normalizedPage === "purchase order" || normalizedPage === "purchaseorder") {
+    emptyStateMessage = "Select a purchase order to view its AI workspace, or enter a PO number to continue.";
+    emptyStateExamples = ["PO-2026-001"];
+  } else if (normalizedPage === "bill") {
+    emptyStateMessage = "Select a bill to view its AI workspace, or enter a Bill Number or vendor name to continue.";
+    emptyStateExamples = ["INV-2026-001", "TechSupply Co"];
+  }
 
   const [collabData, setCollabData] = useState<RecordCollabData>(() => {
     if (sessionCache[id]) return sessionCache[id];
@@ -3199,9 +3218,40 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
 
       {/* Primary Scroll Container (holds both Widget Region and Conversation) */}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">
-        
-        {/* Widget Region */}
-        <div className="flex flex-col gap-4 flex-shrink-0">
+        {!hasRecord ? (
+          <div className="flex-1 flex flex-col justify-center items-center text-center py-16 px-4 gap-4 animate-fade-in my-auto">
+            <div className="flex items-center justify-center rounded-full bg-secondary text-muted-foreground" style={{ width: 48, height: 48 }}>
+              <Sparkles size={20} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>No item selected</h3>
+              <p style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5, maxWidth: 280 }}>
+                {emptyStateMessage}
+              </p>
+            </div>
+            {emptyStateExamples && emptyStateExamples.length > 0 && (
+              <div className="flex flex-col gap-1 pt-2 border-t border-dashed w-full" style={{ borderColor: "var(--border)" }}>
+                <span style={{ fontSize: 10, fontWeight: 650, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Examples
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
+                  {emptyStateExamples.map(ex => (
+                    <span
+                      key={ex}
+                      className="px-2 py-0.5 rounded border text-[11px] font-mono"
+                      style={{ background: "var(--secondary)", borderColor: "var(--border)", color: "var(--foreground)" }}
+                    >
+                      {ex}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Widget Region */}
+            <div className="flex flex-col gap-4 flex-shrink-0">
           {currentContext ? (
             <>
               {/* Widget 1: Context Summary */}
@@ -3668,6 +3718,8 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
         </div>
 
         <div ref={bottomRef} />
+          </>
+        )}
       </div>
 
       {/* ─── ACTION TRIGGER FLOATING MODALS ─── */}

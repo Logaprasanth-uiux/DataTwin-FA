@@ -117,6 +117,7 @@ export function VendorPage({ highlightId, prefill, navReferrer, onBackToInbox }:
       columns={columns}
       rows={rows}
       filters={filters}
+      tableId="vendor"
       onAdd={() => setCreatingNew(true)}
       titleSlot={<CompanySwitch />}
     />

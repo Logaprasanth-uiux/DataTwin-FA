@@ -98,6 +98,7 @@ export default function App() {
   }
 
   const [activePanel, setActivePanel] = useState<"ai" | "activity" | null>(null);
+  const [dockPosition, setDockPosition] = useState<"left" | "right">("left");
   const [currentUser, setCurrentUser] = useState<string>("Alex Johnson");
   const [activeRecord, setActiveRecord] = useState<ActivityRecord | null>(null);
   const [activeDetailRecord, setActiveDetailRecord] = useState<{ type: string; id: string; status?: string } | null>(null);
@@ -522,11 +523,36 @@ export default function App() {
 
 
           <div className="flex-1 flex flex-row min-h-0 overflow-hidden">
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-              {renderContent()}
-            </div>
-            {active !== "Accounts Receivable" && (
-              <AIWorkspace onNavigate={handleNavigate} hasHeaderOffset={true} activePage={active} />
+            {dockPosition === "left" ? (
+              <>
+                {active !== "Accounts Receivable" && (
+                  <AIWorkspace 
+                    onNavigate={handleNavigate} 
+                    hasHeaderOffset={false} 
+                    activePage={active} 
+                    dockPosition={dockPosition}
+                    onToggleDock={() => setDockPosition(p => p === "left" ? "right" : "left")}
+                  />
+                )}
+                <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+                  {renderContent()}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+                  {renderContent()}
+                </div>
+                {active !== "Accounts Receivable" && (
+                  <AIWorkspace 
+                    onNavigate={handleNavigate} 
+                    hasHeaderOffset={false} 
+                    activePage={active} 
+                    dockPosition={dockPosition}
+                    onToggleDock={() => setDockPosition(p => p === "left" ? "right" : "left")}
+                  />
+                )}
+              </>
             )}
           </div>
         </div>

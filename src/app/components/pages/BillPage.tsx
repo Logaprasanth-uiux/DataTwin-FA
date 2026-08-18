@@ -201,6 +201,7 @@ export function BillPage({ highlightId, prefill, navReferrer, onBackToInbox, onB
         filters={filters}
         highlightId={highlightId}
         idKey="id"
+        tableId="bill"
         onAdd={() => { setScannerPrefill(null); setView("new"); }}
         titleSlot={<CompanySwitch />}
         filterSlot={<DateRangeFilter from={dateRange.from} to={dateRange.to} onChange={(f, t) => setDateRange({ from: f, to: t })} />}

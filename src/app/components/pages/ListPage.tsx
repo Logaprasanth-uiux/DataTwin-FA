@@ -28,11 +28,26 @@ interface ListPageProps {
   idKey?: string;
   titleSlot?: React.ReactNode;   // rendered next to title (e.g. CompanySwitch)
   filterSlot?: React.ReactNode;  // extra filter controls (e.g. DateRangeFilter)
+  isBillTable?: boolean;
+  tableId?: "bill" | "organization" | "vendor" | "po";
 }
 
 const PAGE_SIZE = 10;
 
-export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highlightId, idKey = "id", titleSlot, filterSlot }: ListPageProps) {
+export function ListPage({ 
+  title, 
+  addLabel, 
+  columns, 
+  rows, 
+  filters, 
+  onAdd, 
+  highlightId, 
+  idKey = "id", 
+  titleSlot, 
+  filterSlot,
+  isBillTable = false,
+  tableId
+}: ListPageProps) {
   const { openActivity, setHeaderAction } = useActivity();
 
   const onAddRef = useRef(onAdd);
@@ -118,6 +133,58 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [shown, setShown] = useState(PAGE_SIZE);
   const [openFilter, setOpenFilter] = useState<string | null>(null);
+
+  const isActualBillTable = tableId === "bill" || isBillTable;
+  const isOrgTable = tableId === "organization";
+  const isVendorTable = tableId === "vendor";
+  const isPOTable = tableId === "po";
+  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable;
+
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(1000);
+
+  useEffect(() => {
+    if (!tableContainerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width } = entries[0].contentRect;
+      setContainerWidth(width);
+    });
+    observer.observe(tableContainerRef.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // Filter columns based on available width and business priority rules
+  let columnsToRender = renderedColumns;
+  if (isResponsiveTable) {
+    columnsToRender = renderedColumns.filter((col) => {
+      if (isActualBillTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "vendorId" && containerWidth < 800) return false;
+        if (col.key === "interimId" && containerWidth < 700) return false;
+      }
+      if (isOrgTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "contact" && containerWidth < 800) return false;
+        if (col.key === "created" && containerWidth < 750) return false;
+        if (col.key === "country" && containerWidth < 700) return false;
+      }
+      if (isVendorTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "createdAt" && containerWidth < 800) return false;
+        if (col.key === "state" && containerWidth < 700) return false;
+        if (col.key === "memberType" && containerWidth < 600) return false;
+      }
+      if (isPOTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "vendorId" && containerWidth < 800) return false;
+        if (col.key === "date" && containerWidth < 700) return false;
+      }
+      return true;
+    });
+  }
 
   const userClickedLoadMore = useRef(false);
   const previousShown = useRef(0);
@@ -254,36 +321,42 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
 
         {/* Table */}
         <div
+          ref={tableContainerRef}
           className="rounded-lg overflow-x-auto"
           style={{ background: "var(--card)", border: "1px solid var(--border)" }}
         >
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {renderedColumns.map((col) => (
-                  <th
-                    key={col.colId ?? col.key}
-                    style={{
-                      padding: "10px 20px",
-                      textAlign: "left",
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: "var(--muted-foreground)",
-                      letterSpacing: "0.06em",
-                      fontFamily: "var(--font-mono)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {col.label.toUpperCase()}
-                  </th>
-                ))}
+                {columnsToRender.map((col) => {
+                  const paddingStyleTh = isResponsiveTable
+                    ? (containerWidth < 650 ? "10px 6px" : containerWidth < 700 ? "10px 8px" : containerWidth < 800 ? "10px 12px" : containerWidth < 900 ? "10px 16px" : "10px 20px")
+                    : "10px 20px";
+                  return (
+                    <th
+                      key={col.colId ?? col.key}
+                      style={{
+                        padding: paddingStyleTh,
+                        textAlign: "left",
+                        fontSize: isResponsiveTable && containerWidth < 700 ? 11 : 11,
+                        fontWeight: 500,
+                        color: "var(--muted-foreground)",
+                        letterSpacing: "0.06em",
+                        fontFamily: "var(--font-mono)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {col.label.toUpperCase()}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={renderedColumns.length}
+                    colSpan={columnsToRender.length}
                     style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: "var(--muted-foreground)" }}
                   >
                     No records found.
@@ -302,19 +375,55 @@ export function ListPage({ title, addLabel, columns, rows, filters, onAdd, highl
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = highlightId && row[idKey] === highlightId ? "rgba(107,140,255,0.08)" : "transparent")}
                   >
-                    {renderedColumns.map((col) => (
-                      <td
-                        key={col.colId ?? col.key}
-                        style={{
-                          padding: "12px 20px",
-                          fontSize: 13,
-                          color: "var(--foreground)",
-                          fontFamily: col.mono ? "var(--font-mono)" : undefined,
-                        }}
-                      >
-                        {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "")}
-                      </td>
-                    ))}
+                    {columnsToRender.map((col) => {
+                      const isNameCol = col.label === "Vendor Name" || col.label === "Name" || col.key === "vendor" || col.key === "vendorName" || col.key === "name";
+                      const isCompact = containerWidth < 900;
+                      
+                      const paddingStyleTd = isResponsiveTable
+                        ? (containerWidth < 650 ? "12px 6px" : containerWidth < 700 ? "12px 8px" : containerWidth < 800 ? "12px 12px" : containerWidth < 900 ? "12px 16px" : "12px 20px")
+                        : "12px 20px";
+
+                      let cellStyle: React.CSSProperties = {
+                        padding: paddingStyleTd,
+                        fontSize: isResponsiveTable && containerWidth < 700 ? 12.5 : 13,
+                        color: "var(--foreground)",
+                        fontFamily: col.mono ? "var(--font-mono)" : undefined,
+                      };
+
+                      if (isResponsiveTable) {
+                        if (isNameCol) {
+                          if (isCompact) {
+                            const nameMaxWidth = containerWidth < 600 ? "90px" : containerWidth < 700 ? "120px" : containerWidth < 800 ? "160px" : "200px";
+                            cellStyle = {
+                              ...cellStyle,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: nameMaxWidth,
+                            };
+                          } else {
+                            cellStyle = {
+                              ...cellStyle,
+                              whiteSpace: "normal",
+                            };
+                          }
+                        } else {
+                          cellStyle = {
+                            ...cellStyle,
+                            whiteSpace: "nowrap",
+                          };
+                        }
+                      }
+
+                      return (
+                        <td
+                          key={col.colId ?? col.key}
+                          style={cellStyle}
+                        >
+                          {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "")}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}

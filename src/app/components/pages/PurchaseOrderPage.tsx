@@ -160,6 +160,7 @@ export function PurchaseOrderPage({ highlightId, prefill, navReferrer, onBackToI
         filters={filters}
         highlightId={highlightId}
         idKey="id"
+        tableId="po"
         onAdd={() => setView("new")}
         titleSlot={<CompanySwitch />}
         filterSlot={<DateRangeFilter from={dateRange.from} to={dateRange.to} onChange={(f, t) => setDateRange({ from: f, to: t })} />}

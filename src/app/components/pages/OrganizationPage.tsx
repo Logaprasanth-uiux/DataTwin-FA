@@ -108,6 +108,7 @@ export function OrganizationPage() {
       columns={columns}
       rows={rows as unknown as Record<string, unknown>[]}
       filters={filters}
+      tableId="organization"
       onAdd={() => setView("new")}
     />
   );
