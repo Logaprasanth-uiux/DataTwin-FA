@@ -1901,6 +1901,9 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
   } else if (normalizedPage === "bill") {
     emptyStateMessage = "Select a bill to view its AI workspace, or enter a Bill Number or vendor name to continue.";
     emptyStateExamples = ["INV-2026-001", "TechSupply Co"];
+  } else if (normalizedPage === "item") {
+    emptyStateMessage = "Select an item to view its AI workspace, or enter an Item ID or item name to continue.";
+    emptyStateExamples = ["EX-880001", "Office Stationery Supplies"];
   }
 
   const [collabData, setCollabData] = useState<RecordCollabData>(() => {

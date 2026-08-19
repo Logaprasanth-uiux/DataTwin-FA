@@ -29,7 +29,7 @@ interface ListPageProps {
   titleSlot?: React.ReactNode;   // rendered next to title (e.g. CompanySwitch)
   filterSlot?: React.ReactNode;  // extra filter controls (e.g. DateRangeFilter)
   isBillTable?: boolean;
-  tableId?: "bill" | "organization" | "vendor" | "po";
+  tableId?: "bill" | "organization" | "vendor" | "po" | "item";
 }
 
 const PAGE_SIZE = 10;
@@ -108,7 +108,8 @@ export function ListPage({
       const recordId = String(row[idKey] ?? "");
       const recordType = title.includes("Purchase") ? "Purchase Order" :
                          title.includes("Bill") ? "Bill" :
-                         title.includes("Vendor") ? "Vendor" : "Organization";
+                         title.includes("Vendor") ? "Vendor" :
+                         title.includes("Item") ? "Item" : "Organization";
       
       return (
         <button
@@ -138,7 +139,8 @@ export function ListPage({
   const isOrgTable = tableId === "organization";
   const isVendorTable = tableId === "vendor";
   const isPOTable = tableId === "po";
-  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable;
+  const isItemTable = tableId === "item";
+  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable;
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(1000);
@@ -181,6 +183,13 @@ export function ListPage({
         if (col.colId === "activity_col" && containerWidth < 900) return false;
         if (col.key === "vendorId" && containerWidth < 800) return false;
         if (col.key === "date" && containerWidth < 700) return false;
+      }
+      if (isItemTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "createdAt" && containerWidth < 800) return false;
+        if (col.key === "commodityCode" && containerWidth < 700) return false;
+        if (col.key === "preferredVendor" && containerWidth < 650) return false;
+        if (col.key === "rate" && containerWidth < 600) return false;
       }
       return true;
     });

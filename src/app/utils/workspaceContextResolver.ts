@@ -224,6 +224,104 @@ export function resolveWorkspaceContext(activeRecord: ActivityRecord | null): Wo
     return { type: "Vendor", id, status: status || "Active", metadata, highlights, attentionItems };
   }
 
+  if (type === "Item" || cleanId.startsWith("EX-")) {
+    let itemName = "Office Stationery Supplies";
+    let rate = "₹450.00";
+    let vendor = "OfficeMax Pro";
+    let code = "44122000";
+
+    if (cleanId === "EX-880001") {
+      itemName = "Office Stationery Supplies";
+      rate = "₹450.00";
+      vendor = "OfficeMax Pro";
+      code = "44122000";
+    } else if (cleanId === "EX-880002") {
+      itemName = "Cleaning Chemicals & Supplies";
+      rate = "₹1,200.00";
+      vendor = "Cleanroom Services";
+      code = "34022090";
+    } else if (cleanId === "EX-880003") {
+      itemName = "Safety Gloves & PPE Kit";
+      rate = "₹850.00";
+      vendor = "SafeLogistics";
+      code = "61161000";
+    } else if (cleanId === "EX-880004") {
+      itemName = "Printer Ink & Toner";
+      rate = "₹3,200.00";
+      vendor = "PrintHouse Ltd";
+      code = "32151100";
+    } else if (cleanId === "EX-880005") {
+      itemName = "IT Consumables (Mouse, Keyboard)";
+      rate = "₹1,500.00";
+      vendor = "TechSupply Co";
+      code = "84716060";
+    } else if (cleanId === "EX-880006") {
+      itemName = "Pantry & Refreshments";
+      rate = "₹650.00";
+      vendor = "FoodFirst Corp";
+      code = "21069099";
+    } else if (cleanId === "EX-880007") {
+      itemName = "Housekeeping Supplies";
+      rate = "₹950.00";
+      vendor = "Green Facilities";
+      code = "34029099";
+    } else if (cleanId === "EX-880008") {
+      itemName = "Heavy Duty Courier Boxes";
+      rate = "₹750.00";
+      vendor = "SwiftCargo";
+      code = "48191000";
+    } else if (cleanId === "EX-880009") {
+      itemName = "Ergonomic Office Chairs";
+      rate = "₹8,500.00";
+      vendor = "Office Chairs Corp";
+      code = "94033000";
+    } else if (cleanId === "EX-880010") {
+      itemName = "Network Switches & Cables";
+      rate = "₹12,500.00";
+      vendor = "CloudNet Solutions";
+      code = "85176200";
+    } else if (cleanId === "EX-880011") {
+      itemName = "A4 Printing Paper Reams";
+      rate = "₹280.00";
+      vendor = "PrintHouse Ltd";
+      code = "48025600";
+    } else if (cleanId === "EX-880012") {
+      itemName = "LED Bulb 15W Pack";
+      rate = "₹480.00";
+      vendor = "Green Facilities";
+      code = "85395000";
+    } else if (cleanId === "EX-880013") {
+      itemName = "Wireless Presenter Clicker";
+      rate = "₹1,800.00";
+      vendor = "TechSupply Co";
+      code = "85437099";
+    } else if (cleanId === "EX-880014") {
+      itemName = "Hand Sanitizer Dispensers";
+      rate = "₹1,100.00";
+      vendor = "Cleanroom Services";
+      code = "84248990";
+    } else if (cleanId === "EX-880015") {
+      itemName = "First Aid Box Refills";
+      rate = "₹1,650.00";
+      vendor = "SafeLogistics";
+      code = "30065000";
+    }
+
+    metadata.push({ label: "Item Name", value: itemName });
+    metadata.push({ label: "Preferred Vendor", value: vendor });
+    metadata.push({ label: "Rate", value: rate });
+    metadata.push({ label: "Commodity Code", value: code });
+
+    highlights.push({
+      title: "Item Status",
+      value: status || "Active",
+      icon: "📦",
+      severity: "success",
+    });
+
+    return { type: "Item", id, status: status || "Active", metadata, highlights, attentionItems };
+  }
+
   // Fallback for other entities
   metadata.push({ label: "Entity Status", value: status });
   highlights.push({

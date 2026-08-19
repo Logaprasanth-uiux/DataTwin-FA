@@ -7,6 +7,7 @@ import {
   Store,
   ShoppingCart,
   Receipt,
+  Package,
   Sun,
   Moon,
   ChevronRight,
@@ -30,6 +31,7 @@ const documentsNav = [
   { icon: Store, label: "Vendor" },
   { icon: ShoppingCart, label: "Purchase Order" },
   { icon: Receipt, label: "Bill" },
+  { icon: Package, label: "Item" },
 ];
 
 const operationsNav = [
