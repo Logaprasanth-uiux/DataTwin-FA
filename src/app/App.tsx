@@ -23,6 +23,7 @@ import { VendorDetailPage } from "./components/pages/VendorDetailPage";
 import { BillDetailPage } from "./components/pages/BillDetailPage";
 import { OrganizationEditPanel } from "./components/pages/OrganizationEditPanel";
 import { ItemPage } from "./components/pages/ItemPage";
+import { GoodsAndServicesPage } from "./components/pages/GoodsAndServicesPage";
 
 function currentMonthRange() {
   const now = new Date();
@@ -71,6 +72,7 @@ const pageTitles: Record<string, string> = {
   "Purchase Order": "Purchase Order",
   Bill: "Bill",
   Item: "Item",
+  "Goods and Services": "Goods and Services",
   "Accounts Payable": "Accounts Payable",
   "Accounts Receivable": "Accounts Receivable",
   Cockpit: "Financial Statement Close Process",
@@ -392,6 +394,8 @@ export default function App() {
         );
       case "Item":
         return <ItemPage highlightId={highlightId} />;
+      case "Goods and Services":
+        return <GoodsAndServicesPage highlightId={highlightId} />;
       case "Inbox":
         return <InboxPage items={inboxItems} setItems={setInboxItems} onNavigate={handleNavigate} />;
       case "Accounts Receivable":
@@ -439,7 +443,7 @@ export default function App() {
         );
     }
   }
-  const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill", "Item", "Upload History"].includes(active);
+  const isListPage = ["Organization", "Vendor", "Purchase Order", "Bill", "Item", "Goods and Services", "Upload History"].includes(active);
   const hasOwnHeader = active === "Accounts Receivable";
 
   return (
@@ -496,7 +500,7 @@ export default function App() {
               <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--foreground)", letterSpacing: "-0.01em" }}>
                 {pageTitles[active]}
               </h1>
-              {["Overview", "Inbox", "Accounts Receivable", "Approvals", "Vendor", "Purchase Order", "Bill", "Item", "Cockpit", "Upload History"].includes(active) && (
+              {["Overview", "Inbox", "Accounts Receivable", "Approvals", "Vendor", "Purchase Order", "Bill", "Item", "Goods and Services", "Cockpit", "Upload History"].includes(active) && (
                 <>
                   <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
                   <CompanySwitch />

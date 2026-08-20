@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Activity,
   History,
+  ClipboardCheck,
 } from "lucide-react";
 import { InboxItem, InboxItemType } from "./pages/InboxPage";
 
@@ -32,6 +33,7 @@ const documentsNav = [
   { icon: ShoppingCart, label: "Purchase Order" },
   { icon: Receipt, label: "Bill" },
   { icon: Package, label: "Item" },
+  { icon: ClipboardCheck, label: "Goods and Services" },
 ];
 
 const operationsNav = [

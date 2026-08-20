@@ -322,6 +322,83 @@ export function resolveWorkspaceContext(activeRecord: ActivityRecord | null): Wo
     return { type: "Item", id, status: status || "Active", metadata, highlights, attentionItems };
   }
 
+  if (type === "Goods and Services" || cleanId.startsWith("GSEO")) {
+    let grnNumber = cleanId;
+    let linkedPo = "PO-2026-001";
+    let vendorId = "VND-001";
+    let vendorName = "Global BioPharma Ingredients Inc.";
+    let invoiceRef = "GBI/CM5";
+    let statusVal = status || "Active";
+    let docType = "GoodsReceipt";
+
+    if (cleanId === "GSEO226270000041") {
+      linkedPo = "PO-2026-041";
+      vendorId = "VND-005";
+      vendorName = "Global BioPharma Ingredients Inc.";
+      invoiceRef = "GBI/CM5";
+      docType = "GoodsReceipt";
+    } else if (cleanId === "GSEO226270000040") {
+      linkedPo = "PO-2026-040";
+      vendorId = "VND-002";
+      vendorName = "ABC Chemicals Ltd";
+      invoiceRef = "ABC/CA1";
+      docType = "GoodsReceipt";
+    } else if (cleanId === "GSEO226270000039") {
+      linkedPo = "PO-2026-039";
+      vendorId = "VND-008";
+      vendorName = "HealthLogistics Pvt Ltd";
+      invoiceRef = "Hea/CL9";
+      docType = "ServiceReceipt";
+    } else if (cleanId === "GSEO226270000038") {
+      linkedPo = "PO-2026-038";
+      vendorId = "VND-006";
+      vendorName = "EuroLab Compliance Services GmbH";
+      invoiceRef = "ECS/CL3";
+      docType = "ServiceReceipt";
+    } else if (cleanId === "GSEO226270000005") {
+      linkedPo = "PO-2026-005";
+      vendorId = "VND-012";
+      vendorName = "AB Samsung Ltd";
+      invoiceRef = "25/262";
+      statusVal = "Rejected";
+      docType = "GoodsReceipt";
+    } else if (cleanId === "GSEO226270000004") {
+      linkedPo = "PO-2026-004";
+      vendorId = "VND-012";
+      vendorName = "AB Samsung Ltd";
+      invoiceRef = "25/262";
+      statusVal = "Rejected";
+      docType = "GoodsReceipt";
+    } else if (cleanId === "GSEO226270000003") {
+      linkedPo = "PO-2026-003";
+      vendorId = "VND-012";
+      vendorName = "AB Samsung Ltd";
+      invoiceRef = "AB/16789";
+      docType = "GoodsReceipt";
+    } else if (cleanId === "GSEO226270000001") {
+      linkedPo = "PO-2026-001";
+      vendorId = "VND-012";
+      vendorName = "AB Samsung Ltd";
+      invoiceRef = "AB /131010";
+      docType = "GoodsReceipt";
+    }
+
+    metadata.push({ label: "GRN/SRN Number", value: grnNumber });
+    metadata.push({ label: "Linked PO", value: linkedPo });
+    metadata.push({ label: "Vendor Name", value: vendorName });
+    metadata.push({ label: "Invoice Ref", value: invoiceRef });
+    metadata.push({ label: "Document Type", value: docType });
+
+    highlights.push({
+      title: "Doc Status",
+      value: statusVal,
+      icon: "📋",
+      severity: statusVal === "Active" ? "success" : statusVal === "Pending" ? "warning" : "danger",
+    });
+
+    return { type: "Goods and Services", id, status: statusVal, metadata, highlights, attentionItems };
+  }
+
   // Fallback for other entities
   metadata.push({ label: "Entity Status", value: status });
   highlights.push({

@@ -1904,6 +1904,9 @@ export function AIAssistant({ onNavigate, hasHeaderOffset = false, activePage, i
   } else if (normalizedPage === "item") {
     emptyStateMessage = "Select an item to view its AI workspace, or enter an Item ID or item name to continue.";
     emptyStateExamples = ["EX-880001", "Office Stationery Supplies"];
+  } else if (normalizedPage === "goods and services" || normalizedPage === "goods_services") {
+    emptyStateMessage = "Select a Goods and Services record to view its AI Workspace, or enter a relevant GRN/SRN Number, Linked PO Number, Vendor ID, Vendor Name, or Invoice Ref to continue.";
+    emptyStateExamples = ["GSEO226270000041", "Global BioPharma Ingredients Inc."];
   }
 
   const [collabData, setCollabData] = useState<RecordCollabData>(() => {

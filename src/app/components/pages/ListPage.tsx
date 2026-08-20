@@ -29,7 +29,7 @@ interface ListPageProps {
   titleSlot?: React.ReactNode;   // rendered next to title (e.g. CompanySwitch)
   filterSlot?: React.ReactNode;  // extra filter controls (e.g. DateRangeFilter)
   isBillTable?: boolean;
-  tableId?: "bill" | "organization" | "vendor" | "po" | "item";
+  tableId?: "bill" | "organization" | "vendor" | "po" | "item" | "goods_services";
 }
 
 const PAGE_SIZE = 10;
@@ -109,7 +109,8 @@ export function ListPage({
       const recordType = title.includes("Purchase") ? "Purchase Order" :
                          title.includes("Bill") ? "Bill" :
                          title.includes("Vendor") ? "Vendor" :
-                         title.includes("Item") ? "Item" : "Organization";
+                         title.includes("Item") ? "Item" :
+                         title.includes("Goods") ? "Goods and Services" : "Organization";
       
       return (
         <button
@@ -140,7 +141,8 @@ export function ListPage({
   const isVendorTable = tableId === "vendor";
   const isPOTable = tableId === "po";
   const isItemTable = tableId === "item";
-  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable;
+  const isGoodsServicesTable = tableId === "goods_services";
+  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable || isGoodsServicesTable;
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(1000);
@@ -190,6 +192,13 @@ export function ListPage({
         if (col.key === "commodityCode" && containerWidth < 700) return false;
         if (col.key === "preferredVendor" && containerWidth < 650) return false;
         if (col.key === "rate" && containerWidth < 600) return false;
+      }
+      if (isGoodsServicesTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "invoiceDate" && containerWidth < 800) return false;
+        if (col.key === "invoiceRef" && containerWidth < 700) return false;
+        if (col.key === "vendorId" && containerWidth < 650) return false;
+        if (col.key === "linkedPo" && containerWidth < 600) return false;
       }
       return true;
     });
