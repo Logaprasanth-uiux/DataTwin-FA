@@ -18,6 +18,7 @@ import {
   Activity,
   History,
   ClipboardCheck,
+  PieChart,
 } from "lucide-react";
 import { InboxItem, InboxItemType } from "./pages/InboxPage";
 
@@ -34,6 +35,7 @@ const documentsNav = [
   { icon: Receipt, label: "Bill" },
   { icon: Package, label: "Item" },
   { icon: ClipboardCheck, label: "Goods and Services" },
+  { icon: PieChart, label: "Cost Allocation" },
 ];
 
 const operationsNav = [

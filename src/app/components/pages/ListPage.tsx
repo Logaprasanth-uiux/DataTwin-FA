@@ -29,7 +29,7 @@ interface ListPageProps {
   titleSlot?: React.ReactNode;   // rendered next to title (e.g. CompanySwitch)
   filterSlot?: React.ReactNode;  // extra filter controls (e.g. DateRangeFilter)
   isBillTable?: boolean;
-  tableId?: "bill" | "organization" | "vendor" | "po" | "item" | "goods_services";
+  tableId?: "bill" | "organization" | "vendor" | "po" | "item" | "goods_services" | "cost_allocation";
 }
 
 const PAGE_SIZE = 10;
@@ -110,7 +110,8 @@ export function ListPage({
                          title.includes("Bill") ? "Bill" :
                          title.includes("Vendor") ? "Vendor" :
                          title.includes("Item") ? "Item" :
-                         title.includes("Goods") ? "Goods and Services" : "Organization";
+                         title.includes("Goods") ? "Goods and Services" :
+                         title.includes("Cost") ? "Cost Allocation" : "Organization";
       
       return (
         <button
@@ -142,7 +143,8 @@ export function ListPage({
   const isPOTable = tableId === "po";
   const isItemTable = tableId === "item";
   const isGoodsServicesTable = tableId === "goods_services";
-  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable || isGoodsServicesTable;
+  const isCostAllocTable = tableId === "cost_allocation";
+  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable || isGoodsServicesTable || isCostAllocTable;
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(1000);
@@ -199,6 +201,11 @@ export function ListPage({
         if (col.key === "invoiceRef" && containerWidth < 700) return false;
         if (col.key === "vendorId" && containerWidth < 650) return false;
         if (col.key === "linkedPo" && containerWidth < 600) return false;
+      }
+      if (isCostAllocTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "forPeriodTo" && containerWidth < 750) return false;
+        if (col.key === "allocType" && containerWidth < 650) return false;
       }
       return true;
     });

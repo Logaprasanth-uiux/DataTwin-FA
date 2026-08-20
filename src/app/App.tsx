@@ -24,6 +24,7 @@ import { BillDetailPage } from "./components/pages/BillDetailPage";
 import { OrganizationEditPanel } from "./components/pages/OrganizationEditPanel";
 import { ItemPage } from "./components/pages/ItemPage";
 import { GoodsAndServicesPage } from "./components/pages/GoodsAndServicesPage";
+import { CostAllocationPage } from "./components/pages/CostAllocationPage";
 
 function currentMonthRange() {
   const now = new Date();
@@ -73,6 +74,7 @@ const pageTitles: Record<string, string> = {
   Bill: "Bill",
   Item: "Item",
   "Goods and Services": "Goods and Services",
+  "Cost Allocation": "Cost Allocation",
   "Accounts Payable": "Accounts Payable",
   "Accounts Receivable": "Accounts Receivable",
   Cockpit: "Financial Statement Close Process",
@@ -396,6 +398,8 @@ export default function App() {
         return <ItemPage highlightId={highlightId} />;
       case "Goods and Services":
         return <GoodsAndServicesPage highlightId={highlightId} />;
+      case "Cost Allocation":
+        return <CostAllocationPage />;
       case "Inbox":
         return <InboxPage items={inboxItems} setItems={setInboxItems} onNavigate={handleNavigate} />;
       case "Accounts Receivable":
