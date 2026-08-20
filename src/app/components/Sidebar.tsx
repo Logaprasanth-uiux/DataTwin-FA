@@ -19,6 +19,7 @@ import {
   History,
   ClipboardCheck,
   PieChart,
+  FileSpreadsheet,
 } from "lucide-react";
 import { InboxItem, InboxItemType } from "./pages/InboxPage";
 
@@ -36,6 +37,7 @@ const documentsNav = [
   { icon: Package, label: "Item" },
   { icon: ClipboardCheck, label: "Goods and Services" },
   { icon: PieChart, label: "Cost Allocation" },
+  { icon: FileSpreadsheet, label: "Internal Plan" },
 ];
 
 const operationsNav = [

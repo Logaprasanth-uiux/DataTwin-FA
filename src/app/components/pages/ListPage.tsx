@@ -29,7 +29,7 @@ interface ListPageProps {
   titleSlot?: React.ReactNode;   // rendered next to title (e.g. CompanySwitch)
   filterSlot?: React.ReactNode;  // extra filter controls (e.g. DateRangeFilter)
   isBillTable?: boolean;
-  tableId?: "bill" | "organization" | "vendor" | "po" | "item" | "goods_services" | "cost_allocation";
+  tableId?: "bill" | "organization" | "vendor" | "po" | "item" | "goods_services" | "cost_allocation" | "internal_plan";
 }
 
 const PAGE_SIZE = 10;
@@ -111,7 +111,8 @@ export function ListPage({
                          title.includes("Vendor") ? "Vendor" :
                          title.includes("Item") ? "Item" :
                          title.includes("Goods") ? "Goods and Services" :
-                         title.includes("Cost") ? "Cost Allocation" : "Organization";
+                         title.includes("Cost") ? "Cost Allocation" :
+                         title.includes("Plan") ? "Internal Plan" : "Organization";
       
       return (
         <button
@@ -144,7 +145,8 @@ export function ListPage({
   const isItemTable = tableId === "item";
   const isGoodsServicesTable = tableId === "goods_services";
   const isCostAllocTable = tableId === "cost_allocation";
-  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable || isGoodsServicesTable || isCostAllocTable;
+  const isInternalPlanTable = tableId === "internal_plan";
+  const isResponsiveTable = isActualBillTable || isOrgTable || isVendorTable || isPOTable || isItemTable || isGoodsServicesTable || isCostAllocTable || isInternalPlanTable;
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(1000);
@@ -206,6 +208,11 @@ export function ListPage({
         if (col.colId === "activity_col" && containerWidth < 900) return false;
         if (col.key === "forPeriodTo" && containerWidth < 750) return false;
         if (col.key === "allocType" && containerWidth < 650) return false;
+      }
+      if (isInternalPlanTable) {
+        if (col.colId === "activity_col" && containerWidth < 900) return false;
+        if (col.key === "vendorId" && containerWidth < 750) return false;
+        if (col.key === "date" && containerWidth < 650) return false;
       }
       return true;
     });
